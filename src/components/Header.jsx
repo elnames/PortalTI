@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 export default function Header({ toggleSidebar }) {
     const { user, logout } = useAuth()
     const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification } = useNotifications()
-    const { searchQuery, searchResults, isSearching, handleSearch, clearSearch, navigateToResult } = useSearch()
+    const { searchQuery, searchResults, isSearching, handleSearch, clearSearch, navigateToResult, searchHistory, clearSearchHistory } = useSearch()
     const { darkMode, toggleDarkMode } = useTheme()
     const navigate = useNavigate()
     const [showSearchResults, setShowSearchResults] = useState(false)
@@ -60,6 +60,11 @@ export default function Header({ toggleSidebar }) {
     const handleResultClick = (result) => {
         navigateToResult(result)
         setShowSearchResults(false)
+    }
+
+    const handleHistoryClick = (query) => {
+        handleSearch(query)
+        setSearchQuery(query)
     }
 
     // Cerrar resultados al hacer click fuera
@@ -170,6 +175,44 @@ export default function Header({ toggleSidebar }) {
                                         ) : searchQuery && !isSearching ? (
                                             <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                                 No se encontraron resultados
+                                            </div>
+                                        ) : searchQuery.length === 0 && searchHistory.length > 0 ? (
+                                            <div>
+                                                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                                                            Historial de búsquedas
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                clearSearchHistory();
+                                                            }}
+                                                            className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                                        >
+                                                            Limpiar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {searchHistory.map((query, index) => (
+                                                    <div
+                                                        key={index}
+                                                        onClick={() => handleHistoryClick(query)}
+                                                        className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                                    >
+                                                        <div className="flex items-center space-x-3">
+                                                            <span className="text-lg">🔍</span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                                    {query}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                    Búsqueda anterior
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         ) : null}
                                     </div>
