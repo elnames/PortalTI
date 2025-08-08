@@ -34,11 +34,6 @@ export const SearchProvider = ({ children }) => {
             return;
         }
 
-        // Guardar en historial si la búsqueda es válida
-        if (query.trim().length > 2) {
-            addToSearchHistory(query.trim());
-        }
-
         // Debounce de 300ms
         searchTimeoutRef.current = setTimeout(async () => {
             setIsSearching(true);
@@ -114,9 +109,23 @@ export const SearchProvider = ({ children }) => {
     // Cargar historial al inicializar
     useEffect(() => {
         loadSearchHistory();
+        
+        // Debug: agregar datos de ejemplo si no hay historial
+        const saved = localStorage.getItem('searchHistory');
+        if (!saved || JSON.parse(saved).length === 0) {
+            const exampleHistory = ['EQUIPO-278', 'Exequiel Valenzuela', 'Ticket 123'];
+            setSearchHistory(exampleHistory);
+            localStorage.setItem('searchHistory', JSON.stringify(exampleHistory));
+            console.log('Historial de ejemplo agregado:', exampleHistory);
+        }
     }, []);
 
     const navigateToResult = useCallback((result) => {
+        // Guardar el título real del elemento en el historial
+        if (result.titulo) {
+            addToSearchHistory(result.titulo);
+        }
+
         switch (result.tipo) {
             case 'activo':
                 // Para activos, usar codigo en lugar de id
@@ -132,7 +141,7 @@ export const SearchProvider = ({ children }) => {
                 console.warn('Tipo de resultado no reconocido:', result.tipo);
         }
         clearSearch();
-    }, [navigate, clearSearch]);
+    }, [navigate, clearSearch, addToSearchHistory]);
 
     const value = {
         searchQuery,
