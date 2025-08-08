@@ -42,6 +42,7 @@ namespace PortalTi.Api.Controllers
                     .Select(a => new
                     {
                         id = a.Id,
+                        codigo = a.Codigo,
                         tipo = "activo",
                         titulo = a.Codigo,
                         subtitulo = $"{a.NombreEquipo} - {a.Categoria}",

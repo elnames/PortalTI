@@ -1,25 +1,18 @@
 // src/pages/Ajustes.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     ArrowLeft,
     Bell,
-    Moon,
-    Sun,
-    Shield,
     Download,
     RotateCcw,
     Check,
-    Settings,
     Table,
     Search,
-    Eye,
     Lock,
     Palette,
     Database,
     Trash2,
-    Save,
-    Clock,
-    AlertTriangle
+    Save
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
@@ -93,7 +86,7 @@ export default function Ajustes() {
         }
     };
 
-        const handleResetSettings = () => {
+    const handleResetSettings = () => {
         if (window.confirm('¿Estás seguro de que quieres restablecer toda la configuración? Esta acción no se puede deshacer.')) {
             resetSettings();
             setDarkMode(false); // Resetear también el modo oscuro

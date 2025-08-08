@@ -1,5 +1,5 @@
 // src/contexts/SearchContext.jsx
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const SearchContext = createContext();
@@ -119,7 +119,8 @@ export const SearchProvider = ({ children }) => {
     const navigateToResult = useCallback((result) => {
         switch (result.tipo) {
             case 'activo':
-                navigate(`/activos/${result.id}`);
+                // Para activos, usar codigo en lugar de id
+                navigate(`/activos/${result.codigo || result.id}`);
                 break;
             case 'usuario':
                 navigate(`/usuarios/${result.id}`);
