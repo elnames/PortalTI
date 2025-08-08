@@ -17,6 +17,11 @@ export default function Header({ toggleSidebar }) {
     const [showSearchResults, setShowSearchResults] = useState(false)
     const searchRef = useRef(null)
 
+    // Debug: verificar historial
+    useEffect(() => {
+        console.log('Historial de búsquedas:', searchHistory)
+    }, [searchHistory])
+
     const handleLogout = () => {
         logout()
         navigate('/login')
@@ -43,13 +48,11 @@ export default function Header({ toggleSidebar }) {
     const handleSearchChange = (e) => {
         const query = e.target.value
         handleSearch(query)
-        setShowSearchResults(query.length > 0)
+        setShowSearchResults(true)
     }
 
     const handleSearchFocus = () => {
-        if (searchQuery.length > 0) {
-            setShowSearchResults(true)
-        }
+        setShowSearchResults(true)
     }
 
     const handleSearchBlur = () => {
@@ -63,6 +66,7 @@ export default function Header({ toggleSidebar }) {
     }
 
     const handleHistoryClick = (query) => {
+        console.log('Clic en historial:', query)
         handleSearch(query)
         setSearchQuery(query)
     }
