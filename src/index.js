@@ -8,6 +8,7 @@ import { AuthProvider }  from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SearchProvider } from './contexts/SearchContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 
 import App from './App';
 import './index.css';
@@ -23,7 +24,9 @@ root.render(
           <ToastProvider>
             <NotificationProvider>
               <SearchProvider>
-                <App />
+                <SettingsProvider>
+                  <App />
+                </SettingsProvider>
               </SearchProvider>
             </NotificationProvider>
           </ToastProvider>

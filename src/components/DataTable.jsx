@@ -9,6 +9,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import { ExternalLink } from 'lucide-react';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function DataTable({
   columns,
@@ -19,6 +20,9 @@ export default function DataTable({
   rowSelection: externalRowSelection,
   onRowSelectionChange,
   onRowClick,
+  onRefresh,
+  autoRefresh = false,
+  refreshInterval = 30,
 }) {
 
 
@@ -31,6 +35,7 @@ export default function DataTable({
     pageSize: entriesOptions[0],
   });
   const [internalRowSelection, setInternalRowSelection] = useState({});
+  const { settings } = useSettings();
 
   const effectiveRowSelection = externalRowSelection ?? internalRowSelection;
 
@@ -92,6 +97,17 @@ export default function DataTable({
   useEffect(() => {
     setPagination(prev => ({ ...prev, pageIndex: 0 }));
   }, [data?.length]);
+
+  // Auto-refresh si está habilitado
+  useEffect(() => {
+    if (autoRefresh && onRefresh && settings.tableSettings.autoRefresh) {
+      const interval = setInterval(() => {
+        onRefresh();
+      }, settings.tableSettings.refreshInterval * 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh, onRefresh, settings.tableSettings.autoRefresh, settings.tableSettings.refreshInterval]);
 
   // ajusta la propiedad indeterminate del checkbox
   useEffect(() => {

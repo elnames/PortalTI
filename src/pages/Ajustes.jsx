@@ -23,111 +23,33 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { useSearch } from '../contexts/SearchContext';
 
 export default function Ajustes() {
     const navigate = useNavigate();
     const { darkMode, setDarkMode } = useTheme();
-    const [settings, setSettings] = useState({
-        // Notificaciones
-        notifications: true,
-        emailNotifications: false,
-        soundEnabled: true,
-        notificationTypes: {
-            tickets: true,
-            activos: true,
-            usuarios: true,
-            actas: true
-        },
-
-        // Tabla
-        tableSettings: {
-            itemsPerPage: 20,
-            showActions: true,
-            showStatus: true,
-            compactMode: false,
-            autoRefresh: true,
-            refreshInterval: 30
-        },
-
-        // Búsqueda
-        searchSettings: {
-            saveHistory: true,
-            maxHistoryItems: 10,
-            enableFilters: true,
-            quickSearch: true
-        },
-
-        // Interfaz
-        interfaceSettings: {
-            showTooltips: true,
-            showAnimations: true,
-            compactSidebar: false,
-            showBreadcrumbs: true,
-            showProgressBars: true
-        },
-
-        // Exportación
-        exportSettings: {
-            defaultFormat: 'csv',
-            includeHeaders: true,
-            dateFormat: 'DD/MM/YYYY',
-            timeFormat: '24h'
-        },
-
-        // Seguridad
-        securitySettings: {
-            sessionTimeout: 30,
-            requirePasswordChange: false,
-            showLastLogin: true,
-            enableAuditLog: true
-        }
-    });
+    const { settings, updateSetting, updateNestedSetting, resetSettings } = useSettings();
+    const { clearSearchHistory } = useSearch();
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
-    // Cargar configuración guardada al iniciar
-    useEffect(() => {
-        const savedSettings = localStorage.getItem('userSettings');
-        if (savedSettings) {
-            setSettings(JSON.parse(savedSettings));
-        }
-    }, []);
 
-    // Guardar configuración cuando cambie
-    useEffect(() => {
-        localStorage.setItem('userSettings', JSON.stringify(settings));
-    }, [settings]);
 
     const handleSettingChange = (key, value) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
-
-        // Mostrar mensaje de confirmación
+        updateSetting(key, value);
         setMessage('Configuración guardada');
         setTimeout(() => setMessage(''), 2000);
     };
 
     const handleNestedSettingChange = (section, key, value) => {
-        setSettings(prev => ({
-            ...prev,
-            [section]: {
-                ...prev[section],
-                [key]: value
-            }
-        }));
-
+        updateNestedSetting(section, key, value);
         setMessage('Configuración guardada');
         setTimeout(() => setMessage(''), 2000);
     };
 
     const handleNotificationTypeChange = (type, value) => {
-        setSettings(prev => ({
-            ...prev,
-            notificationTypes: {
-                ...prev.notificationTypes,
-                [type]: value
-            }
-        }));
-
+        updateNestedSetting('notificationTypes', type, value);
         setMessage('Configuración de notificaciones actualizada');
         setTimeout(() => setMessage(''), 2000);
     };
@@ -171,73 +93,17 @@ export default function Ajustes() {
         }
     };
 
-    const handleResetSettings = () => {
+        const handleResetSettings = () => {
         if (window.confirm('¿Estás seguro de que quieres restablecer toda la configuración? Esta acción no se puede deshacer.')) {
-            const defaultSettings = {
-                // Notificaciones
-                notifications: true,
-                emailNotifications: false,
-                soundEnabled: true,
-                notificationTypes: {
-                    tickets: true,
-                    activos: true,
-                    usuarios: true,
-                    actas: true
-                },
-
-                // Tabla
-                tableSettings: {
-                    itemsPerPage: 20,
-                    showActions: true,
-                    showStatus: true,
-                    compactMode: false,
-                    autoRefresh: true,
-                    refreshInterval: 30
-                },
-
-                // Búsqueda
-                searchSettings: {
-                    saveHistory: true,
-                    maxHistoryItems: 10,
-                    enableFilters: true,
-                    quickSearch: true
-                },
-
-                // Interfaz
-                interfaceSettings: {
-                    showTooltips: true,
-                    showAnimations: true,
-                    compactSidebar: false,
-                    showBreadcrumbs: true,
-                    showProgressBars: true
-                },
-
-                // Exportación
-                exportSettings: {
-                    defaultFormat: 'csv',
-                    includeHeaders: true,
-                    dateFormat: 'DD/MM/YYYY',
-                    timeFormat: '24h'
-                },
-
-                // Seguridad
-                securitySettings: {
-                    sessionTimeout: 30,
-                    requirePasswordChange: false,
-                    showLastLogin: true,
-                    enableAuditLog: true
-                }
-            };
-            setSettings(defaultSettings);
+            resetSettings();
             setDarkMode(false); // Resetear también el modo oscuro
-            localStorage.setItem('userSettings', JSON.stringify(defaultSettings));
             setMessage('Configuración restablecida correctamente');
         }
     };
 
     const handleClearSearchHistory = () => {
         if (window.confirm('¿Estás seguro de que quieres borrar el historial de búsquedas?')) {
-            localStorage.removeItem('searchHistory');
+            clearSearchHistory();
             setMessage('Historial de búsquedas borrado');
             setTimeout(() => setMessage(''), 2000);
         }

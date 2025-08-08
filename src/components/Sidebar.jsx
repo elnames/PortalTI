@@ -1,6 +1,7 @@
 // src/components/Sidebar.jsx
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
 import {
   Menu,
   HardDrive,
@@ -14,6 +15,7 @@ import {
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const { user } = useAuth();
+  const { settings } = useSettings();
 
   // Debug: mostrar el estado del sidebar
   console.log('Sidebar isOpen:', isOpen);
@@ -68,7 +70,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       <div
         className={`
           fixed sm:relative z-50 flex flex-col justify-between bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-          ${isOpen ? 'w-64' : 'w-16'} transition-all duration-200
+          ${isOpen ? (settings.interfaceSettings.compactSidebar ? 'w-48' : 'w-64') : 'w-16'} transition-all duration-200
           h-screen
           ${isOpen ? 'flex' : 'hidden sm:flex'}
         `}

@@ -16,6 +16,7 @@ export const SearchProvider = ({ children }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [searchHistory, setSearchHistory] = useState([]);
     const navigate = useNavigate();
     const searchTimeoutRef = useRef(null);
 
@@ -31,6 +32,11 @@ export const SearchProvider = ({ children }) => {
             setSearchResults([]);
             setIsSearching(false);
             return;
+        }
+
+        // Guardar en historial si la búsqueda es válida
+        if (query.trim().length > 2) {
+            addToSearchHistory(query.trim());
         }
 
         // Debounce de 300ms
@@ -69,6 +75,30 @@ export const SearchProvider = ({ children }) => {
         }, 300);
     }, []);
 
+    const addToSearchHistory = (query) => {
+        setSearchHistory(prev => {
+            const newHistory = [query, ...prev.filter(item => item !== query)].slice(0, 10);
+            localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+            return newHistory;
+        });
+    };
+
+    const clearSearchHistory = () => {
+        setSearchHistory([]);
+        localStorage.removeItem('searchHistory');
+    };
+
+    const loadSearchHistory = () => {
+        const saved = localStorage.getItem('searchHistory');
+        if (saved) {
+            try {
+                setSearchHistory(JSON.parse(saved));
+            } catch (error) {
+                console.error('Error al cargar historial de búsqueda:', error);
+            }
+        }
+    };
+
     const clearSearch = useCallback(() => {
         setSearchQuery('');
         setSearchResults([]);
@@ -79,6 +109,11 @@ export const SearchProvider = ({ children }) => {
             clearTimeout(searchTimeoutRef.current);
             searchTimeoutRef.current = null;
         }
+    }, []);
+
+    // Cargar historial al inicializar
+    useEffect(() => {
+        loadSearchHistory();
     }, []);
 
     const navigateToResult = useCallback((result) => {
@@ -102,8 +137,10 @@ export const SearchProvider = ({ children }) => {
         searchQuery,
         searchResults,
         isSearching,
+        searchHistory,
         handleSearch,
         clearSearch,
+        clearSearchHistory,
         navigateToResult
     };
 
