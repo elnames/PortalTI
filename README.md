@@ -199,16 +199,3 @@ portal_ti/
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
-## 📞 Soporte
-
-Para soporte técnico o consultas:
-- Email: soporte@vicsa.com
-- Teléfono: +56 2 2345 6789
-
-## 🏢 Empresa
-
-**VICSA Tecnoboga B2B**
-- Portal IT - Sistema de Gestión de Activos
-- Versión 1.0.0
-- © 2025 Todos los derechos reservados
