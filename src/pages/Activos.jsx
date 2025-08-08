@@ -324,7 +324,8 @@ export default function Activos() {
     }
 
     const selectedRowIndex = Object.keys(rowSelection)[0]
-    const selectedId = selectedRowIndex !== undefined ? data[selectedRowIndex]?.codigo : undefined
+    const selectedId = selectedRowIndex !== undefined ? data[selectedRowIndex]?.id : undefined
+    const selectedCodigo = selectedRowIndex !== undefined ? data[selectedRowIndex]?.codigo : undefined
     const selectedCount = Object.keys(rowSelection).length
 
     const handleDelete = async () => {
@@ -370,7 +371,7 @@ export default function Activos() {
     }
 
     const handleVerHistorial = () => {
-        if (!selectedId || selectedCount !== 1) return
+        if (!selectedCodigo || selectedCount !== 1) return
         const activo = data[selectedRowIndex]
         setSelectedActivo(activo)
         setShowHistorialModal(true)
@@ -428,9 +429,13 @@ export default function Activos() {
                     + Nuevo
                 </button>
                 <button
-                    onClick={() => navigate(`/activos/${selectedId}`)}
-                    disabled={!selectedId || selectedCount !== 1}
-                    className={`text-xs px-2 py-1 rounded transition-colors font-medium ${selectedId && selectedCount === 1
+                    onClick={() => {
+                        if (selectedCodigo && selectedCount === 1) {
+                            navigate(`/activos/${selectedCodigo}`);
+                        }
+                    }}
+                    disabled={!selectedCodigo || selectedCount !== 1}
+                    className={`text-xs px-2 py-1 rounded transition-colors font-medium ${selectedCodigo && selectedCount === 1
                         ? 'bg-blue-500 text-white hover:bg-blue-600'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
@@ -438,9 +443,13 @@ export default function Activos() {
                     Ver
                 </button>
                 <button
-                    onClick={() => navigate(`/activos/${selectedId}/editar`)}
-                    disabled={!selectedId || selectedCount !== 1}
-                    className={`text-xs px-2 py-1 rounded transition-colors font-medium ${selectedId && selectedCount === 1
+                    onClick={() => {
+                        if (selectedCodigo && selectedCount === 1) {
+                            navigate(`/activos/${selectedCodigo}/editar`);
+                        }
+                    }}
+                    disabled={!selectedCodigo || selectedCount !== 1}
+                    className={`text-xs px-2 py-1 rounded transition-colors font-medium ${selectedCodigo && selectedCount === 1
                         ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
@@ -462,8 +471,8 @@ export default function Activos() {
                 </button>
                 <button
                     onClick={handleVerHistorial}
-                    disabled={!selectedId || selectedCount !== 1}
-                    className={`text-xs px-2 py-1 rounded transition-colors font-medium flex items-center space-x-1 ${selectedId && selectedCount === 1
+                    disabled={!selectedCodigo || selectedCount !== 1}
+                    className={`text-xs px-2 py-1 rounded transition-colors font-medium flex items-center space-x-1 ${selectedCodigo && selectedCount === 1
                         ? 'bg-purple-500 text-white hover:bg-purple-600'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
