@@ -1,13 +1,13 @@
 // src/pages/Ajustes.jsx
 import React, { useState, useEffect } from 'react';
-import { 
-    ArrowLeft, 
-    Bell, 
-    Moon, 
-    Sun, 
-    Shield, 
-    Download, 
-    RotateCcw, 
+import {
+    ArrowLeft,
+    Bell,
+    Moon,
+    Sun,
+    Shield,
+    Download,
+    RotateCcw,
     Check,
     Settings,
     Table,
@@ -38,7 +38,7 @@ export default function Ajustes() {
             usuarios: true,
             actas: true
         },
-        
+
         // Tabla
         tableSettings: {
             itemsPerPage: 20,
@@ -48,7 +48,7 @@ export default function Ajustes() {
             autoRefresh: true,
             refreshInterval: 30
         },
-        
+
         // Búsqueda
         searchSettings: {
             saveHistory: true,
@@ -56,7 +56,7 @@ export default function Ajustes() {
             enableFilters: true,
             quickSearch: true
         },
-        
+
         // Interfaz
         interfaceSettings: {
             showTooltips: true,
@@ -65,7 +65,7 @@ export default function Ajustes() {
             showBreadcrumbs: true,
             showProgressBars: true
         },
-        
+
         // Exportación
         exportSettings: {
             defaultFormat: 'csv',
@@ -73,7 +73,7 @@ export default function Ajustes() {
             dateFormat: 'DD/MM/YYYY',
             timeFormat: '24h'
         },
-        
+
         // Seguridad
         securitySettings: {
             sessionTimeout: 30,
@@ -184,7 +184,7 @@ export default function Ajustes() {
                     usuarios: true,
                     actas: true
                 },
-                
+
                 // Tabla
                 tableSettings: {
                     itemsPerPage: 20,
@@ -194,7 +194,7 @@ export default function Ajustes() {
                     autoRefresh: true,
                     refreshInterval: 30
                 },
-                
+
                 // Búsqueda
                 searchSettings: {
                     saveHistory: true,
@@ -202,7 +202,7 @@ export default function Ajustes() {
                     enableFilters: true,
                     quickSearch: true
                 },
-                
+
                 // Interfaz
                 interfaceSettings: {
                     showTooltips: true,
@@ -211,7 +211,7 @@ export default function Ajustes() {
                     showBreadcrumbs: true,
                     showProgressBars: true
                 },
-                
+
                 // Exportación
                 exportSettings: {
                     defaultFormat: 'csv',
@@ -219,7 +219,7 @@ export default function Ajustes() {
                     dateFormat: 'DD/MM/YYYY',
                     timeFormat: '24h'
                 },
-                
+
                 // Seguridad
                 securitySettings: {
                     sessionTimeout: 30,
@@ -251,7 +251,7 @@ export default function Ajustes() {
             localStorage.clear();
             if (settings) localStorage.setItem('userSettings', settings);
             if (theme) localStorage.setItem('darkMode', theme);
-            
+
             setMessage('Caché limpiada correctamente');
             setTimeout(() => setMessage(''), 2000);
         }
@@ -263,7 +263,7 @@ export default function Ajustes() {
             darkMode,
             exportDate: new Date().toISOString()
         };
-        
+
         const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -273,7 +273,7 @@ export default function Ajustes() {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
         setMessage('Configuración exportada correctamente');
         setTimeout(() => setMessage(''), 2000);
     };
@@ -294,8 +294,8 @@ export default function Ajustes() {
             {/* Mensaje de estado */}
             {message && (
                 <div className={`p-4 rounded-lg flex items-center space-x-2 ${message.includes('Error')
-                        ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200'
+                    ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900 dark:text-red-200'
+                    : 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900 dark:text-green-200'
                     }`}>
                     <Check className="w-4 h-4" />
                     <span>{message}</span>
