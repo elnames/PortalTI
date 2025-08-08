@@ -1,0 +1,120 @@
+// Program.cs
+using PortalTi.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+using PortalTi.Api.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 1) DbContext
+builder.Services.AddDbContext<PortalTiContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// 2) JWT Authentication
+var jwtKey    = builder.Configuration["Jwt:Key"]    ?? throw new InvalidOperationException("Jwt:Key no configurado");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer no configurado");
+var jwtAud    = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience no configurado");
+var keyBytes  = Encoding.UTF8.GetBytes(jwtKey);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidIssuer              = jwtIssuer,
+            ValidAudience            = jwtAud,
+            IssuerSigningKey         = new SymmetricSecurityKey(keyBytes),
+            ClockSkew                = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// 3) Services
+builder.Services.AddScoped<PdfService>();
+
+// 4) Controllers + Swagger
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "PortalTI.Api", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description  = "JWT Bearer. Ejemplo: \"Bearer {token}\"",
+        Name         = "Authorization",
+        In           = ParameterLocation.Header,
+        Type         = SecuritySchemeType.Http,
+        Scheme       = "bearer",
+        BearerFormat = "JWT"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id   = "Bearer"
+                },
+                Scheme = "bearer",
+                Name   = "Authorization",
+                In     = ParameterLocation.Header
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// 5) CORS: política específica para el front en localhost:3000
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontCorsPolicy", policy =>
+        policy
+          .WithOrigins("http://localhost:3000")
+          .AllowAnyMethod()
+          .AllowAnyHeader()
+          .AllowCredentials()
+    );
+});
+
+var app = builder.Build();
+
+// 6) Asegurar que la base de datos existe y las migraciones están aplicadas
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<PortalTiContext>();
+    context.Database.EnsureCreated();
+    
+    // Inicializar datos por defecto
+    await DbInitializer.Initialize(context);
+}
+
+// 7) Middlewares (¡¡¡orden crítico!!!)
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PortalTI.Api v1"));
+}
+
+// 7.1) Enrutamiento
+app.UseRouting();
+
+// 7.2) CORS (ya con rutas definidas)
+app.UseCors("FrontCorsPolicy");
+
+// 7.3) HTTPS, AuthN y AuthZ
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// 7.4) Mapeo de endpoints
+app.MapControllers();
+
+app.Run();

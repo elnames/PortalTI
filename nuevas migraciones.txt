@@ -1,0 +1,14 @@
+dotnet ef migrations add AddEstadoCreacionToComentarioTicket
+dotnet ef migrations add AddEsMensajeChatField
+
+
+dotnet ef migrations add AddActasTable
+
+dotnet ef migrations add AddFechaSubidaToActa
+dotnet ef migrations add AddUbicacionToUsuario
+
+
+dotnet ef migrations add AddEmpresaToActivo
+dotnet ef migrations add AddBajaFieldsToActivo
+
+dotnet ef migrations add AddActivoIdToTicket

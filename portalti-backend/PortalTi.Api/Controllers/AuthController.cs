@@ -1,0 +1,776 @@
+// AuthController.cs
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Cryptography;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using PortalTi.Api.Data;
+using PortalTi.Api.Models;
+using System.Text.Json;
+
+namespace PortalTi.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize] // Protege todos los endpoints excepto los que tengan [AllowAnonymous]
+    public class AuthController : ControllerBase
+    {
+        private readonly PortalTiContext _db;
+        private readonly IConfiguration _config;
+        private readonly ILogger<AuthController> _logger;
+
+        public AuthController(PortalTiContext db, IConfiguration config, ILogger<AuthController> logger)
+        {
+            _db = db;
+            _config = config;
+            _logger = logger;
+        }
+
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(RegisterRequest req)
+        {
+            try
+            {
+                // Validar que el email no esté ya registrado
+                if (await _db.AuthUsers.AnyAsync(u => u.Username == req.Email))
+                    return BadRequest(new { message = "El correo ya está registrado." });
+
+                // Normalizar el RUT para la búsqueda (remover puntos y guiones)
+                var rutNormalizado = req.Rut.Replace(".", "").Replace("-", "");
+                
+                // Buscar en la nómina de usuarios
+                var nominaUsuario = await _db.NominaUsuarios
+                    .FirstOrDefaultAsync(n => 
+                        (n.Rut.Replace(".", "").Replace("-", "") == rutNormalizado) && 
+                        n.Email == req.Email);
+
+                if (nominaUsuario == null)
+                    return BadRequest(new { message = "El RUT y correo no coinciden con la nómina de empleados." });
+
+                // Crear el usuario del sistema
+                using var hmac = new HMACSHA512();
+                var user = new AuthUser
+                {
+                    Username = req.Email, // Usar email como username
+                    Role = "usuario", // Rol por defecto para nuevos registros
+                    PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(req.Password)),
+                    PasswordSalt = hmac.Key,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+
+                _db.AuthUsers.Add(user);
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(user.Id, "register", "Usuario registrado", new { 
+                    email = req.Email, 
+                    rut = req.Rut,
+                    nombre = nominaUsuario.Nombre,
+                    apellido = nominaUsuario.Apellido
+                });
+
+                return Ok(new { 
+                    message = "Usuario registrado exitosamente",
+                    user = new { user.Id, user.Username, user.Role }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en registro de usuario");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginRequest req)
+        {
+            var user = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == req.Username);
+            if (user == null)
+                return Unauthorized("Usuario o contraseña incorrecta.");
+
+            if (!user.IsActive)
+                return Unauthorized("Usuario desactivado.");
+
+            using var hmac = new HMACSHA512(user.PasswordSalt);
+            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(req.Password));
+            if (!hash.SequenceEqual(user.PasswordHash))
+                return Unauthorized("Usuario o contraseña incorrecta.");
+
+            // Actualizar último login
+            user.LastLoginAt = DateTime.Now;
+            await _db.SaveChangesAsync();
+
+            var token = GenerateJwtToken(user);
+
+            // Log de actividad
+            await LogActivity(user.Id, "login", "Inicio de sesión", new { ip = GetClientIpAddress() });
+
+            // Obtener datos del perfil desde NominaUsuarios
+            var perfilUsuario = await _db.NominaUsuarios
+                .FirstOrDefaultAsync(n => n.Email == user.Username);
+
+            return Ok(new { 
+                token, 
+                user = new { 
+                    user.Id, 
+                    user.Username, 
+                    user.Role, 
+                    user.SignaturePath,
+                    nombre = perfilUsuario?.Nombre ?? "",
+                    apellido = perfilUsuario?.Apellido ?? "",
+                    empresa = perfilUsuario?.Empresa ?? "Vicsa",
+                    ubicacion = perfilUsuario?.Ubicacion ?? "",
+                    departamento = perfilUsuario?.Departamento ?? ""
+                } 
+            });
+        }
+
+        // GET: api/auth - Listar todos los usuarios (solo admin)
+        [HttpGet]
+        [Authorize(Roles = "admin")]
+        public async Task<ActionResult<IEnumerable<object>>> GetAllUsers()
+        {
+            try
+            {
+                var users = await _db.AuthUsers
+                    .OrderByDescending(u => u.CreatedAt)
+                    .ToListAsync();
+
+                var result = users.Select(u => new
+                {
+                    u.Id,
+                    u.Username,
+                    u.Role,
+                    u.IsActive,
+                    u.CreatedAt,
+                    u.LastLoginAt,
+                    Preferencias = !string.IsNullOrEmpty(u.PreferenciasJson) 
+                        ? JsonSerializer.Deserialize<object>(u.PreferenciasJson) 
+                        : null
+                });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuarios");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // GET: api/auth/usuarios - Listar usuarios para admin y soporte
+        [HttpGet("usuarios")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<ActionResult<IEnumerable<object>>> GetUsuarios()
+        {
+            try
+            {
+                var users = await _db.AuthUsers
+                    .Where(u => u.IsActive)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.Username,
+                        u.Role,
+                        // Obtener datos de la nómina
+                        empresa = _db.NominaUsuarios
+                            .Where(n => n.Email == u.Username)
+                            .Select(n => n.Empresa)
+                            .FirstOrDefault() ?? "Vicsa",
+                        ubicacion = _db.NominaUsuarios
+                            .Where(n => n.Email == u.Username)
+                            .Select(n => n.Ubicacion)
+                            .FirstOrDefault() ?? "",
+                        departamento = _db.NominaUsuarios
+                            .Where(n => n.Email == u.Username)
+                            .Select(n => n.Departamento)
+                            .FirstOrDefault() ?? "",
+                        nombre = _db.NominaUsuarios
+                            .Where(n => n.Email == u.Username)
+                            .Select(n => n.Nombre)
+                            .FirstOrDefault() ?? "",
+                        apellido = _db.NominaUsuarios
+                            .Where(n => n.Email == u.Username)
+                            .Select(n => n.Apellido)
+                            .FirstOrDefault() ?? ""
+                    })
+                    .OrderBy(u => u.Username)
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuarios");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        // GET: api/auth/{id} - Obtener usuario por ID (solo admin o self)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetUser(int id)
+        {
+            try
+            {
+                // Verificar si es admin o el propio usuario
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+                if (currentUserRole != "admin" && currentUserId != id.ToString())
+                    return Forbid();
+
+                var user = await _db.AuthUsers.FindAsync(id);
+                if (user == null)
+                    return NotFound("Usuario no encontrado.");
+
+                var result = new
+                {
+                    user.Id,
+                    user.Username,
+                    user.Role,
+                    user.IsActive,
+                    user.CreatedAt,
+                    user.LastLoginAt,
+                    user.SignaturePath,
+                    Preferencias = !string.IsNullOrEmpty(user.PreferenciasJson)
+                        ? JsonSerializer.Deserialize<object>(user.PreferenciasJson)
+                        : null
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuario {UserId}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // PUT: api/auth/{id} - Editar usuario (solo admin)
+        [HttpPut("{id}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> UpdateUser(int id, UpdateUserRequest req)
+        {
+            try
+            {
+                var user = await _db.AuthUsers.FindAsync(id);
+                if (user == null)
+                    return NotFound("Usuario no encontrado.");
+
+                // Verificar si el username ya existe (si se está cambiando)
+                if (!string.IsNullOrEmpty(req.Username) && req.Username != user.Username)
+                {
+                    if (await _db.AuthUsers.AnyAsync(u => u.Username == req.Username))
+                        return BadRequest("El nombre de usuario ya existe.");
+                }
+
+                // Actualizar campos
+                if (!string.IsNullOrEmpty(req.Username))
+                    user.Username = req.Username;
+                if (!string.IsNullOrEmpty(req.Role))
+                    user.Role = req.Role;
+                if (req.IsActive.HasValue)
+                    user.IsActive = req.IsActive.Value;
+
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(user.Id, "update_user", "Usuario actualizado", new { 
+                    updatedBy = User.FindFirst(ClaimTypes.Name)?.Value,
+                    changes = new { username = req.Username, role = req.Role, isActive = req.IsActive }
+                });
+
+                return Ok("Usuario actualizado correctamente.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar usuario {UserId}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // PUT: api/auth/{id}/reset-password - Resetear contraseña (solo admin)
+        [HttpPut("{id}/reset-password")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> ResetPassword(int id, ResetPasswordRequest req)
+        {
+            try
+            {
+                var user = await _db.AuthUsers.FindAsync(id);
+                if (user == null)
+                    return NotFound("Usuario no encontrado.");
+
+                using var hmac = new HMACSHA512();
+                user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(req.NewPassword));
+                user.PasswordSalt = hmac.Key;
+
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(user.Id, "reset_password", "Contraseña reseteada", new { 
+                    resetBy = User.FindFirst(ClaimTypes.Name)?.Value 
+                });
+
+                return Ok("Contraseña reseteada correctamente.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al resetear contraseña del usuario {UserId}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // PUT: api/auth/{id}/preferencias - Actualizar preferencias
+        [HttpPut("{id}/preferencias")]
+        public async Task<IActionResult> UpdatePreferences(int id, UpdatePreferencesRequest req)
+        {
+            try
+            {
+                // Verificar si es admin o el propio usuario
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+                if (currentUserRole != "admin" && currentUserId != id.ToString())
+                    return Forbid();
+
+                var user = await _db.AuthUsers.FindAsync(id);
+                if (user == null)
+                    return NotFound("Usuario no encontrado.");
+
+                user.PreferenciasJson = JsonSerializer.Serialize(req.Preferencias);
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(user.Id, "update_preferences", "Preferencias actualizadas", new { 
+                    updatedBy = User.FindFirst(ClaimTypes.Name)?.Value 
+                });
+
+                return Ok("Preferencias actualizadas correctamente.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar preferencias del usuario {UserId}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // DELETE: api/auth/{id} - Eliminar usuario (solo admin)
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            try
+            {
+                var user = await _db.AuthUsers.FindAsync(id);
+                if (user == null)
+                    return NotFound("Usuario no encontrado.");
+
+                _db.AuthUsers.Remove(user);
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(id, "delete_user", "Usuario eliminado", new { 
+                    deletedBy = User.FindFirst(ClaimTypes.Name)?.Value,
+                    deletedUser = user.Username
+                });
+
+                return Ok("Usuario eliminado correctamente.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar usuario {UserId}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // GET: api/auth/activity-log - Obtener log de actividades (solo admin)
+        [HttpGet("activity-log")]
+        [Authorize(Roles = "admin")]
+        public async Task<ActionResult<IEnumerable<object>>> GetActivityLog(
+            [FromQuery] int? userId = null,
+            [FromQuery] string? action = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            try
+            {
+                var query = _db.UserActivityLogs
+                    .Include(log => log.User)
+                    .AsQueryable();
+
+                if (userId.HasValue)
+                    query = query.Where(log => log.UserId == userId.Value);
+                if (!string.IsNullOrEmpty(action))
+                    query = query.Where(log => log.Action == action);
+                if (fromDate.HasValue)
+                    query = query.Where(log => log.Timestamp >= fromDate.Value);
+                if (toDate.HasValue)
+                    query = query.Where(log => log.Timestamp <= toDate.Value);
+
+                var totalCount = await query.CountAsync();
+                var logs = await query
+                    .OrderByDescending(log => log.Timestamp)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var result = logs.Select(log => new
+                {
+                    log.Id,
+                    log.Action,
+                    log.Description,
+                    log.Details,
+                    log.Timestamp,
+                    log.IpAddress,
+                    log.UserAgent,
+                    User = new
+                    {
+                        log.User.Id,
+                        log.User.Username,
+                        log.User.Role
+                    }
+                });
+
+                return Ok(new
+                {
+                    logs = result,
+                    pagination = new
+                    {
+                        page,
+                        pageSize,
+                        totalCount,
+                        totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener log de actividades");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // POST: api/auth/activate-all-users - Endpoint temporal para activar todos los usuarios
+        [HttpPost("activate-all-users")]
+        [AllowAnonymous] // Temporalmente sin autenticación para emergencias
+        public async Task<IActionResult> ActivateAllUsers()
+        {
+            try
+            {
+                var users = await _db.AuthUsers.ToListAsync();
+                var updatedCount = 0;
+
+                foreach (var user in users)
+                {
+                    if (!user.IsActive)
+                    {
+                        user.IsActive = true;
+                        updatedCount++;
+                    }
+                }
+
+                if (updatedCount > 0)
+                {
+                    await _db.SaveChangesAsync();
+                    return Ok($"Se activaron {updatedCount} usuarios.");
+                }
+
+                return Ok("Todos los usuarios ya están activos.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al activar usuarios");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequest req)
+        {
+            // Obtener el ID del usuario desde el token JWT
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int id))
+                return Unauthorized("Usuario no autenticado.");
+
+            var user = await _db.AuthUsers.FindAsync(id);
+            if (user == null)
+                return NotFound("Usuario no encontrado.");
+
+            // Verificar la contraseña actual
+            using var hmac = new HMACSHA512(user.PasswordSalt);
+            var currentHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(req.CurrentPassword));
+            if (!currentHash.SequenceEqual(user.PasswordHash))
+                return BadRequest("La contraseña actual es incorrecta.");
+
+            // Generar nuevo hash para la nueva contraseña
+            using var newHmac = new HMACSHA512();
+            user.PasswordHash = newHmac.ComputeHash(Encoding.UTF8.GetBytes(req.NewPassword));
+            user.PasswordSalt = newHmac.Key;
+
+            await _db.SaveChangesAsync();
+
+            // Log de actividad
+            await LogActivity(user.Id, "change_password", "Contraseña cambiada");
+
+            return Ok("Contraseña cambiada correctamente.");
+        }
+
+        private string GenerateJwtToken(AuthUser user)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role)
+            };
+
+            var jwtKey = _config["Jwt:Key"];
+            if (string.IsNullOrEmpty(jwtKey))
+                throw new InvalidOperationException("JWT Key no está configurada");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var durationMinutesStr = _config["Jwt:DurationMinutes"];
+            if (string.IsNullOrEmpty(durationMinutesStr) || !int.TryParse(durationMinutesStr, out int durationMinutes))
+                durationMinutes = 60; // Default a 60 minutos
+
+            var jwt = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(durationMinutes),
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(jwt);
+        }
+
+        private async Task LogActivity(int userId, string action, string description, object? details = null)
+        {
+            try
+            {
+                var log = new UserActivityLog
+                {
+                    UserId = userId,
+                    Action = action,
+                    Description = description,
+                    Details = details != null ? JsonSerializer.Serialize(details) : null,
+                    Timestamp = DateTime.Now,
+                    IpAddress = GetClientIpAddress(),
+                    UserAgent = Request.Headers["User-Agent"].ToString()
+                };
+
+                _db.UserActivityLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar actividad del usuario {UserId}", userId);
+            }
+        }
+
+        private string GetClientIpAddress()
+        {
+            return Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
+                   Request.Headers["X-Real-IP"].FirstOrDefault() ??
+                   Request.HttpContext.Connection.RemoteIpAddress?.ToString() ??
+                   "Unknown";
+        }
+
+        public class RegisterRequest
+        {
+            public required string Rut { get; set; }
+            public required string Email { get; set; }
+            public required string Password { get; set; }
+        }
+
+        public class LoginRequest
+        {
+            public required string Username { get; set; }
+            public required string Password { get; set; }
+        }
+
+        [HttpPost("upload-signature")]
+        public async Task<IActionResult> UploadSignature(IFormFile signature)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                    return Unauthorized();
+
+                var user = await _db.AuthUsers.FindAsync(userId);
+                if (user == null)
+                    return NotFound("Usuario no encontrado");
+
+                if (signature == null || signature.Length == 0)
+                    return BadRequest("No se proporcionó ningún archivo");
+
+                if (!signature.ContentType.StartsWith("image/"))
+                    return BadRequest("Solo se permiten archivos de imagen");
+
+                // Crear directorio si no existe
+                string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "signatures");
+                Directory.CreateDirectory(uploadsDir);
+
+                // Eliminar firma anterior si existe
+                if (!string.IsNullOrEmpty(user.SignaturePath))
+                {
+                    string oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.SignaturePath.TrimStart('/'));
+                    if (System.IO.File.Exists(oldPath))
+                    {
+                        System.IO.File.Delete(oldPath);
+                    }
+                }
+
+                // Generar nombre único para el archivo
+                string fileName = $"signature_{userId}_{DateTime.Now:yyyyMMddHHmmss}.png";
+                string filePath = Path.Combine(uploadsDir, fileName);
+
+                // Guardar archivo
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await signature.CopyToAsync(stream);
+                }
+
+                // Actualizar usuario con la ruta de la firma
+                user.SignaturePath = $"/signatures/{fileName}";
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(userId.Value, "upload_signature", "Firma digital subida", new { fileName });
+
+                return Ok(new { message = "Firma subida exitosamente", signaturePath = user.SignaturePath });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al subir firma para usuario");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpDelete("remove-signature")]
+        public async Task<IActionResult> RemoveSignature()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                    return Unauthorized();
+
+                var user = await _db.AuthUsers.FindAsync(userId);
+                if (user == null)
+                    return NotFound("Usuario no encontrado");
+
+                // Eliminar archivo si existe
+                if (!string.IsNullOrEmpty(user.SignaturePath))
+                {
+                    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.SignaturePath.TrimStart('/'));
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
+                }
+
+                // Limpiar ruta de la firma
+                user.SignaturePath = null;
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(userId.Value, "remove_signature", "Firma digital eliminada", null);
+
+                return Ok(new { message = "Firma eliminada exitosamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar firma para usuario");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpGet("me")]
+        public async Task<ActionResult<object>> GetCurrentUser()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                    return Unauthorized();
+
+                var user = await _db.AuthUsers.FindAsync(userId.Value);
+                if (user == null)
+                    return NotFound("Usuario no encontrado.");
+
+                // Obtener datos del perfil desde NominaUsuarios
+                var perfilUsuario = await _db.NominaUsuarios
+                    .FirstOrDefaultAsync(n => n.Email == user.Username);
+
+                var result = new
+                {
+                    user.Id,
+                    user.Username,
+                    user.Role,
+                    user.IsActive,
+                    user.CreatedAt,
+                    user.LastLoginAt,
+                    user.SignaturePath,
+                    nombre = perfilUsuario?.Nombre ?? "",
+                    apellido = perfilUsuario?.Apellido ?? "",
+                    empresa = perfilUsuario?.Empresa ?? "Vicsa",
+                    ubicacion = perfilUsuario?.Ubicacion ?? "",
+                    departamento = perfilUsuario?.Departamento ?? "",
+                    Preferencias = !string.IsNullOrEmpty(user.PreferenciasJson)
+                        ? JsonSerializer.Deserialize<object>(user.PreferenciasJson)
+                        : null
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuario actual");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+
+
+        private int? GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdClaim, out int userId) ? userId : null;
+        }
+
+        public class ChangePasswordRequest
+        {
+            public required string CurrentPassword { get; set; }
+            public required string NewPassword { get; set; }
+        }
+
+        public class UpdateUserRequest
+        {
+            public string? Username { get; set; }
+            public string? Role { get; set; }
+            public bool? IsActive { get; set; }
+        }
+
+        public class ResetPasswordRequest
+        {
+            public required string NewPassword { get; set; }
+        }
+
+        public class UpdatePreferencesRequest
+        {
+            public required object Preferencias { get; set; }
+        }
+    }
+}
