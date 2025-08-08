@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 export default function Header({ toggleSidebar }) {
     const { user, logout } = useAuth()
     const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification } = useNotifications()
-    const { searchQuery, searchResults, isSearching, handleSearch, clearSearch, navigateToResult, searchHistory, clearSearchHistory } = useSearch()
+    const { searchQuery, searchResults, isSearching, handleSearch, clearSearch, navigateToResult, searchHistory, clearSearchHistory, setSearchQuery } = useSearch()
     const { darkMode, toggleDarkMode } = useTheme()
     const navigate = useNavigate()
     const [showSearchResults, setShowSearchResults] = useState(false)

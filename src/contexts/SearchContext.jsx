@@ -142,7 +142,8 @@ export const SearchProvider = ({ children }) => {
         handleSearch,
         clearSearch,
         clearSearchHistory,
-        navigateToResult
+        navigateToResult,
+        setSearchQuery
     };
 
     return (
