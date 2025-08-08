@@ -65,10 +65,31 @@ export default function Header({ toggleSidebar }) {
         setShowSearchResults(false)
     }
 
-    const handleHistoryClick = (query) => {
-        console.log('Clic en historial:', query)
-        handleSearch(query)
-        setSearchQuery(query)
+    const handleHistoryClick = (historyItem) => {
+        console.log('Clic en historial:', historyItem)
+        
+        // Si es un objeto con información completa, navegar directamente
+        if (typeof historyItem === 'object' && historyItem.tipo) {
+            switch (historyItem.tipo) {
+                case 'activo':
+                    navigate(`/activos/${historyItem.codigo || historyItem.id}`);
+                    break;
+                case 'usuario':
+                    navigate(`/usuarios/${historyItem.id}`);
+                    break;
+                case 'ticket':
+                    navigate(`/tickets/${historyItem.id}`);
+                    break;
+                default:
+                    console.warn('Tipo de historial no reconocido:', historyItem.tipo);
+            }
+            setShowSearchResults(false);
+        } else {
+            // Si es solo texto, hacer búsqueda
+            const query = typeof historyItem === 'string' ? historyItem : historyItem.titulo;
+            handleSearch(query);
+            setSearchQuery(query);
+        }
     }
 
     // Cerrar resultados al hacer click fuera
@@ -198,25 +219,40 @@ export default function Header({ toggleSidebar }) {
                                                         </button>
                                                     </div>
                                                 </div>
-                                                {searchHistory.map((query, index) => (
-                                                    <div
-                                                        key={index}
-                                                        onClick={() => handleHistoryClick(query)}
-                                                        className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                                                    >
-                                                        <div className="flex items-center space-x-3">
-                                                            <span className="text-lg">🔍</span>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                                    {query}
-                                                                </p>
-                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                                    Búsqueda anterior
-                                                                </p>
+                                                {searchHistory.map((historyItem, index) => {
+                                                    const isObject = typeof historyItem === 'object';
+                                                    const displayText = isObject ? historyItem.titulo : historyItem;
+                                                    const getTypeIcon = (type) => {
+                                                        switch (type) {
+                                                            case 'activo': return '💻';
+                                                            case 'usuario': return '👤';
+                                                            case 'ticket': return '🎫';
+                                                            default: return '🔍';
+                                                        }
+                                                    };
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            onClick={() => handleHistoryClick(historyItem)}
+                                                            className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                                        >
+                                                            <div className="flex items-center space-x-3">
+                                                                <span className="text-lg">
+                                                                    {isObject ? getTypeIcon(historyItem.tipo) : '🔍'}
+                                                                </span>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                                        {displayText}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                        {isObject ? `${historyItem.tipo.charAt(0).toUpperCase() + historyItem.tipo.slice(1)} visitado` : 'Búsqueda anterior'}
+                                                                    </p>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         ) : null}
                                     </div>

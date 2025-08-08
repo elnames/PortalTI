@@ -70,9 +70,31 @@ export const SearchProvider = ({ children }) => {
         }, 300);
     }, []);
 
-    const addToSearchHistory = (query) => {
+    const addToSearchHistory = (query, result = null) => {
         setSearchHistory(prev => {
-            const newHistory = [query, ...prev.filter(item => item !== query)].slice(0, 10);
+            let historyItem;
+            
+            if (result) {
+                // Guardar información completa del resultado para navegación directa
+                historyItem = {
+                    titulo: query,
+                    tipo: result.tipo,
+                    id: result.id,
+                    codigo: result.codigo
+                };
+            } else {
+                // Para búsquedas manuales, solo guardar el texto
+                historyItem = query;
+            }
+            
+            const newHistory = [historyItem, ...prev.filter(item => {
+                if (typeof item === 'string') {
+                    return item !== query;
+                } else {
+                    return item.titulo !== query;
+                }
+            })].slice(0, 10);
+            
             localStorage.setItem('searchHistory', JSON.stringify(newHistory));
             return newHistory;
         });
@@ -121,9 +143,9 @@ export const SearchProvider = ({ children }) => {
     }, []);
 
     const navigateToResult = useCallback((result) => {
-        // Guardar el título real del elemento en el historial
+        // Guardar el título real del elemento en el historial con información completa
         if (result.titulo) {
-            addToSearchHistory(result.titulo);
+            addToSearchHistory(result.titulo, result);
         }
 
         switch (result.tipo) {
