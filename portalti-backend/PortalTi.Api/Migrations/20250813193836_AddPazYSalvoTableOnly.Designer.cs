@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PortalTi.Api.Data;
 
@@ -11,9 +12,11 @@ using PortalTi.Api.Data;
 namespace PortalTi.Api.Migrations
 {
     [DbContext(typeof(PortalTiContext))]
-    partial class PortalTiContextModelSnapshot : ModelSnapshot
+    [Migration("20250813193836_AddPazYSalvoTableOnly")]
+    partial class AddPazYSalvoTableOnly
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,7 +83,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("MetodoFirma");
 
-                    b.ToTable("Actas", (string)null);
+                    b.ToTable("Actas");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Activo", b =>
@@ -166,7 +169,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Activos", (string)null);
+                    b.ToTable("Activos");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ArchivoTicket", b =>
@@ -214,7 +217,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("TicketId", "FechaSubida");
 
-                    b.ToTable("ArchivosTickets", (string)null);
+                    b.ToTable("ArchivosTickets");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.AsignacionActivo", b =>
@@ -256,7 +259,7 @@ namespace PortalTi.Api.Migrations
                         .IsUnique()
                         .HasFilter("\"Estado\" = 'Activa'");
 
-                    b.ToTable("AsignacionesActivos", (string)null);
+                    b.ToTable("AsignacionesActivos");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.AuthUser", b =>
@@ -300,7 +303,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AuthUsers", (string)null);
+                    b.ToTable("AuthUsers");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatArchivo", b =>
@@ -326,7 +329,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("ChatArchivos", (string)null);
+                    b.ToTable("ChatArchivos");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatConversacion", b =>
@@ -375,7 +378,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("ChatConversaciones", (string)null);
+                    b.ToTable("ChatConversaciones");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatMensaje", b =>
@@ -416,7 +419,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ConversacionId", "FechaCreacion");
 
-                    b.ToTable("ChatMensajes", (string)null);
+                    b.ToTable("ChatMensajes");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ComentarioTicket", b =>
@@ -458,7 +461,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("TicketId", "FechaCreacion");
 
-                    b.ToTable("ComentariosTickets", (string)null);
+                    b.ToTable("ComentariosTickets");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Licencia", b =>
@@ -516,7 +519,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ActivoId");
 
-                    b.ToTable("Licencias", (string)null);
+                    b.ToTable("Licencias");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.NominaUsuario", b =>
@@ -553,7 +556,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NominaUsuarios", (string)null);
+                    b.ToTable("NominaUsuarios");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Notificacion", b =>
@@ -607,7 +610,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UserId", "IsRead", "CreatedAt");
 
-                    b.ToTable("Notificaciones", (string)null);
+                    b.ToTable("Notificaciones");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.PazYSalvo", b =>
@@ -661,7 +664,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("PazYSalvos", (string)null);
+                    b.ToTable("PazYSalvos");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ProgramaSeguridad", b =>
@@ -710,7 +713,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ActivoId");
 
-                    b.ToTable("ProgramasSeguridad", (string)null);
+                    b.ToTable("ProgramasSeguridad");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Software", b =>
@@ -761,7 +764,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ActivoId");
 
-                    b.ToTable("Software", (string)null);
+                    b.ToTable("Software");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Ticket", b =>
@@ -852,7 +855,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("Prioridad");
 
-                    b.ToTable("Tickets", (string)null);
+                    b.ToTable("Tickets");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.UserActivityLog", b =>
@@ -894,7 +897,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UserId", "Timestamp");
 
-                    b.ToTable("UserActivityLogs", (string)null);
+                    b.ToTable("UserActivityLogs");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Acta", b =>
