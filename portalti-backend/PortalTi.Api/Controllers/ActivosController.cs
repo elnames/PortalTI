@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Services;
 using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
@@ -221,6 +222,40 @@ namespace PortalTi.Api.Controllers
 
                 _db.Activos.Add(activo);
                 await _db.SaveChangesAsync();
+
+                // Notificar nuevo activo registrado
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar a admins sobre nuevo activo
+                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "asset",
+                        Titulo = "Nuevo activo registrado",
+                        Mensaje = $"Se ha registrado un nuevo activo: {activo.Codigo} - {activo.Categoria}",
+                        RefTipo = "Activo",
+                        RefId = activo.Id,
+                        Ruta = $"/activos/{activo.Id}"
+                    });
+                    
+                    // Notificar también a soporte
+                    await notificationService.CreateForRoleAsync("soporte", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "asset",
+                        Titulo = "Nuevo activo registrado",
+                        Mensaje = $"Se ha registrado un nuevo activo: {activo.Codigo} - {activo.Categoria}",
+                        RefTipo = "Activo",
+                        RefId = activo.Id,
+                        Ruta = $"/activos/{activo.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando nuevo activo: {ex.Message}");
+                }
 
                 // Log de actividad
                 await LogActivity("create_asset", $"Activo creado: {activo.Codigo} - {activo.Categoria}", new { 
@@ -487,6 +522,7 @@ namespace PortalTi.Api.Controllers
                         aa.Activo.Capacidad,
                         aa.Activo.Nombre,
                         aa.Activo.Cantidad,
+                        aa.Activo.RustDeskId,
                         FechaAsignacion = aa.FechaAsignacion
                     })
                     .ToListAsync();
@@ -573,10 +609,41 @@ namespace PortalTi.Api.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
+
+        // PATCH: api/Activos/{id}/rustdesk-id
+        [HttpPatch("{id}/rustdesk-id")]
+        public async Task<IActionResult> UpdateRustDeskId(int id, [FromBody] UpdateRustDeskIdDto dto)
+        {
+            try
+            {
+                var activo = await _db.Activos.FindAsync(id);
+                if (activo == null)
+                {
+                    return NotFound();
+                }
+
+                activo.RustDeskId = dto.RustDeskId;
+                await _db.SaveChangesAsync();
+
+                await LogActivity("UpdateRustDeskId", $"ID de RustDesk del activo {activo.Codigo} actualizado", new { ActivoId = id, RustDeskId = dto.RustDeskId });
+
+                return Ok(new { message = "ID de RustDesk actualizado correctamente", rustDeskId = activo.RustDeskId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar ID de RustDesk");
+                return StatusCode(500, new { message = "Error al actualizar ID de RustDesk", error = ex.Message });
+            }
+        }
     }
 
     public class DarBajaActivoRequest
     {
         public string MotivoBaja { get; set; } = string.Empty;
+    }
+
+    public class UpdateRustDeskIdDto
+    {
+        public string RustDeskId { get; set; } = string.Empty;
     }
 }
