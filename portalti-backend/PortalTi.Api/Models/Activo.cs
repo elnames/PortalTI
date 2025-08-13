@@ -26,8 +26,14 @@ namespace PortalTi.Api.Models
         public string? Empresa { get; set; }
         public DateTime? FechaBaja { get; set; }
         public string? MotivoBaja { get; set; }
+        public string? RustDeskId { get; set; }
         
         // Propiedad de navegación para las asignaciones
         public ICollection<AsignacionActivo> Asignaciones { get; set; } = new List<AsignacionActivo>();
+        
+        // Propiedades de navegación para software y seguridad
+        public ICollection<Software> Software { get; set; } = new List<Software>();
+        public ICollection<ProgramaSeguridad> ProgramasSeguridad { get; set; } = new List<ProgramaSeguridad>();
+        public ICollection<Licencia> Licencias { get; set; } = new List<Licencia>();
     }
 }

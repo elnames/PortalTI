@@ -22,6 +22,11 @@ namespace PortalTi.Api.Data
         public DbSet<Acta> Actas { get; set; }
         public DbSet<ChatConversacion> ChatConversaciones { get; set; }
         public DbSet<ChatMensaje> ChatMensajes { get; set; }
+        public DbSet<ChatArchivo> ChatArchivos { get; set; }
+        public DbSet<Software> Software { get; set; }
+        public DbSet<ProgramaSeguridad> ProgramasSeguridad { get; set; }
+        public DbSet<Licencia> Licencias { get; set; }
+        public DbSet<PazYSalvo> PazYSalvos { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -203,6 +208,40 @@ namespace PortalTi.Api.Data
 
             modelBuilder.Entity<ChatMensaje>()
                 .HasIndex(m => m.EsLeido);
+
+            // Configurar relaciones para Notificacion
+            modelBuilder.Entity<Notificacion>()
+                .HasOne(n => n.Usuario)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configurar índices para Notificacion
+            modelBuilder.Entity<Notificacion>()
+                .HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+
+            modelBuilder.Entity<Notificacion>()
+                .HasIndex(n => new { n.RefTipo, n.RefId });
+
+            modelBuilder.Entity<Notificacion>()
+                .HasIndex(n => n.CreatedAt);
+
+            // Configurar relaciones para PazYSalvo
+            modelBuilder.Entity<PazYSalvo>()
+                .HasOne(p => p.Usuario)
+                .WithMany()
+                .HasForeignKey(p => p.UsuarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configurar índices para PazYSalvo
+            modelBuilder.Entity<PazYSalvo>()
+                .HasIndex(p => p.Estado);
+
+            modelBuilder.Entity<PazYSalvo>()
+                .HasIndex(p => p.FechaSubida);
+
+            modelBuilder.Entity<PazYSalvo>()
+                .HasIndex(p => p.UsuarioId);
         }
     }
 }
