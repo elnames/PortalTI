@@ -10,7 +10,8 @@ import {
   BarChart2,
   Shield,
   FileText,
-  MessageCircle
+  MessageCircle,
+  CheckSquare
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
@@ -41,6 +42,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
       { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
+      { to: '/pazysalvo', icon: CheckSquare, label: 'Paz y Salvo' },
       { to: '/reportes', icon: BarChart2, label: 'Reportes' },
       { to: '/configuracion', icon: Shield, label: 'Configuración Admin' }
     ];
@@ -52,7 +54,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
       { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' },
-      { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' }
+      { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
+      { to: '/pazysalvo', icon: CheckSquare, label: 'Paz y Salvo' }
     ];
   } else {
     // Enlaces para usuarios regulares
@@ -67,14 +70,15 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   return (
     <>
       {overlay}
-      <div
-        className={`
-          fixed sm:relative z-50 flex flex-col justify-between bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-          ${isOpen ? (settings.interfaceSettings.compactSidebar ? 'w-48' : 'w-64') : 'w-16'} transition-all duration-200
-          h-screen
-          ${isOpen ? 'flex' : 'hidden sm:flex'}
-        `}
-      >
+             <div
+         className={`
+           fixed sm:relative z-40 flex flex-col justify-between bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+           ${isOpen ? (settings.interfaceSettings.compactSidebar ? 'w-48' : 'w-64') : 'w-16'} transition-all duration-200
+           h-full max-h-screen
+           ${isOpen ? 'flex' : 'hidden sm:flex'}
+           lg:${isOpen ? 'w-64' : 'w-16'} md:${isOpen ? 'w-48' : 'w-16'} sm:${isOpen ? 'w-48' : 'w-16'}
+         `}
+       >
         {/* Toggle */}
         <button
           onClick={toggleSidebar}
@@ -92,9 +96,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         {/* Logo */}
         <div className="mt-4 flex justify-center">
           <img
-            src="/logo-vicsa.png"
-            alt="VICSA Logo"
-            className={`transition-all duration-200 ${isOpen ? 'h-10' : 'h-8'}`}
+            src="/logo.png"
+            alt="Portal TI Logo"
+            className="h-26 w-auto"
           />
         </div>
 

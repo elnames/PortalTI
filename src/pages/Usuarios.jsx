@@ -260,42 +260,48 @@ export default function Usuarios() {
     }
 
     const actions = (
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
             <button
                 onClick={() => navigate('/usuarios/nuevo')}
-                className="bg-primary text-white text-sm px-3 py-1 rounded hover:bg-primary-dark"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm px-3 py-2 rounded-lg hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg transform-gpu font-medium"
             >
                 + Nuevo
             </button>
             <button
                 onClick={() => navigate(`/usuarios/${selectedId}`)}
                 disabled={!selectedId || selectedCount !== 1}
-                className={`text-sm px-3 py-1 rounded ${selectedId && selectedCount === 1
-                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                className={`text-sm px-3 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-1 ${selectedId && selectedCount === 1
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white hover:scale-105 shadow-md hover:shadow-lg transform-gpu'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     }`}
             >
-                Ver
+                <span>👁️</span>
+                <span className="hidden sm:inline">Ver</span>
+                <span className="sm:hidden">Ver</span>
             </button>
             <button
                 onClick={() => navigate(`/usuarios/${selectedId}/editar`)}
                 disabled={!selectedId || selectedCount !== 1}
-                className={`text-sm px-3 py-1 rounded ${selectedId && selectedCount === 1
-                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                className={`text-sm px-3 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-1 ${selectedId && selectedCount === 1
+                    ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white hover:scale-105 shadow-md hover:shadow-lg transform-gpu'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     }`}
             >
-                Editar
+                <span>✏️</span>
+                <span className="hidden sm:inline">Editar</span>
+                <span className="sm:hidden">Edit</span>
             </button>
             <button
                 onClick={handleDelete}
                 disabled={selectedCount === 0}
-                className={`text-sm px-3 py-1 rounded ${selectedCount > 0
-                    ? 'bg-red-500 text-white hover:bg-red-600'
+                className={`text-sm px-3 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-1 ${selectedCount > 0
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white hover:scale-105 shadow-md hover:shadow-lg transform-gpu'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     }`}
             >
-                {selectedCount === 1 ? 'Borrar' : `Borrar (${selectedCount})`}
+                <span>🗑️</span>
+                <span className="hidden sm:inline">{selectedCount === 1 ? 'Borrar' : `Borrar (${selectedCount})`}</span>
+                <span className="sm:hidden">{selectedCount === 1 ? 'Borrar' : `(${selectedCount})`}</span>
             </button>
         </div>
     )

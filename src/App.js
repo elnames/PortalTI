@@ -1,10 +1,10 @@
 // src/App.js
-import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import RequireRole from './components/RequireRole';
 import MainLayout from './layouts/MainLayout';
+import { useResponsiveSidebar } from './hooks/useResponsiveSidebar';
 
 
 import Login from './pages/Login';
@@ -28,35 +28,13 @@ import Ajustes from './pages/Ajustes';
 import Actas from './pages/Actas';
 
 import GestionActas from './pages/GestionActas';
+import ActaDetail from './pages/ActaDetail';
 import Chat from './pages/Chat';
 import PrevisualizarActa from './pages/PrevisualizarActa';
-
-const SIDEBAR_BREAKPOINT = 768;
+import PazYSalvo from './pages/PazYSalvo';
 
 export default function App() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(
-    window.innerWidth >= SIDEBAR_BREAKPOINT
-  );
-
-  useEffect(() => {
-    const onResize = () => {
-      // En móviles, mantener cerrado por defecto
-      if (window.innerWidth < SIDEBAR_BREAKPOINT) {
-        setIsSidebarOpen(false);
-      } else {
-        // En desktop, mantener abierto por defecto
-        setIsSidebarOpen(true);
-      }
-    };
-
-    // Ejecutar al montar el componente
-    onResize();
-
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  const toggleSidebar = () => setIsSidebarOpen(open => !open);
+  const { isSidebarOpen, toggleSidebar } = useResponsiveSidebar();
 
   return (
     <Routes>
@@ -194,6 +172,24 @@ export default function App() {
             element={
               <RequireRole roles={['admin', 'soporte']}>
                 <GestionActas />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="gestion-actas/:id"
+            element={
+              <RequireRole roles={['admin', 'soporte']}>
+                <ActaDetail />
+              </RequireRole>
+            }
+          />
+
+          {/* Paz y Salvo - Solo admin y soporte */}
+          <Route
+            path="pazysalvo"
+            element={
+              <RequireRole roles={['admin', 'soporte']}>
+                <PazYSalvo />
               </RequireRole>
             }
           />

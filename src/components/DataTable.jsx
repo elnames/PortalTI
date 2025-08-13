@@ -104,7 +104,7 @@ export default function DataTable({
       const interval = setInterval(() => {
         onRefresh();
       }, settings.tableSettings.refreshInterval * 1000);
-      
+
       return () => clearInterval(interval);
     }
   }, [autoRefresh, onRefresh, settings.tableSettings.autoRefresh, settings.tableSettings.refreshInterval]);
@@ -134,14 +134,16 @@ export default function DataTable({
     <div className="p-2 sm:p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/20 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
       {/* Controles superiores + tabla y búsqueda en el mismo scroll */}
       <div className="overflow-x-auto">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 text-sm gap-2 min-w-max">
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+        {/* Controles superiores reorganizados */}
+        <div className="flex flex-col space-y-3 mb-4 text-sm">
+          {/* Primera fila: Dropdown "mostrar x registros" y barra de búsqueda */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <div className="flex items-center space-x-2">
-              <span className="whitespace-nowrap">Mostrar</span>
+              <span className="whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-300">📊 Mostrar:</span>
               <select
                 value={pagination.pageSize}
                 onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="border border-gray-300 dark:border-gray-600 pl-2 pr-8 py-1 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                className="border border-gray-300 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 shadow-sm focus:shadow-md transition-all duration-200 text-sm font-medium hover:shadow-lg transform-gpu"
               >
                 {entriesOptions.map((n) => (
                   <option key={n} value={n}>
@@ -149,25 +151,37 @@ export default function DataTable({
                   </option>
                 ))}
               </select>
-              <span className="whitespace-nowrap">registros</span>
+              <span className="whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-300">registros</span>
             </div>
-            {actions && (
-              <div className="flex flex-wrap gap-1 sm:gap-2">
-                {actions}
+            <div className="w-full lg:w-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                <label className="whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-300">🔍 Buscar:</label>
+                <div className="relative">
+                  <input
+                    value={globalFilter ?? ""}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    placeholder="Buscar en todos los campos..."
+                    className="border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg w-full sm:w-64 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 shadow-sm focus:shadow-md transition-all duration-200"
+                  />
+                  {globalFilter && (
+                    <button
+                      onClick={() => setGlobalFilter('')}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-          <div className="w-full lg:w-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-              <label className="whitespace-nowrap">Buscar:</label>
-              <input
-                value={globalFilter ?? ""}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                placeholder="Buscar..."
-                className="border border-gray-300 dark:border-gray-600 px-2 py-1 rounded w-full sm:w-auto bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-              />
             </div>
           </div>
+
+          {/* Segunda fila: Botones de acción */}
+          {actions && (
+            <div className="flex flex-wrap gap-2 justify-start">
+              {actions}
+            </div>
+          )}
         </div>
 
         {/* Tabla con scroll horizontal */}
@@ -239,22 +253,22 @@ export default function DataTable({
           )}{' '}
           de {table.getFilteredRowModel().rows.length} resultados
         </div>
-        <div className="flex items-center justify-center sm:justify-end space-x-1 sm:space-x-2">
+        <div className="flex items-center justify-center sm:justify-end space-x-2">
           <button
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
-            className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-xs sm:text-sm"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm font-medium hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md transform-gpu"
           >
-            {'<<'}
+            ⏮️
           </button>
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-xs sm:text-sm"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm font-medium hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md transform-gpu"
           >
-            {'<'}
+            ◀️
           </button>
-          <span className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm px-2">
+          <span className="text-gray-700 dark:text-gray-300 text-sm px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
             Página{' '}
             <strong>
               {table.getState().pagination.pageIndex + 1} de{' '}
@@ -264,16 +278,16 @@ export default function DataTable({
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-xs sm:text-sm"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm font-medium hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md transform-gpu"
           >
-            {'>'}
+            ▶️
           </button>
           <button
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
-            className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-xs sm:text-sm"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm font-medium hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md transform-gpu"
           >
-            {'>>'}
+            ⏭️
           </button>
         </div>
       </div>
