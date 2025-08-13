@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
 import TicketTimeline from '../components/TicketTimeline';
 import ChatInternoModal from '../components/ChatInternoModal';
@@ -11,7 +11,7 @@ export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { notifyTicketUpdated, notifySuccess, notifyError } = useNotifications();
+  const { notifyTicketUpdated, notifyTicketAssigned, alertSuccess, alertError } = useNotificationContext();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [usuariosSoporte, setUsuariosSoporte] = useState([]);
@@ -45,12 +45,12 @@ export default function TicketDetail() {
     } catch (error) {
       const errorMsg = 'No se pudo cargar el ticket.';
       setAlerta({ tipo: 'error', mensaje: errorMsg });
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setTicket(null);
     } finally {
       setLoading(false);
     }
-  }, [id, notifyError]);
+  }, [id, alertError]);
 
   const cargarUsuariosSoporte = useCallback(async () => {
     try {
@@ -59,9 +59,9 @@ export default function TicketDetail() {
     } catch (error) {
       const errorMsg = 'No se pudo cargar la lista de soporte.';
       setAlerta({ tipo: 'error', mensaje: errorMsg });
-      notifyError(errorMsg);
+      alertError(errorMsg);
     }
-  }, [notifyError]);
+  }, [alertError]);
 
   const cargarActivosUsuario = useCallback(async () => {
     try {
@@ -88,12 +88,12 @@ export default function TicketDetail() {
       await cargarActivosUsuario();
       const successMsg = `Activo marcado como "${nuevoEstado}"`;
       setAlerta({ tipo: 'success', mensaje: successMsg });
-      notifySuccess(successMsg);
+      alertSuccess(successMsg);
       setActivoSeleccionado(''); // Limpiar selección después de actualizar
     } catch (error) {
       const errorMsg = 'Error al actualizar el estado del activo';
       setAlerta({ tipo: 'error', mensaje: errorMsg });
-      notifyError(errorMsg);
+      alertError(errorMsg);
     }
   };
 
@@ -116,12 +116,22 @@ export default function TicketDetail() {
       await api.put(`/tickets/${id}/asignar`, { soporteId });
       const successMsg = 'Ticket asignado correctamente.';
       setAlerta({ tipo: 'success', mensaje: successMsg });
-      notifySuccess(successMsg);
+      alertSuccess(successMsg);
+
+      // Notificar a otros roles sobre la asignación del ticket
+      if (soporteId && soporteId !== 0) {
+        // Buscar información del soporte asignado
+        const soporteAsignado = usuariosSoporte.find(s => s.id === soporteId);
+        if (soporteAsignado) {
+          notifyTicketAssigned(ticket, soporteAsignado);
+        }
+      }
+
       cargarTicket();
     } catch (error) {
       const errorMsg = 'Error al asignar ticket.';
       setAlerta({ tipo: 'error', mensaje: errorMsg });
-      notifyError(errorMsg);
+      alertError(errorMsg);
     }
   };
 
@@ -130,13 +140,13 @@ export default function TicketDetail() {
       await api.put(`/tickets/${id}/estado`, { estado: nuevoEstado });
       const successMsg = 'Estado actualizado.';
       setAlerta({ tipo: 'success', mensaje: successMsg });
-      notifySuccess(successMsg);
+      alertSuccess(successMsg);
       notifyTicketUpdated(ticket);
       cargarTicket();
     } catch (error) {
       const errorMsg = 'Error al cambiar estado.';
       setAlerta({ tipo: 'error', mensaje: errorMsg });
-      notifyError(errorMsg);
+      alertError(errorMsg);
     }
   };
 

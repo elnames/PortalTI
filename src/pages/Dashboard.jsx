@@ -192,16 +192,27 @@ export default function Dashboard() {
                     {user?.role === 'admin' && (
                         <button
                             onClick={async () => {
-                                try {
-                                    await api.post('/dashboard/seed-data');
-                                    window.location.reload();
-                                } catch (error) {
-                                    console.error('Error al crear datos de prueba:', error);
+                                if (window.confirm('¿Estás seguro de que quieres limpiar la base de datos y poblar con datos genéricos? Esta acción preservará los usuarios administradores existentes.')) {
+                                    try {
+                                        const response = await api.post('/dashboard/seed-data');
+                                        alert('Base de datos poblada exitosamente:\n' + 
+                                              `- ${response.data.details.usuarios} usuarios creados\n` +
+                                              `- ${response.data.details.activos} activos creados\n` +
+                                              `- ${response.data.details.asignaciones} asignaciones creadas\n` +
+                                              `- ${response.data.details.tickets} tickets de ejemplo\n` +
+                                              `- ${response.data.details.actas} actas de ejemplo\n` +
+                                              `- Usuarios admin preservados: ${response.data.details.admins}`);
+                                        window.location.reload();
+                                    } catch (error) {
+                                        console.error('Error al poblar la base de datos:', error);
+                                        alert('Error al poblar la base de datos: ' + (error.response?.data?.message || error.message));
+                                    }
                                 }
                             }}
-                            className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                            className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                            title="Limpiar BD y poblar con datos genéricos (preserva admins)"
                         >
-                            Crear Datos de Prueba
+                            🔄 Poblar BD Genérica
                         </button>
                     )}
                 </div>

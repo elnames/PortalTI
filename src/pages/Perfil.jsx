@@ -232,7 +232,7 @@ export default function Perfil() {
                             Empresa
                         </label>
                         <p className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded border border-gray-200 dark:border-gray-600">
-                            {user?.empresa || 'VICSA'}
+                            {user?.empresa || 'Empresa A'}
                         </p>
                     </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, HardDrive, MessageSquare, Users } from 'lucide-react';
 import UserAutoComplete from './UserAutoComplete';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
 
 export default function AsignarActivoModal({
@@ -15,7 +15,7 @@ export default function AsignarActivoModal({
     const [observaciones, setObservaciones] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { notifyActivoAssigned, notifySuccess, notifyError } = useNotifications();
+    const { notifyActivoAssigned, alertSuccess, alertError } = useNotificationContext();
 
     // Verificar si es asignación múltiple
     const isMultipleAssignment = Array.isArray(activo);
@@ -72,7 +72,7 @@ export default function AsignarActivoModal({
                     });
                 }
 
-                notifySuccess(`${activosToAssign.length} activo(s) asignado(s) correctamente`);
+                alertSuccess(`${activosToAssign.length} activo(s) asignado(s) correctamente`);
             } else {
                 // Asignación individual
                 if (!activo || !activo.id) {
@@ -87,7 +87,7 @@ export default function AsignarActivoModal({
                 if (selectedUser) {
                     notifyActivoAssigned(activo, selectedUser);
                 }
-                notifySuccess('Activo asignado correctamente');
+                alertSuccess('Activo asignado correctamente');
             }
 
             onAsignacionCreada();
@@ -100,11 +100,11 @@ export default function AsignarActivoModal({
             if (err.response?.status === 400) {
                 const errorMsg = err.response.data || 'Uno o más activos ya están asignados a otro usuario';
                 setError(errorMsg);
-                notifyError(errorMsg);
+                alertError(errorMsg);
             } else {
                 const errorMsg = 'Error al asignar el(los) activo(s). Inténtalo de nuevo.';
                 setError(errorMsg);
-                notifyError(errorMsg);
+                alertError(errorMsg);
             }
         } finally {
             setLoading(false);

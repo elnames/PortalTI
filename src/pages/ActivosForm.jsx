@@ -10,7 +10,7 @@ import { nanoid } from 'nanoid';
 import { HardDrive, Smartphone, Monitor, Keyboard, Usb, Wifi } from 'lucide-react';
 import StepWizard from '../components/StepWizard';
 import LocationSelector from '../components/LocationSelector';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
 
 const categorias = [
@@ -31,7 +31,7 @@ export default function ActivosForm({ edit = false }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
-  const { notifyActivoCreated, notifySuccess, notifyError } = useNotifications();
+  const { notifyActivoCreated, alertSuccess, alertError } = useNotificationContext();
   // const [activos, setActivos] = useState([]); // Removed unused variables
 
   // Obtener categoría preseleccionada de URL
@@ -161,29 +161,29 @@ export default function ActivosForm({ edit = false }) {
       let response;
       if (edit) {
         response = await api.put(`/activos/${codigo}`, payload);
-        notifySuccess(`Activo ${data.codigoAuto} actualizado correctamente`);
+        alertSuccess(`Activo ${data.codigoAuto} actualizado correctamente`);
       } else {
         response = await api.post('/activos', payload);
         notifyActivoCreated(response.data);
-        notifySuccess(`Activo ${data.codigoAuto} creado correctamente`);
+        alertSuccess(`Activo ${data.codigoAuto} creado correctamente`);
       }
       navigate('/activos');
     } catch (e) {
       console.error('Error al guardar activo:', e);
-      notifyError(`Error al ${edit ? 'actualizar' : 'crear'} activo: ${e.message}`);
+      alertError(`Error al ${edit ? 'actualizar' : 'crear'} activo: ${e.message}`);
     }
   };
 
   // resumen final
   const data = watch();
-      const resumen = (() => {
-      const out = [
-        ['Categoría', data.categoria],
-        ['Código', data.codigoAuto],
-        ['Estado', data.estado],
-        ['Ubicación', data.ubicacion],
-        ['Empresa', data.empresa]
-      ];
+  const resumen = (() => {
+    const out = [
+      ['Categoría', data.categoria],
+      ['Código', data.codigoAuto],
+      ['Estado', data.estado],
+      ['Ubicación', data.ubicacion],
+      ['Empresa', data.empresa]
+    ];
     if (data.categoria === 'Equipos') {
       out.push(['Nombre de equipo', data.nombreEquipo]);
       out.push(['Tipo de equipo', data.tipoEquipo]);
@@ -298,11 +298,11 @@ export default function ActivosForm({ edit = false }) {
                 {...register('empresa', { required: 'Obligatorio' })}
                 className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="">-- Selecciona una empresa --</option>
-                <option value="Bunzl">Bunzl</option>
-                <option value="Vicsa">Vicsa</option>
-                <option value="Tecnoboga">Tecnoboga</option>
-                <option value="B2B">B2B</option>
+                <option value="">-- elige --</option>
+                <option value="Empresa A">Empresa A</option>
+                <option value="Empresa B">Empresa B</option>
+                <option value="Empresa C">Empresa C</option>
+                <option value="Empresa D">Empresa D</option>
               </select>
               {errors.empresa && <p className="text-red-500">{errors.empresa.message}</p>}
             </div>

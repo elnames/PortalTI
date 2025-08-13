@@ -108,8 +108,8 @@ export default function Login() {
       <div className="w-full max-w-md p-6 rounded-2xl shadow-2xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md animate-fade-in">
         <div className="flex flex-col items-center mb-6">
           <img src={logo} alt="Logo" className="h-16 mb-2 drop-shadow-lg" />
-          <h1 className="text-3xl font-bold text-blue-700 dark:text-blue-400 tracking-tight mb-1">Portal IT</h1>
-          <span className="text-gray-500 dark:text-gray-300 text-sm">VICSA-TECNOBOGA-B2B</span>
+          <h1 className="text-3xl font-bold text-blue-700 dark:text-blue-400 tracking-tight mb-1">Portal TI</h1>
+          <span className="text-gray-500 dark:text-gray-300 text-sm">Portal TI</span>
         </div>
 
         {!isRegistering ? (
@@ -243,7 +243,7 @@ export default function Login() {
                   value={registerData.email}
                   onChange={e => setRegisterData({ ...registerData, email: e.target.value })}
                   required
-                  placeholder="usuario@vicsa.cl"
+                  placeholder="usuario@empresa.com"
                 />
               </div>
             </div>
@@ -319,7 +319,7 @@ export default function Login() {
         )}
 
         <div className="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">
-          &copy; {new Date().getFullYear()} VICSA-TECNOBOGA-B2B. Todos los derechos reservados.
+          &copy; {new Date().getFullYear()} Portal TI. Todos los derechos reservados.
         </div>
       </div>
     </div>

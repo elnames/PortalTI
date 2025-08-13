@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
 
 export default function AgregarComentario({ ticketId, onComentarioAgregado, esActualizacion = false, esInterno = false }) {
   const { user } = useAuth();
-  const { notifySuccess, notifyError } = useNotifications();
+  const { alertSuccess, alertError } = useNotificationContext();
   const [contenido, setContenido] = useState('');
   const [esInternoState, setEsInternoState] = useState(esInterno);
   const [evidencia, setEvidencia] = useState(null);
@@ -14,7 +14,7 @@ export default function AgregarComentario({ ticketId, onComentarioAgregado, esAc
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!contenido.trim()) {
-      notifyError('El mensaje no puede estar vacío');
+      alertError('El mensaje no puede estar vacío');
       return;
     }
 
@@ -30,29 +30,29 @@ export default function AgregarComentario({ ticketId, onComentarioAgregado, esAc
       if (evidencia) {
         const formDataFile = new FormData();
         formDataFile.append('file', evidencia);
-        
+
         const uploadResponse = await api.post('/tickets/upload-evidence', formDataFile, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
-        
+
         formData.evidencia = uploadResponse.data.url;
       }
 
       const response = await api.post(`/tickets/${ticketId}/comentarios`, formData);
-      
-      notifySuccess(esInternoState ? 'Mensaje interno agregado exitosamente' : 'Actualización agregada exitosamente');
+
+      alertSuccess(esInternoState ? 'Mensaje interno agregado exitosamente' : 'Actualización agregada exitosamente');
       setContenido('');
       setEsInternoState(esInterno);
       setEvidencia(null);
-      
+
       if (onComentarioAgregado) {
         onComentarioAgregado(response.data);
       }
     } catch (error) {
       console.error('Error al agregar mensaje:', error);
-      notifyError('Error al agregar el mensaje');
+      alertError('Error al agregar el mensaje');
     } finally {
       setLoading(false);
     }
@@ -64,12 +64,12 @@ export default function AgregarComentario({ ticketId, onComentarioAgregado, esAc
       // Validar tipo de archivo (solo imágenes)
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
-        notifyError('Solo se permiten archivos de imagen (JPG, PNG, GIF)');
+        alertError('Solo se permiten archivos de imagen (JPG, PNG, GIF)');
         return;
       }
       // Validar tamaño (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        notifyError('El archivo es demasiado grande. Máximo 5MB');
+        alertError('El archivo es demasiado grande. Máximo 5MB');
         return;
       }
       setEvidencia(file);
@@ -99,7 +99,7 @@ export default function AgregarComentario({ ticketId, onComentarioAgregado, esAc
       <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
         {getTitle()}
       </h3>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -3,14 +3,13 @@ import { Search, Bell, User, Settings, LogOut, ChevronDown, X, Loader2, Sun, Moo
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react'
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useNotifications } from '../contexts/NotificationContext'
 import { useSearch } from '../contexts/SearchContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useNavigate } from 'react-router-dom'
+import NotificationBell from './NotificationBell'
 
 export default function Header({ toggleSidebar }) {
     const { user, logout } = useAuth()
-    const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification } = useNotifications()
     const { searchQuery, searchResults, isSearching, handleSearch, clearSearch, navigateToResult, searchHistory, clearSearchHistory, setSearchQuery } = useSearch()
     const { darkMode, toggleDarkMode } = useTheme()
     const navigate = useNavigate()
@@ -277,83 +276,7 @@ export default function Header({ toggleSidebar }) {
                         </button>
 
                         {/* Notificaciones */}
-                        <HeadlessMenu as="div" className="relative">
-                            <HeadlessMenu.Button className="relative p-2 text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded-full">
-                                <Bell className="h-6 w-6" />
-                                {unreadCount > 0 && (
-                                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white dark:ring-gray-800"></span>
-                                )}
-                            </HeadlessMenu.Button>
-
-                            <Transition
-                                as={Fragment}
-                                enter="transition ease-out duration-100"
-                                enterFrom="transform opacity-0 scale-95"
-                                enterTo="transform opacity-100 scale-100"
-                                leave="transition ease-in duration-75"
-                                leaveFrom="transform opacity-100 scale-100"
-                                leaveTo="transform opacity-0 scale-95"
-                            >
-                                <HeadlessMenu.Items className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                                    <div className="py-1">
-                                        <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                                            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Notificaciones</h3>
-                                            {notifications.length > 0 && (
-                                                <button
-                                                    onClick={markAllAsRead}
-                                                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                                                >
-                                                    Marcar todas como leídas
-                                                </button>
-                                            )}
-                                        </div>
-                                        {notifications.length > 0 ? (
-                                            <div className="max-h-64 overflow-y-auto">
-                                                {notifications.map((notification) => (
-                                                    <HeadlessMenu.Item key={notification.id}>
-                                                        {({ active }) => (
-                                                            <div className={`px-4 py-3 ${active ? 'bg-gray-50 dark:bg-gray-700' : ''} ${!notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                                                                <div className="flex items-start justify-between">
-                                                                    <div className="flex-1">
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <span className="text-lg">{notification.icon}</span>
-                                                                            <p className="text-sm text-gray-900 dark:text-white">{notification.message}</p>
-                                                                        </div>
-                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                                            {formatTime(notification.timestamp)}
-                                                                        </p>
-                                                                    </div>
-                                                                    <div className="flex items-center space-x-1">
-                                                                        {!notification.read && (
-                                                                            <button
-                                                                                onClick={() => markAsRead(notification.id)}
-                                                                                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                                                                            >
-                                                                                Marcar
-                                                                            </button>
-                                                                        )}
-                                                                        <button
-                                                                            onClick={() => removeNotification(notification.id)}
-                                                                            className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                                                                        >
-                                                                            Eliminar
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </HeadlessMenu.Item>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                                                No hay notificaciones
-                                            </div>
-                                        )}
-                                    </div>
-                                </HeadlessMenu.Items>
-                            </Transition>
-                        </HeadlessMenu>
+                        <NotificationBell />
 
                         {/* Menú de usuario */}
                         <HeadlessMenu as="div" className="relative">

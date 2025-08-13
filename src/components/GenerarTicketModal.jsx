@@ -44,7 +44,7 @@ export default function GenerarTicketModal({ isOpen, onClose, conversacion, onTi
             if (response.data.usuario) {
                 setFormData(prev => ({
                     ...prev,
-                    empresa: response.data.usuario.empresa || 'VICSA',
+                    empresa: response.data.usuario.empresa || 'Empresa A',
                     departamento: response.data.usuario.departamento || ''
                 }));
             }
@@ -139,7 +139,7 @@ export default function GenerarTicketModal({ isOpen, onClose, conversacion, onTi
                                 <div>
                                     <span className="text-gray-600 dark:text-gray-400">Empresa:</span>
                                     <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                                        {usuario.empresa || 'VICSA'}
+                                        {usuario.empresa || 'Empresa A'}
                                     </span>
                                 </div>
                             </div>

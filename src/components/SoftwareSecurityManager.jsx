@@ -1,0 +1,544 @@
+// src/components/SoftwareSecurityManager.jsx
+import React, { useState, useEffect } from 'react';
+import { Shield, CheckCircle, XCircle, Plus, Edit2, Trash2, Key } from 'lucide-react';
+import { useNotificationContext } from '../contexts/NotificationContext';
+import { softwareSecurityAPI } from '../services/api';
+
+export default function SoftwareSecurityManager({ activoId, activoData }) {
+    const [softwareList, setSoftwareList] = useState([]);
+    const [securityList, setSecurityList] = useState([]);
+    const [licenses, setLicenses] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showAddSoftware, setShowAddSoftware] = useState(false);
+    const [showAddSecurity, setShowAddSecurity] = useState(false);
+    const [showAddLicense, setShowAddLicense] = useState(false);
+    const { alertSuccess, alertError } = useNotificationContext();
+
+    // Estados para formularios
+    const [newSoftware, setNewSoftware] = useState({
+        nombre: '',
+        version: '',
+        estado: 'OK',
+        fechaInstalacion: '',
+        notas: ''
+    });
+
+    const [newSecurity, setNewSecurity] = useState({
+        nombre: '',
+        tipo: 'Antivirus',
+        estado: 'OK',
+        notas: ''
+    });
+
+    const [newLicense, setNewLicense] = useState({
+        software: '',
+        tipo: 'Perpetua',
+        fechaInicio: '',
+        fechaVencimiento: '',
+        numeroLicencia: '',
+        usuarioAsignado: '',
+        notas: ''
+    });
+
+    useEffect(() => {
+        if (activoId) {
+            loadSoftwareAndSecurity();
+        }
+    }, [activoId]);
+
+    const loadSoftwareAndSecurity = async () => {
+        try {
+            setLoading(true);
+            const response = await softwareSecurityAPI.getByActivo(activoId);
+            setSoftwareList(response.data.software || []);
+            setSecurityList(response.data.programasSeguridad || []);
+            setLicenses(response.data.licencias || []);
+        } catch (error) {
+            console.error('Error al cargar software y seguridad:', error);
+            alertError('Error al cargar software y seguridad');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const addSoftware = async () => {
+        try {
+            const response = await softwareSecurityAPI.createSoftware({
+                ...newSoftware,
+                activoId: activoId
+            });
+            setSoftwareList(prev => [...prev, response.data]);
+            setNewSoftware({ nombre: '', version: '', estado: 'OK', fechaInstalacion: '', notas: '' });
+            setShowAddSoftware(false);
+            alertSuccess('Software agregado correctamente');
+        } catch (error) {
+            console.error('Error al agregar software:', error);
+            alertError('Error al agregar software');
+        }
+    };
+
+    const addSecurity = async () => {
+        try {
+            const response = await softwareSecurityAPI.createProgramaSeguridad({
+                ...newSecurity,
+                activoId: activoId
+            });
+            setSecurityList(prev => [...prev, response.data]);
+            setNewSecurity({ nombre: '', tipo: 'Antivirus', estado: 'OK', notas: '' });
+            setShowAddSecurity(false);
+            alertSuccess('Programa de seguridad agregado correctamente');
+        } catch (error) {
+            console.error('Error al agregar programa de seguridad:', error);
+            alertError('Error al agregar programa de seguridad');
+        }
+    };
+
+    const addLicense = async () => {
+        try {
+            const response = await softwareSecurityAPI.createLicencia({
+                ...newLicense,
+                activoId: activoId
+            });
+            setLicenses(prev => [...prev, response.data]);
+            setNewLicense({ software: '', tipo: 'Perpetua', fechaInicio: '', fechaVencimiento: '', numeroLicencia: '', usuarioAsignado: '', notas: '' });
+            setShowAddLicense(false);
+            alertSuccess('Licencia agregada correctamente');
+        } catch (error) {
+            console.error('Error al agregar licencia:', error);
+            alertError('Error al agregar licencia');
+        }
+    };
+
+    const deleteSoftware = async (id) => {
+        if (!window.confirm('¿Estás seguro de que quieres eliminar este software?')) return;
+
+        try {
+            await softwareSecurityAPI.deleteSoftware(id);
+            setSoftwareList(prev => prev.filter(s => s.id !== id));
+            alertSuccess('Software eliminado correctamente');
+        } catch (error) {
+            console.error('Error al eliminar software:', error);
+            alertError('Error al eliminar software');
+        }
+    };
+
+    const deleteSecurity = async (id) => {
+        if (!window.confirm('¿Estás seguro de que quieres eliminar este programa de seguridad?')) return;
+
+        try {
+            await softwareSecurityAPI.deleteProgramaSeguridad(id);
+            setSecurityList(prev => prev.filter(s => s.id !== id));
+            alertSuccess('Programa de seguridad eliminado correctamente');
+        } catch (error) {
+            console.error('Error al eliminar programa de seguridad:', error);
+            alertError('Error al eliminar programa de seguridad');
+        }
+    };
+
+    const deleteLicense = async (id) => {
+        if (!window.confirm('¿Estás seguro de que quieres eliminar esta licencia?')) return;
+
+        try {
+            await softwareSecurityAPI.deleteLicencia(id);
+            setLicenses(prev => prev.filter(l => l.id !== id));
+            alertSuccess('Licencia eliminada correctamente');
+        } catch (error) {
+            console.error('Error al eliminar licencia:', error);
+            alertError('Error al eliminar licencia');
+        }
+    };
+
+    const getStatusIcon = (estado) => {
+        switch (estado?.toUpperCase()) {
+            case 'OK':
+                return <CheckCircle className="h-4 w-4 text-green-500" />;
+            case 'NO':
+            case 'PENDIENTE':
+                return <XCircle className="h-4 w-4 text-red-500" />;
+            default:
+                return <XCircle className="h-4 w-4 text-gray-400" />;
+        }
+    };
+
+    const getStatusColor = (estado) => {
+        switch (estado?.toUpperCase()) {
+            case 'OK':
+                return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+            case 'NO':
+            case 'PENDIENTE':
+                return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+            default:
+                return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Software Instalado */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-blue-600" />
+                        Software Instalado
+                    </h3>
+                    <button
+                        onClick={() => setShowAddSoftware(true)}
+                        className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Agregar</span>
+                    </button>
+                </div>
+                <div className="p-4">
+                    {softwareList.length === 0 ? (
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay software registrado</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {softwareList.map((software) => (
+                                <div key={software.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <div className="flex items-center space-x-3">
+                                        {getStatusIcon(software.estado)}
+                                        <div>
+                                            <p className="font-medium text-gray-900 dark:text-white">{software.nombre}</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                Versión {software.version} • Instalado: {software.fechaInstalacion}
+                                            </p>
+                                            {software.notas && (
+                                                <p className="text-xs text-gray-400 dark:text-gray-500">{software.notas}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(software.estado)}`}>
+                                            {software.estado}
+                                        </span>
+                                        <button
+                                            onClick={() => deleteSoftware(software.id)}
+                                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                            title="Eliminar software"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Programas de Seguridad */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-green-600" />
+                        Programas de Seguridad
+                    </h3>
+                    <button
+                        onClick={() => setShowAddSecurity(true)}
+                        className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Agregar</span>
+                    </button>
+                </div>
+                <div className="p-4">
+                    {securityList.length === 0 ? (
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay programas de seguridad registrados</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {securityList.map((security) => (
+                                <div key={security.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <div className="flex items-center space-x-3">
+                                        {getStatusIcon(security.estado)}
+                                        <div>
+                                            <p className="font-medium text-gray-900 dark:text-white">{security.nombre}</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                {security.tipo}
+                                            </p>
+                                            {security.notas && (
+                                                <p className="text-xs text-gray-400 dark:text-gray-500">{security.notas}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(security.estado)}`}>
+                                            {security.estado}
+                                        </span>
+                                        <button
+                                            onClick={() => deleteSecurity(security.id)}
+                                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                            title="Eliminar programa de seguridad"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Licencias Asignadas */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                        <Key className="h-5 w-5 mr-2 text-purple-600" />
+                        Licencias Asignadas
+                    </h3>
+                    <button
+                        onClick={() => setShowAddLicense(true)}
+                        className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Agregar</span>
+                    </button>
+                </div>
+                <div className="p-4">
+                    {licenses.length === 0 ? (
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay licencias asignadas</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {licenses.map((license) => (
+                                <div key={license.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="font-medium text-gray-900 dark:text-white">{license.software}</p>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                                {license.tipo}
+                                            </span>
+                                            <button
+                                                onClick={() => deleteLicense(license.id)}
+                                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                title="Eliminar licencia"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                        <p>Licencia: {license.numeroLicencia}</p>
+                                        <p>Usuario: {license.usuarioAsignado}</p>
+                                        <p>Inicio: {license.fechaInicio}</p>
+                                        <p>Vence: {license.fechaVencimiento || 'Perpetua'}</p>
+                                    </div>
+                                    {license.notas && (
+                                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{license.notas}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Modal para agregar software */}
+            {showAddSoftware && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agregar Software</h3>
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Nombre del software"
+                                value={newSoftware.nombre}
+                                onChange={(e) => setNewSoftware(prev => ({ ...prev, nombre: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Versión"
+                                value={newSoftware.version}
+                                onChange={(e) => setNewSoftware(prev => ({ ...prev, version: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <select
+                                value={newSoftware.estado}
+                                onChange={(e) => setNewSoftware(prev => ({ ...prev, estado: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="OK">OK</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="NO">NO</option>
+                            </select>
+                            <input
+                                type="date"
+                                value={newSoftware.fechaInstalacion}
+                                onChange={(e) => setNewSoftware(prev => ({ ...prev, fechaInstalacion: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <textarea
+                                placeholder="Notas (opcional)"
+                                value={newSoftware.notas}
+                                onChange={(e) => setNewSoftware(prev => ({ ...prev, notas: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                rows="3"
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-3 mt-6">
+                            <button
+                                onClick={() => setShowAddSoftware(false)}
+                                className="px-4 py-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={addSoftware}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal para agregar seguridad */}
+            {showAddSecurity && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agregar Programa de Seguridad</h3>
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Nombre del programa"
+                                value={newSecurity.nombre}
+                                onChange={(e) => setNewSecurity(prev => ({ ...prev, nombre: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <select
+                                value={newSecurity.tipo}
+                                onChange={(e) => setNewSecurity(prev => ({ ...prev, tipo: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="Antivirus">Antivirus</option>
+                                <option value="Firewall">Firewall</option>
+                                <option value="VPN">VPN</option>
+                                <option value="Antimalware">Antimalware</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                            <select
+                                value={newSecurity.estado}
+                                onChange={(e) => setNewSecurity(prev => ({ ...prev, estado: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="OK">OK</option>
+                                <option value="NO">NO</option>
+                                <option value="Pendiente">Pendiente</option>
+                            </select>
+
+                            <textarea
+                                placeholder="Notas (opcional)"
+                                value={newSecurity.notas}
+                                onChange={(e) => setNewSecurity(prev => ({ ...prev, notas: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                rows="3"
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-3 mt-6">
+                            <button
+                                onClick={() => setShowAddSecurity(false)}
+                                className="px-4 py-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={addSecurity}
+                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                                Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal para agregar licencia */}
+            {showAddLicense && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agregar Licencia</h3>
+                        <div className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="Software"
+                                value={newLicense.software}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, software: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <select
+                                value={newLicense.tipo}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, tipo: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="Perpetua">Perpetua</option>
+                                <option value="Anual">Anual</option>
+                                <option value="Mensual">Mensual</option>
+                                <option value="Trial">Trial</option>
+                            </select>
+                            <input
+                                type="text"
+                                placeholder="Número de licencia"
+                                value={newLicense.numeroLicencia}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, numeroLicencia: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Usuario asignado"
+                                value={newLicense.usuarioAsignado}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, usuarioAsignado: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                                type="date"
+                                placeholder="Fecha de inicio"
+                                value={newLicense.fechaInicio}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, fechaInicio: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <input
+                                type="date"
+                                placeholder="Fecha de vencimiento"
+                                value={newLicense.fechaVencimiento}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, fechaVencimiento: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <textarea
+                                placeholder="Notas (opcional)"
+                                value={newLicense.notas}
+                                onChange={(e) => setNewLicense(prev => ({ ...prev, notas: e.target.value }))}
+                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                rows="3"
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-3 mt-6">
+                            <button
+                                onClick={() => setShowAddLicense(false)}
+                                className="px-4 py-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={addLicense}
+                                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                            >
+                                Agregar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

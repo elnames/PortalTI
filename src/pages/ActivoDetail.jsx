@@ -17,9 +17,13 @@ import {
     Phone,
     FileText,
     History,
-    Activity
+    Activity,
+    Shield,
+    Key
 } from 'lucide-react'
 import api from '../services/api'
+import SoftwareSecurityManager from '../components/SoftwareSecurityManager'
+import RemoteConnectionManager from '../components/RemoteConnectionManager'
 
 export default function ActivoDetail() {
     const { id: codigo } = useParams()
@@ -180,6 +184,8 @@ export default function ActivoDetail() {
                 <nav className="-mb-px flex space-x-8">
                     {[
                         { id: 'info', label: 'Información', icon: HardDrive },
+                        { id: 'software', label: 'Software & Seguridad', icon: Shield, show: true },
+                        { id: 'conexion', label: 'Conexión Remota', icon: Monitor, show: true },
                         { id: 'asignacion', label: 'Asignación', icon: User, show: activo.asignadoA },
                         { id: 'historial', label: 'Historial', icon: History, show: true }
                     ].filter(tab => tab.show !== false).map((tab) => (
@@ -378,6 +384,14 @@ export default function ActivoDetail() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {activeTab === 'software' && (
+                    <SoftwareSecurityManager activoId={activo.id} activoData={activo} />
+                )}
+
+                {activeTab === 'conexion' && (
+                    <RemoteConnectionManager activoData={activo} />
                 )}
 
                 {activeTab === 'historial' && (

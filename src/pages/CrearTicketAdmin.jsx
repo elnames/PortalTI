@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import LocationSelector from '../components/LocationSelector';
 import api, { checkApiHealth } from '../services/api';
 
 export default function CrearTicketAdmin() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { notifyTicketCreated, notifySuccess, notifyError } = useNotifications();
+  const { notifyTicketCreated, alertSuccess, alertError } = useNotificationContext();
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -32,7 +32,7 @@ export default function CrearTicketAdmin() {
   const [activosAsignados, setActivosAsignados] = useState([]);
   const [cargandoActivos, setCargandoActivos] = useState(false);
 
-  const empresas = ['Vicsa', 'Tecnoboga', 'B2B', 'Bunzl'];
+  const empresas = ['Empresa A', 'Empresa B', 'Empresa C', 'Empresa D'];
   const categorias = ['Hardware', 'Software', 'Red', 'Otros'];
   const prioridades = ['Baja', 'Media', 'Alta', 'Crítica'];
 
@@ -55,7 +55,7 @@ export default function CrearTicketAdmin() {
         setUsuarios(response.data);
       } catch (error) {
         console.error('Error al cargar usuarios:', error);
-        notifyError('Error al cargar la lista de usuarios');
+        alertError('Error al cargar la lista de usuarios');
       } finally {
         setCargandoUsuarios(false);
       }
@@ -81,7 +81,7 @@ export default function CrearTicketAdmin() {
           ? `${usuario.nombre} ${usuario.apellido}`
           : usuario.username || '',
         emailSolicitante: usuario.username || '',
-        empresa: usuario.empresa || 'Vicsa',
+        empresa: usuario.empresa || 'Empresa A',
         ubicacion: usuario.ubicacion || '',
         activoId: null // Reset activo seleccionado
       }));
@@ -141,7 +141,7 @@ export default function CrearTicketAdmin() {
     if (!apiAvailable) {
       const errorMsg = 'El servicio no está disponible en este momento. Por favor, inténtelo más tarde.';
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setLoading(false);
       return;
     }
@@ -170,7 +170,7 @@ export default function CrearTicketAdmin() {
     ) {
       const errorMsg = 'Por favor, complete todos los campos obligatorios.';
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setLoading(false);
       return;
     }
@@ -178,7 +178,7 @@ export default function CrearTicketAdmin() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailSolicitante)) {
       const errorMsg = 'Ingrese un email válido.';
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setLoading(false);
       return;
     }
@@ -186,7 +186,7 @@ export default function CrearTicketAdmin() {
     try {
       const response = await api.post('/tickets', formData);
       notifyTicketCreated(response.data);
-      notifySuccess('Ticket creado correctamente');
+      alertSuccess('Ticket creado correctamente');
       setSuccess(true);
       setFormData({
         titulo: '',
@@ -210,7 +210,7 @@ export default function CrearTicketAdmin() {
       }
 
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
     } finally {
       setLoading(false);
     }

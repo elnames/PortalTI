@@ -6,13 +6,13 @@ const LocationSelector = ({ value, onChange, placeholder = "Seleccionar ubicaci�
     const [isRegionExpanded, setIsRegionExpanded] = useState(false);
 
     const ubicacionesPrincipales = [
-        "B2B - PANAMERICANA NORTE #5151 - CONCHALI",
-        "B2B- TB- VICSA  - PUERTO SANTIAGO #259 - PUDAHUEL",
-        "TECNOBOGA - AVENIDA DEL VALLE NORTE #765 - HUECHURABA",
-        "DPS - CAMINO COQUIMBO 16000 - COLINA",
-        "VICSA - AVENIDA DEL VALLE NORTE #787 PISO 5 – HUECHURABA",
-        "B2B TIENDA LA FABRICA - SAN JOAQUIN",
-        "B2B TIENDA VESPUCIO - CONCHALI"
+        "Oficina Central - Santiago Centro",
+        "Sucursal Norte - Conchalí",
+        "Sucursal Sur - San Joaquín",
+        "Sucursal Este - Las Condes",
+        "Sucursal Oeste - Pudahuel",
+        "Centro de Distribución - Colina",
+        "Almacén Principal - Huechuraba"
     ];
 
     const ubicacionesRegion = [
@@ -21,7 +21,7 @@ const LocationSelector = ({ value, onChange, placeholder = "Seleccionar ubicaci�
         "Antofagasta",
         "Concepción",
         "Iquique",
-        "La serena",
+        "La Serena",
         "Pucón",
         "Temuco"
     ];

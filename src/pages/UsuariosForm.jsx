@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import StepWizard from '../components/StepWizard';
 import LocationSelector from '../components/LocationSelector';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
 
 const STEPS = [
@@ -27,7 +27,7 @@ export default function UsuariosForm({ edit = false }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [usuarios, setUsuarios] = useState([]);
-  const { notifyUserCreated, notifySuccess, notifyError } = useNotifications();
+  const { notifyUserCreated, alertSuccess, alertError } = useNotificationContext();
 
   const {
     register,
@@ -108,18 +108,18 @@ export default function UsuariosForm({ edit = false }) {
       if (edit) {
         console.log('Enviando PUT a:', `/usuarios/${id}`);
         response = await api.put(`/usuarios/${id}`, payload);
-        notifySuccess(`Usuario ${payload.nombre} ${payload.apellido} actualizado correctamente`);
+        alertSuccess(`Usuario ${payload.nombre} ${payload.apellido} actualizado correctamente`);
       } else {
         console.log('Enviando POST a:', '/usuarios');
         response = await api.post('/usuarios', payload);
         notifyUserCreated(response.data);
-        notifySuccess(`Usuario ${payload.nombre} ${payload.apellido} creado correctamente`);
+        alertSuccess(`Usuario ${payload.nombre} ${payload.apellido} creado correctamente`);
       }
       navigate('/usuarios');
     } catch (err) {
       console.error('Error al guardar usuario:', err);
       console.error('Error response:', err.response?.data);
-      notifyError(`Error al ${edit ? 'actualizar' : 'crear'} usuario: ${err.message}`);
+      alertError(`Error al ${edit ? 'actualizar' : 'crear'} usuario: ${err.message}`);
     }
   };
 
@@ -233,10 +233,10 @@ export default function UsuariosForm({ edit = false }) {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Selecciona una empresa</option>
-                    <option value="Bunzl">Bunzl</option>
-                    <option value="Vicsa">Vicsa</option>
-                    <option value="Tecnoboga">Tecnoboga</option>
-                    <option value="B2B">B2B</option>
+                    <option value="Empresa A">Empresa A</option>
+                    <option value="Empresa B">Empresa B</option>
+                    <option value="Empresa C">Empresa C</option>
+                    <option value="Empresa D">Empresa D</option>
                   </select>
                 )}
               />

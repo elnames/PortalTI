@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { X, Plus, Send, Image as ImageIcon, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
 
 export default function ActualizacionModal({ isOpen, onClose, ticketId, onActualizacionAgregada }) {
   const { user } = useAuth();
-  const { notifySuccess, notifyError } = useNotifications();
+  const { alertSuccess, alertError } = useNotificationContext();
   const [contenido, setContenido] = useState('');
   const [evidencia, setEvidencia] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -15,7 +15,7 @@ export default function ActualizacionModal({ isOpen, onClose, ticketId, onActual
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!contenido.trim()) {
-      notifyError('La actualización no puede estar vacía');
+      alertError('La actualización no puede estar vacía');
       return;
     }
 
@@ -31,28 +31,28 @@ export default function ActualizacionModal({ isOpen, onClose, ticketId, onActual
       if (evidencia) {
         const formDataFile = new FormData();
         formDataFile.append('file', evidencia);
-        
+
         const uploadResponse = await api.post('/tickets/upload-evidence', formDataFile, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
-        
+
         formData.evidencia = uploadResponse.data.url;
       }
 
       await api.post(`/tickets/${ticketId}/comentarios`, formData);
-      
-      notifySuccess('Actualización agregada exitosamente');
+
+      alertSuccess('Actualización agregada exitosamente');
       setContenido('');
       setEvidencia(null);
-      
+
       if (onActualizacionAgregada) {
         onActualizacionAgregada();
       }
     } catch (error) {
       console.error('Error al agregar actualización:', error);
-      notifyError('Error al agregar la actualización');
+      alertError('Error al agregar la actualización');
     } finally {
       setLoading(false);
     }
@@ -63,11 +63,11 @@ export default function ActualizacionModal({ isOpen, onClose, ticketId, onActual
     if (file) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
-        notifyError('Solo se permiten archivos de imagen (JPG, PNG, GIF)');
+        alertError('Solo se permiten archivos de imagen (JPG, PNG, GIF)');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        notifyError('El archivo es demasiado grande. Máximo 5MB');
+        alertError('El archivo es demasiado grande. Máximo 5MB');
         return;
       }
       setEvidencia(file);

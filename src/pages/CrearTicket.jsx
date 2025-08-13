@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
+import { useNotificationContext } from '../contexts/NotificationContext';
 import api, { checkTicketsApiHealth } from '../services/api';
 
 export default function CrearTicket() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { notifyTicketCreated, notifySuccess, notifyError } = useNotifications();
+  const { notifyTicketCreated, alertSuccess, alertError } = useNotificationContext();
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -29,7 +29,7 @@ export default function CrearTicket() {
   const [activosAsignados, setActivosAsignados] = useState([]);
   const [cargandoActivos, setCargandoActivos] = useState(false);
 
-  const empresas = ['Vicsa', 'Tecnoboga', 'B2B', 'Bunzl'];
+  const empresas = ['Empresa A', 'Empresa B', 'Empresa C', 'Empresa D'];
   const categorias = ['Hardware', 'Software', 'Red', 'Otros'];
   const prioridades = ['Baja', 'Media', 'Alta', 'Crítica'];
 
@@ -51,7 +51,7 @@ export default function CrearTicket() {
         ...prev,
         nombreSolicitante: user.username || '',
         emailSolicitante: user.username || '',
-        empresa: user.empresa || 'Vicsa',
+        empresa: user.empresa || 'Empresa A',
         ubicacion: user.ubicacion || ''
       }));
 
@@ -113,7 +113,7 @@ export default function CrearTicket() {
     if (!apiAvailable) {
       const errorMsg = 'El servicio no está disponible en este momento. Por favor, inténtelo más tarde.';
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setLoading(false);
       return;
     }
@@ -142,7 +142,7 @@ export default function CrearTicket() {
     ) {
       const errorMsg = 'Por favor, complete todos los campos obligatorios.';
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setLoading(false);
       return;
     }
@@ -150,7 +150,7 @@ export default function CrearTicket() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailSolicitante)) {
       const errorMsg = 'Ingrese un email válido.';
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
       setLoading(false);
       return;
     }
@@ -158,7 +158,7 @@ export default function CrearTicket() {
     try {
       const response = await api.post('/tickets', formData);
       notifyTicketCreated(response.data);
-      notifySuccess('Ticket creado correctamente');
+      alertSuccess('Ticket creado correctamente');
       setSuccess(true);
       setFormData({
         titulo: '',
@@ -182,7 +182,7 @@ export default function CrearTicket() {
       }
 
       setError(errorMsg);
-      notifyError(errorMsg);
+      alertError(errorMsg);
     } finally {
       setLoading(false);
     }

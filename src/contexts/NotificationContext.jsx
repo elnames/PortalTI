@@ -2,13 +2,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import api from '../services/api';
 
 const NotificationContext = createContext();
 
-export const useNotifications = () => {
+export const useNotificationContext = () => {
     const context = useContext(NotificationContext);
     if (!context) {
-        throw new Error('useNotifications must be used within a NotificationProvider');
+        throw new Error('useNotificationContext must be used within a NotificationProvider');
     }
     return context;
 };
@@ -16,120 +17,46 @@ export const useNotifications = () => {
 export const NotificationProvider = ({ children }) => {
     const { user } = useAuth();
     const { showInfo, showSuccess, showWarning, showError } = useToast();
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
 
-    // Polling de respaldo para notificaciones si WebSocket no está disponible
-    useEffect(() => {
-        if (!user) return;
-        let pollingInterval;
-        pollingInterval = setInterval(async () => {
-            try {
-                // Ajusta la URL a tu endpoint real de notificaciones
-                const res = await fetch(`/api/notifications?userId=${user.id}&role=${user.role}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data)) {
-                        data.forEach(n => {
-                            if (!notifications.some(local => local.externalId === n.externalId)) {
-                                addNotification(n);
-                            }
-                        });
-                    }
-                }
-            } catch (e) {
-                // Error de red o backend
-            }
-        }, 10000); // cada 10 segundos
-        return () => clearInterval(pollingInterval);
-    }, [user, notifications]);
+    // ===== FUNCIONES PARA NOTIFICACIONES (Persistentes en BD) =====
+    // Estas se almacenan en la base de datos y aparecen en la campanita
 
-    // Cargar notificaciones desde localStorage y limpiar al cambiar de usuario
-    useEffect(() => {
-        if (user) {
-            const stored = localStorage.getItem(`notifications_${user.id}`);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                setNotifications(parsed);
-                setUnreadCount(parsed.filter(n => !n.read).length);
-            } else {
-                setNotifications([]);
-                setUnreadCount(0);
-            }
-        } else {
-            setNotifications([]);
-            setUnreadCount(0);
+    const createNotification = async (notificationData) => {
+        try {
+            await api.post('/notifications', notificationData);
+        } catch (error) {
+            console.error('Error creando notificación:', error);
         }
-    }, [user]);
+    };
 
-    // Guardar notificaciones en localStorage cuando cambien
-    useEffect(() => {
-        if (user) {
-            localStorage.setItem(`notifications_${user.id}`, JSON.stringify(notifications));
+    const createNotificationForRole = async (role, notificationData) => {
+        try {
+            await api.post(`/notifications/role/${role}`, notificationData);
+        } catch (error) {
+            console.error(`Error creando notificación para rol ${role}:`, error);
         }
-    }, [notifications, user]);
+    };
 
-    // Añade una notificación solo si corresponde al usuario/rol activo
-    const addNotification = useCallback((notification) => {
-        // Si la notificación tiene destinatarios, verifica si el usuario actual debe recibirla
-        if (notification.to && Array.isArray(notification.to)) {
-            if (!notification.to.includes(user?.id) && !notification.to.includes(user?.role)) return;
+    const createNotificationForAdmins = async (notificationData) => {
+        try {
+            await api.post('/notifications/admins', notificationData);
+        } catch (error) {
+            console.error('Error creando notificación para admins:', error);
         }
-        // Evita duplicados por id externo
-        if (notification.externalId && notifications.some(n => n.externalId === notification.externalId)) return;
-        const newNotification = {
-            id: Date.now(),
-            ...notification,
-            timestamp: new Date().toISOString(),
-            read: false
-        };
-        setNotifications(prev => [newNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        // Mostrar toast según tipo
-        if (notification.type === 'success') showSuccess(notification.message);
-        else if (notification.type === 'error') showError(notification.message);
-        else if (notification.type === 'warning') showWarning(notification.message);
-        else showInfo(notification.message);
-    }, [user, notifications, showSuccess, showError, showWarning, showInfo]);
-
-    const markAsRead = (notificationId) => {
-        setNotifications(prev =>
-            prev.map(n =>
-                n.id === notificationId ? { ...n, read: true } : n
-            )
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
     };
 
-    const markAllAsRead = () => {
-        setNotifications(prev =>
-            prev.map(n => ({ ...n, read: true }))
-        );
-        setUnreadCount(0);
-    };
+    // ===== FUNCIONES PARA NOTIFICACIONES (Persistentes en BD) =====
+    // Estas se almacenan en la base de datos y aparecen en la campanita
 
-    const removeNotification = (notificationId) => {
-        setNotifications(prev => {
-            const notification = prev.find(n => n.id === notificationId);
-            if (notification && !notification.read) {
-                setUnreadCount(prev => Math.max(0, prev - 1));
-            }
-            return prev.filter(n => n.id !== notificationId);
-        });
-    };
-
-    const clearAllNotifications = () => {
-        setNotifications([]);
-        setUnreadCount(0);
-    };
-
-    // Funciones para notificaciones específicas de acciones
     const notifyActivoCreated = (activo) => {
-        addNotification({
-            type: 'asset',
-            message: `Nuevo activo registrado: ${activo.nombre || activo.codigo}`,
-            icon: '💻',
-            data: { activoId: activo.id, tipo: 'creado' }
+        createNotification({
+            userId: user?.id,
+            tipo: 'asset',
+            titulo: 'Nuevo activo registrado',
+            mensaje: `Se ha registrado un nuevo activo: ${activo.nombre || activo.codigo}`,
+            refTipo: 'Activo',
+            refId: activo.id,
+            ruta: `/activos/${activo.id}`
         });
     };
 
@@ -139,135 +66,225 @@ export const NotificationProvider = ({ children }) => {
             return;
         }
 
-        addNotification({
-            type: 'assignment',
-            message: `Activo ${activo.nombre || activo.codigo} asignado a ${usuario.nombre || usuario.username || 'Usuario'}`,
-            icon: '📋',
-            data: { activoId: activo.id, usuarioId: usuario.id, tipo: 'asignado' }
+        createNotification({
+            userId: usuario.id,
+            tipo: 'assignment',
+            titulo: 'Activo asignado',
+            mensaje: `Se te ha asignado el activo: ${activo.nombre || activo.codigo}`,
+            refTipo: 'Activo',
+            refId: activo.id,
+            ruta: `/activos/${activo.id}`
         });
     };
 
     const notifyTicketCreated = (ticket) => {
-        addNotification({
-            type: 'ticket',
-            message: `Nuevo ticket creado: ${ticket.titulo || `#${ticket.id}`}`,
-            icon: '🎫',
-            data: { ticketId: ticket.id, tipo: 'creado' }
+        createNotification({
+            userId: user?.id,
+            tipo: 'ticket',
+            titulo: 'Nuevo ticket creado',
+            mensaje: `Se ha creado un nuevo ticket: ${ticket.titulo || `#${ticket.id}`}`,
+            refTipo: 'Ticket',
+            refId: ticket.id,
+            ruta: `/tickets/${ticket.id}`
         });
     };
 
     const notifyTicketAssigned = (ticket, usuario) => {
-        addNotification({
-            type: 'ticket',
-            message: `Ticket ${ticket.titulo || `#${ticket.id}`} asignado a ${usuario.nombre || usuario.username}`,
-            icon: '🎫',
-            data: { ticketId: ticket.id, usuarioId: usuario.id, tipo: 'asignado' }
+        createNotification({
+            userId: usuario.id,
+            tipo: 'ticket',
+            titulo: 'Ticket asignado',
+            mensaje: `Se te ha asignado el ticket: ${ticket.titulo || `#${ticket.id}`}`,
+            refTipo: 'Ticket',
+            refId: ticket.id,
+            ruta: `/tickets/${ticket.id}`
         });
     };
 
     const notifyTicketUpdated = (ticket) => {
-        addNotification({
-            type: 'ticket',
-            message: `Ticket ${ticket.titulo || `#${ticket.id}`} actualizado`,
-            icon: '🔄',
-            data: { ticketId: ticket.id, tipo: 'actualizado' }
+        createNotification({
+            userId: user?.id,
+            tipo: 'ticket',
+            titulo: 'Ticket actualizado',
+            mensaje: `El ticket ${ticket.titulo || `#${ticket.id}`} ha sido actualizado`,
+            refTipo: 'Ticket',
+            refId: ticket.id,
+            ruta: `/tickets/${ticket.id}`
         });
     };
 
     const notifyUserCreated = (usuario) => {
-        addNotification({
-            type: 'user',
-            message: `Nuevo usuario registrado: ${usuario.nombre || usuario.username}`,
-            icon: '👤',
-            data: { usuarioId: usuario.id, tipo: 'creado' }
+        createNotification({
+            userId: user?.id,
+            tipo: 'user',
+            titulo: 'Nuevo usuario registrado',
+            mensaje: `Se ha registrado un nuevo usuario: ${usuario.nombre || usuario.username}`,
+            refTipo: 'Usuario',
+            refId: usuario.id,
+            ruta: `/usuarios/${usuario.id}`
         });
     };
 
     const notifySystemUpdate = (message) => {
-        addNotification({
-            type: 'system',
-            message: message,
-            icon: '⚙️',
-            data: { tipo: 'sistema' }
+        createNotification({
+            userId: user?.id,
+            tipo: 'system',
+            titulo: 'Actualización del sistema',
+            mensaje: message,
+            refTipo: 'Sistema',
+            refId: null,
+            ruta: null
         });
     };
 
-    const notifyError = (error) => {
-        addNotification({
-            type: 'error',
-            message: `Error: ${error}`,
-            icon: '❌',
-            data: { tipo: 'error' }
+    // Nueva función para notificaciones de Paz y Salvo
+    const notifyPazYSalvoUploaded = (usuario, activosPendientes = []) => {
+        const message = activosPendientes.length > 0
+            ? `Paz y salvo subido para ${usuario.nombre}. ${activosPendientes.length} activos pendientes de devolución.`
+            : `Paz y salvo subido para ${usuario.nombre}`;
+
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo subido',
+            mensaje: message,
+            refTipo: 'PazYSalvo',
+            refId: usuario.id,
+            ruta: `/pazysalvo`
         });
+    };
+
+    const notifyActivoReturned = (activo, usuario) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'return',
+            titulo: 'Activo devuelto',
+            mensaje: `El activo ${activo.codigo} ha sido devuelto por ${usuario.nombre}`,
+            refTipo: 'Activo',
+            refId: activo.id,
+            ruta: `/activos/${activo.id}`
+        });
+    };
+
+    // ===== FUNCIONES PARA NOTIFICACIONES DE ACTAS =====
+    const notifyActaRechazada = (acta, usuario) => {
+        createNotification({
+            userId: usuario.id,
+            tipo: 'acta',
+            titulo: 'Acta rechazada',
+            mensaje: `Tu acta para el activo ${acta.activo?.codigo || 'N/A'} ha sido rechazada. Revisa los comentarios y vuelve a subirla.`,
+            refTipo: 'Acta',
+            refId: acta.id,
+            ruta: `/actas/${acta.id}`
+        });
+    };
+
+    const notifyActaFirmada = (acta, usuario) => {
+        createNotificationForAdmins({
+            userId: 0, // Se asignará a todos los admins
+            tipo: 'acta',
+            titulo: 'Acta firmada por usuario',
+            mensaje: `${usuario.nombre} ${usuario.apellido} ha firmado un acta para el activo ${acta.activo?.codigo || 'N/A'}`,
+            refTipo: 'Acta',
+            refId: acta.id,
+            ruta: `/actas/${acta.id}`
+        });
+    };
+
+    // ===== FUNCIONES PARA NOTIFICAR A ADMINS =====
+    const notifyAdminsTicketCreated = (ticket) => {
+        createNotificationForAdmins({
+            userId: 0, // Se asignará a todos los admins
+            tipo: 'ticket',
+            titulo: 'Nuevo ticket creado',
+            mensaje: `Se ha creado un nuevo ticket: ${ticket.titulo || `#${ticket.id}`} por ${ticket.nombreSolicitante}`,
+            refTipo: 'Ticket',
+            refId: ticket.id,
+            ruta: `/tickets/${ticket.id}`
+        });
+    };
+
+    const notifyAdminsActivoCreated = (activo) => {
+        createNotificationForAdmins({
+            userId: 0, // Se asignará a todos los admins
+            tipo: 'asset',
+            titulo: 'Nuevo activo registrado',
+            mensaje: `Se ha registrado un nuevo activo: ${activo.nombre || activo.codigo} por ${user?.nombre || user?.username}`,
+            refTipo: 'Activo',
+            refId: activo.id,
+            ruta: `/activos/${activo.id}`
+        });
+    };
+
+    const notifyAdminsUserCreated = (usuario) => {
+        createNotificationForAdmins({
+            userId: 0, // Se asignará a todos los admins
+            tipo: 'user',
+            titulo: 'Nuevo usuario registrado',
+            mensaje: `Se ha registrado un nuevo usuario: ${usuario.nombre} ${usuario.apellido} (${usuario.role})`,
+            refTipo: 'Usuario',
+            refId: usuario.id,
+            ruta: `/usuarios/${usuario.id}`
+        });
+    };
+
+    const notifyAdminsSystemEvent = (evento, descripcion) => {
+        createNotificationForAdmins({
+            userId: 0, // Se asignará a todos los admins
+            tipo: 'system',
+            titulo: evento,
+            mensaje: descripcion,
+            refTipo: 'System',
+            refId: null,
+            ruta: null
+        });
+    };
+
+    // ===== FUNCIONES PARA ALERTAS (Toasts locales) =====
+    // Estas NO se almacenan, solo aparecen como toasts temporales
+
+    const alertError = (error) => {
         showError(error);
     };
 
-    const notifySuccess = (message) => {
-        addNotification({
-            type: 'success',
-            message: message,
-            icon: '✅',
-            data: { tipo: 'exito' }
-        });
+    const alertSuccess = (message) => {
         showSuccess(message);
     };
 
-    const notifyWarning = (message) => {
-        addNotification({
-            type: 'warning',
-            message: message,
-            icon: '⚠️',
-            data: { tipo: 'advertencia' }
-        });
+    const alertWarning = (message) => {
         showWarning(message);
     };
 
-    // WebSocket para notificaciones en tiempo real (deshabilitado temporalmente)
-    useEffect(() => {
-        if (!user) return;
-        // TODO: Implementar WebSocket cuando el backend lo soporte
-        // let ws;
-        // const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:5266/ws/notifications';
-        // try {
-        //     ws = new window.WebSocket(wsUrl + `?userId=${user.id}&role=${user.role}`);
-        // } catch (e) {
-        //     return;
-        // }
-        // ws.onopen = () => {
-        //     // console.log('WebSocket conectado');
-        // };
-        // ws.onmessage = (event) => {
-        //     try {
-        //         const data = JSON.parse(event.data);
-        //         if (Array.isArray(data)) {
-        //             data.forEach(addNotification);
-        //         } else {
-        //             addNotification(data);
-        //         }
-        //     } catch (e) {
-        //         // console.log('Error parseando notificación:', e);
-        //     }
-        // };
-        // ws.onerror = (err) => {
-        //     // console.log('Error en WebSocket:', err);
-        // };
-        // ws.onclose = () => {
-        //     // console.log('WebSocket cerrado');
-        // };
-        // return () => {
-        //     if (ws) ws.close();
-        // };
-    }, [user, addNotification]);
+    const alertInfo = (message) => {
+        showInfo(message);
+    };
+
+    // Alertas específicas para acciones locales
+    const alertFileUploaded = (fileName) => {
+        showSuccess(`Archivo "${fileName}" subido correctamente`);
+    };
+
+    const alertConnectionError = () => {
+        showError('No se pudo conectar al servidor. Verifica tu conexión.');
+    };
+
+    const alertSaveError = (error) => {
+        showError(`Error al guardar cambios: ${error}`);
+    };
+
+    const alertRemoteConnection = (protocol, host) => {
+        showInfo(`Iniciando conexión ${protocol} a ${host}...`);
+    };
+
+
 
     const value = {
-        notifications,
-        unreadCount,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        removeNotification,
-        clearAllNotifications,
-        // Funciones específicas
+        // ===== FUNCIONES BASE =====
+        createNotification,
+        createNotificationForRole,
+        createNotificationForAdmins,
+
+        // ===== NOTIFICACIONES (Persistentes) =====
         notifyActivoCreated,
         notifyActivoAssigned,
         notifyTicketCreated,
@@ -275,9 +292,28 @@ export const NotificationProvider = ({ children }) => {
         notifyTicketUpdated,
         notifyUserCreated,
         notifySystemUpdate,
-        notifyError,
-        notifySuccess,
-        notifyWarning
+        notifyPazYSalvoUploaded,
+        notifyActivoReturned,
+
+        // ===== NOTIFICACIONES DE ACTAS =====
+        notifyActaRechazada,
+        notifyActaFirmada,
+
+        // ===== NOTIFICACIONES PARA ADMINS =====
+        notifyAdminsTicketCreated,
+        notifyAdminsActivoCreated,
+        notifyAdminsUserCreated,
+        notifyAdminsSystemEvent,
+
+        // ===== ALERTAS (Temporales) =====
+        alertError,
+        alertSuccess,
+        alertWarning,
+        alertInfo,
+        alertFileUploaded,
+        alertConnectionError,
+        alertSaveError,
+        alertRemoteConnection
     };
 
     return (
