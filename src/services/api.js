@@ -61,6 +61,7 @@ export const actasAPI = {
     getMisActas: () => api.get('/actas/mis-actas'),
     getActasPendientesAprobacion: () => api.get('/actas/pendientes-aprobacion'),
     getTodasActas: () => api.get('/actas/todas'),
+    getByAsignacionId: (asignacionId) => api.get(`/actas/asignacion/${asignacionId}`),
     firmarDigital: (data) => api.post('/actas/firmar-digital', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirPdf: (formData) => api.post('/actas/subir-pdf', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirActaAdmin: (formData) => api.post('/actas/subir-admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -85,15 +86,33 @@ export const actasAPI = {
     },
 
     // Endpoints de acción
-    aprobarActa: (actaId, data) => api.post(`/actas/${actaId}/aprobar`, data),
+    aprobar: (actaId, data) => {
+        console.log('=== API APROBAR ACTA ===');
+        console.log('DEBUG: actaId:', actaId);
+        console.log('DEBUG: data:', data);
+        console.log('DEBUG: URL:', `/actas/${actaId}/aprobar`);
+        return api.post(`/actas/${actaId}/aprobar`, data);
+    },
+    aprobarActa: (actaId, data) => {
+        console.log('=== API APROBAR ACTA ===');
+        console.log('DEBUG: actaId:', actaId);
+        console.log('DEBUG: data:', data);
+        console.log('DEBUG: URL:', `/actas/${actaId}/aprobar`);
+        return api.post(`/actas/${actaId}/aprobar`, data);
+    },
+    testSimple: (data) => api.post('/actas/test-simple', data),
     eliminarActa: (actaId) => api.delete(`/actas/${actaId}`),
     subirFirma: (formData) => api.post('/actas/subir-firma', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    marcarPendienteFirma: (data) => api.post('/actas/marcar-pendiente-firma', data)
+    marcarPendienteFirma: (asignacionId) => api.post('/actas/marcar-pendiente-firma', { asignacionId }),
+    subirActa: (formData) => api.post('/actas/subir-admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    previsualizar: (actaId) => api.get(`/actas/previsualizar-firmado/${actaId}`, { responseType: 'blob' }),
+    previsualizarPersonalizada: (params) => api.post('/actas/previsualizar-personalizada', params, { responseType: 'blob' })
 };
 
 // Métodos para Asignaciones (incluye generación de actas)
 export const asignacionesAPI = {
     getAll: () => api.get('/asignaciones'),
+    getById: (id) => api.get(`/asignaciones/${id}`),
     getByActivo: (activoId) => api.get(`/asignaciones/activo/${activoId}`),
     getByUsuario: (usuarioId) => api.get(`/asignaciones/usuario/${usuarioId}`),
     getActivas: () => api.get('/asignaciones/activas'),
@@ -135,7 +154,8 @@ export const activosAPI = {
     getAsignados: () => api.get('/activos/asignados'),
     getEnMantenimiento: () => api.get('/activos/en-mantenimiento'),
     getRetirados: () => api.get('/activos/retirados'),
-    darBaja: (id, motivo) => api.put(`/activos/${id}/dar-baja`, { motivoBaja: motivo })
+    darBaja: (id, motivo) => api.put(`/activos/${id}/dar-baja`, { motivoBaja: motivo }),
+    updateRustDeskId: (activoId, rustDeskId) => api.patch(`/activos/${activoId}/rustdesk-id`, { rustDeskId })
 };
 
 // Métodos para Tickets
@@ -184,10 +204,10 @@ export const reportesAPI = {
 
 // Métodos para Notificaciones
 export const notificacionesAPI = {
-    getMisNotificaciones: () => api.get('/notificaciones/mis-notificaciones'),
-    marcarComoLeida: (notificacionId) => api.put(`/notificaciones/${notificacionId}/leer`),
-    marcarTodasComoLeidas: () => api.put('/notificaciones/marcar-todas-leidas'),
-    getNoLeidas: () => api.get('/notificaciones/no-leidas')
+    getMisNotificaciones: () => api.get('/notifications'),
+    marcarComoLeida: (notificacionId) => api.post('/notifications/read', { ids: [notificacionId] }),
+    marcarTodasComoLeidas: () => api.post('/notifications/read', { ids: [] }),
+    getNoLeidas: () => api.get('/notifications?isRead=false')
 };
 
 // Métodos para Chat
@@ -201,7 +221,50 @@ export const chatAPI = {
     asignarSoporte: (conversacionId, data) => api.put(`/chat/conversaciones/${conversacionId}/asignar`, data),
     cerrarConversacion: (conversacionId) => api.put(`/chat/conversaciones/${conversacionId}/cerrar`),
     generarTicket: (conversacionId, data) => api.post(`/chat/conversaciones/${conversacionId}/generar-ticket`, data),
-    getActivosUsuario: (conversacionId) => api.get(`/chat/conversaciones/${conversacionId}/activos-usuario`)
+    getActivosUsuario: (conversacionId) => api.get(`/chat/conversaciones/${conversacionId}/activos-usuario`),
+
+    // Nuevas funcionalidades para gestión de chats y mensajes
+    archivarConversacion: (conversacionId) => api.put(`/chat/conversaciones/${conversacionId}/archivar`),
+    desarchivarConversacion: (conversacionId) => api.put(`/chat/conversaciones/${conversacionId}/desarchivar`),
+    eliminarConversacion: (conversacionId) => api.delete(`/chat/conversaciones/${conversacionId}`),
+    eliminarMensaje: (mensajeId) => api.delete(`/chat/mensajes/${mensajeId}`),
+    getConversacionesArchivadas: () => api.get('/chat/conversaciones/archivadas'),
+    marcarMensajesComoLeidos: (conversacionId) => api.post(`/chat/${conversacionId}/marcar-leidos`)
+};
+
+// Métodos para Software y Seguridad
+export const softwareSecurityAPI = {
+    // Obtener todo el software y seguridad de un activo
+    getByActivo: (activoId) => api.get(`/SoftwareSecurity/activo/${activoId}`),
+
+    // Software
+    createSoftware: (data) => api.post('/SoftwareSecurity/software', data),
+    getSoftware: (id) => api.get(`/SoftwareSecurity/software/${id}`),
+    updateSoftware: (id, data) => api.put(`/SoftwareSecurity/software/${id}`, data),
+    deleteSoftware: (id) => api.delete(`/SoftwareSecurity/software/${id}`),
+
+    // Programas de Seguridad
+    createProgramaSeguridad: (data) => api.post('/SoftwareSecurity/seguridad', data),
+    getProgramaSeguridad: (id) => api.get(`/SoftwareSecurity/seguridad/${id}`),
+    updateProgramaSeguridad: (id, data) => api.put(`/SoftwareSecurity/seguridad/${id}`, data),
+    deleteProgramaSeguridad: (id) => api.delete(`/SoftwareSecurity/seguridad/${id}`),
+
+    // Licencias
+    createLicencia: (data) => api.post('/SoftwareSecurity/licencia', data),
+    getLicencia: (id) => api.get(`/SoftwareSecurity/licencia/${id}`),
+    updateLicencia: (id, data) => api.put(`/SoftwareSecurity/licencia/${id}`, data),
+    deleteLicencia: (id) => api.delete(`/SoftwareSecurity/licencia/${id}`)
+};
+
+// Métodos para Paz y Salvo
+export const pazYSalvoAPI = {
+    getAll: () => api.get('/pazysalvo'),
+    getById: (id) => api.get(`/pazysalvo/${id}`),
+    create: (formData) => api.post('/pazysalvo', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    update: (id, data) => api.put(`/pazysalvo/${id}`, data),
+    delete: (id) => api.delete(`/pazysalvo/${id}`),
+    download: (id) => api.get(`/pazysalvo/download/${id}`, { responseType: 'blob' }),
+    getActivosPendientes: (usuarioId) => api.get(`/pazysalvo/activos-pendientes/${usuarioId}`)
 };
 
 export default api;
