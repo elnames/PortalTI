@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using PortalTi.Api.Services;
+using PortalTi.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,16 +32,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey         = new SymmetricSecurityKey(keyBytes),
             ClockSkew                = TimeSpan.Zero
         };
+
+        // Configuración para SignalR
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
 
 // 3) Services
 builder.Services.AddScoped<PdfService>();
+builder.Services.AddScoped<INotificationsService, NotificationsService>();
 
 // 4) Controllers + Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// SignalR para notificaciones en tiempo real
+builder.Services.AddSignalR();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "PortalTI.Api", Version = "v1" });
@@ -81,6 +102,7 @@ builder.Services.AddCors(options =>
           .AllowAnyMethod()
           .AllowAnyHeader()
           .AllowCredentials()
+          .SetIsOriginAllowed(origin => true) // Permitir cualquier origen en desarrollo
     );
 });
 
@@ -93,7 +115,7 @@ using (var scope = app.Services.CreateScope())
     context.Database.EnsureCreated();
     
     // Inicializar datos por defecto
-    await DbInitializer.Initialize(context);
+    DbInitializer.Initialize(context);
 }
 
 // 7) Middlewares (¡¡¡orden crítico!!!)
@@ -116,5 +138,9 @@ app.UseAuthorization();
 
 // 7.4) Mapeo de endpoints
 app.MapControllers();
+
+// Mapear SignalR Hubs
+app.MapHub<NotificationsHub>("/hubs/notifications");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using PortalTi.Api.Hubs;
+using System.Linq;
 
 namespace PortalTi.Api.Controllers
 {
@@ -11,10 +14,12 @@ namespace PortalTi.Api.Controllers
     public class ChatController : ControllerBase
     {
         private readonly PortalTiContext _context;
+        private readonly IHubContext<ChatHub> _chatHub;
 
-        public ChatController(PortalTiContext context)
+        public ChatController(PortalTiContext context, IHubContext<ChatHub> chatHub)
         {
             _context = context;
+            _chatHub = chatHub;
         }
 
         // GET: api/chat/soporte-disponible
@@ -64,15 +69,85 @@ namespace PortalTi.Api.Controllers
                 .Include(c => c.Mensajes.OrderByDescending(m => m.FechaCreacion).Take(1))
                 .AsQueryable();
 
-            // Filtrar según el rol del usuario
+            // Filtrar según el rol del usuario y excluir conversaciones archivadas por este usuario
             if (user.Role == "admin" || user.Role == "soporte")
             {
-                // Admin y soporte ven todas las conversaciones
-                query = query.Where(c => c.Estado != "Cerrada");
+                // Admin y soporte ven todas las conversaciones activas (no archivadas por ellos)
+                query = query.Where(c => c.Estado != "Cerrada" && 
+                    !_context.ChatArchivos.Any(ca => ca.ConversacionId == c.Id && ca.UsuarioId == userId));
             }
             else
             {
-                // Usuarios normales solo ven sus propias conversaciones
+                // Usuarios normales solo ven sus propias conversaciones activas (no archivadas por ellos)
+                query = query.Where(c => c.UsuarioId == userId && c.Estado != "Cerrada" && 
+                    !_context.ChatArchivos.Any(ca => ca.ConversacionId == c.Id && ca.UsuarioId == userId));
+            }
+
+            var conversaciones = await query
+                .OrderByDescending(c => c.Mensajes.Any() ? c.Mensajes.First().FechaCreacion : c.FechaCreacion)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Titulo,
+                    c.Descripcion,
+                    c.Estado,
+                    c.FechaCreacion,
+                    c.FechaCierre,
+                    Usuario = new
+                    {
+                        c.Usuario.Id,
+                        c.Usuario.Username,
+                        c.Usuario.Role,
+                        IsOnline = ChatHub.IsUserOnline(c.Usuario.Id),
+                        LastSeen = ChatHub.GetUserLastSeen(c.Usuario.Id)
+                    },
+                    Soporte = c.Soporte != null ? new
+                    {
+                        c.Soporte.Id,
+                        c.Soporte.Username,
+                        c.Soporte.Role,
+                        IsOnline = ChatHub.IsUserOnline(c.Soporte.Id),
+                        LastSeen = ChatHub.GetUserLastSeen(c.Soporte.Id)
+                    } : null,
+                    UltimoMensaje = c.Mensajes.Any() ? new
+                    {
+                        c.Mensajes.First().Contenido,
+                        c.Mensajes.First().FechaCreacion,
+                        c.Mensajes.First().EsInterno
+                    } : null,
+                    MensajesNoLeidos = c.Mensajes.Count(m => !m.EsLeido && m.CreadoPorId != userId),
+                    c.TicketId
+                })
+                .ToListAsync();
+
+            return Ok(conversaciones);
+        }
+
+        // GET: api/chat/conversaciones/archivadas
+        [HttpGet("conversaciones/archivadas")]
+        public async Task<ActionResult<IEnumerable<object>>> GetConversacionesArchivadas()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var user = await _context.AuthUsers.FindAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            var query = _context.ChatConversaciones
+                .Include(c => c.Usuario)
+                .Include(c => c.Soporte)
+                .Include(c => c.Mensajes.OrderByDescending(m => m.FechaCreacion).Take(1))
+                .AsQueryable();
+
+            // Filtrar solo conversaciones archivadas por este usuario específico
+            query = query.Where(c => _context.ChatArchivos.Any(ca => ca.ConversacionId == c.Id && ca.UsuarioId == userId));
+            
+            // Filtrar según el rol del usuario
+            if (user.Role != "admin" && user.Role != "soporte")
+            {
+                // Usuarios normales solo ven sus propias conversaciones archivadas
                 query = query.Where(c => c.UsuarioId == userId);
             }
 
@@ -90,13 +165,17 @@ namespace PortalTi.Api.Controllers
                     {
                         c.Usuario.Id,
                         c.Usuario.Username,
-                        c.Usuario.Role
+                        c.Usuario.Role,
+                        IsOnline = ChatHub.IsUserOnline(c.Usuario.Id),
+                        LastSeen = ChatHub.GetUserLastSeen(c.Usuario.Id)
                     },
                     Soporte = c.Soporte != null ? new
                     {
                         c.Soporte.Id,
                         c.Soporte.Username,
-                        c.Soporte.Role
+                        c.Soporte.Role,
+                        IsOnline = ChatHub.IsUserOnline(c.Soporte.Id),
+                        LastSeen = ChatHub.GetUserLastSeen(c.Soporte.Id)
                     } : null,
                     UltimoMensaje = c.Mensajes.Any() ? new
                     {
@@ -149,13 +228,17 @@ namespace PortalTi.Api.Controllers
                 {
                     conversacion.Usuario.Id,
                     conversacion.Usuario.Username,
-                    conversacion.Usuario.Role
+                    conversacion.Usuario.Role,
+                    IsOnline = ChatHub.IsUserOnline(conversacion.Usuario.Id),
+                    LastSeen = ChatHub.GetUserLastSeen(conversacion.Usuario.Id)
                 },
                 Soporte = conversacion.Soporte != null ? new
                 {
                     conversacion.Soporte.Id,
                     conversacion.Soporte.Username,
-                    conversacion.Soporte.Role
+                    conversacion.Soporte.Role,
+                    IsOnline = ChatHub.IsUserOnline(conversacion.Soporte.Id),
+                    LastSeen = ChatHub.GetUserLastSeen(conversacion.Soporte.Id)
                 } : null,
                 Ticket = conversacion.Ticket != null ? new
                 {
@@ -182,10 +265,14 @@ namespace PortalTi.Api.Controllers
             if (user.Role == "admin" || user.Role == "soporte")
                 return BadRequest("Los administradores y soporte no pueden crear conversaciones");
 
+            // Obtener información del soporte seleccionado para generar título automático
+            var soporte = request.SoporteId.HasValue ? await _context.AuthUsers.FindAsync(request.SoporteId.Value) : null;
+            var tituloSoporte = soporte?.Username ?? "Soporte";
+
             var conversacion = new ChatConversacion
             {
-                Titulo = request.Titulo,
-                Descripcion = request.Descripcion,
+                Titulo = $"Chat con {tituloSoporte}",
+                Descripcion = $"Conversación iniciada por {user.Username}",
                 UsuarioId = userId.Value,
                 SoporteId = request.SoporteId,
                 Estado = "Pendiente"
@@ -208,16 +295,42 @@ namespace PortalTi.Api.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            await LogActivity("Crear conversación de chat", $"Conversación '{request.Titulo}' creada");
+            await LogActivity("Crear conversación de chat", $"Conversación con {tituloSoporte} creada");
 
-            return CreatedAtAction(nameof(GetConversacion), new { id = conversacion.Id }, new
+            // Enviar notificación de nueva conversación a través de SignalR
+            var conversacionResponse = new
             {
                 conversacion.Id,
                 conversacion.Titulo,
                 conversacion.Descripcion,
                 conversacion.Estado,
-                conversacion.FechaCreacion
-            });
+                conversacion.FechaCreacion,
+                Usuario = new
+                {
+                    user.Id,
+                    user.Username,
+                    user.Role
+                },
+                Soporte = conversacion.SoporteId.HasValue ? new
+                {
+                    Id = conversacion.SoporteId.Value,
+                    Username = "Soporte",
+                    Role = "soporte"
+                } : null,
+                UltimoMensaje = !string.IsNullOrEmpty(request.MensajeInicial) ? new
+                {
+                    Contenido = request.MensajeInicial,
+                    FechaCreacion = conversacion.FechaCreacion,
+                    EsInterno = false
+                } : null,
+                MensajesNoLeidos = 0
+            };
+
+            // Enviar a todos los usuarios admin y soporte
+            await _chatHub.Clients.Group("role_admin").SendAsync("ReceiveNewConversation", conversacionResponse);
+            await _chatHub.Clients.Group("role_soporte").SendAsync("ReceiveNewConversation", conversacionResponse);
+
+            return CreatedAtAction(nameof(GetConversacion), new { id = conversacion.Id }, conversacionResponse);
         }
 
         // GET: api/chat/conversaciones/{id}/mensajes
@@ -319,21 +432,37 @@ namespace PortalTi.Api.Controllers
 
             await _context.SaveChangesAsync();
 
-            await LogActivity("Enviar mensaje de chat", $"Mensaje enviado en conversación #{id}");
-
-            return Ok(new
+            // Enviar mensaje a través de SignalR
+            var mensajeResponse = new
             {
                 mensaje.Id,
                 mensaje.Contenido,
                 mensaje.FechaCreacion,
                 mensaje.EsInterno,
+                ConversacionId = id,
                 CreadoPor = new
                 {
                     user.Id,
                     user.Username,
                     user.Role
                 }
-            });
+            };
+
+            // Enviar a todos los participantes de la conversación
+            var participantes = new List<int> { conversacion.UsuarioId };
+            if (conversacion.SoporteId.HasValue)
+            {
+                participantes.Add(conversacion.SoporteId.Value);
+            }
+
+            foreach (var participanteId in participantes)
+            {
+                await _chatHub.Clients.Group($"user_{participanteId}").SendAsync("ReceiveChatMessage", mensajeResponse);
+            }
+
+            await LogActivity("Enviar mensaje de chat", $"Mensaje enviado en conversación #{id}");
+
+            return Ok(mensajeResponse);
         }
 
         // PUT: api/chat/conversaciones/{id}/asignar
@@ -539,6 +668,197 @@ namespace PortalTi.Api.Controllers
             });
         }
 
+        // PUT: api/chat/conversaciones/{id}/archivar
+        [HttpPut("conversaciones/{id}/archivar")]
+        public async Task<ActionResult> ArchivarConversacion(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var conversacion = await _context.ChatConversaciones
+                .Include(c => c.Usuario)
+                .Include(c => c.Soporte)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (conversacion == null)
+                return NotFound();
+
+            var user = await _context.AuthUsers.FindAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            // Verificar permisos: solo el usuario de la conversación o admin/soporte pueden archivar
+            if (user.Role != "admin" && user.Role != "soporte" && conversacion.UsuarioId != userId)
+                return Forbid();
+
+            // Verificar si ya está archivada por este usuario
+            var archivoExistente = await _context.ChatArchivos
+                .FirstOrDefaultAsync(ca => ca.ConversacionId == id && ca.UsuarioId == userId);
+
+            if (archivoExistente != null)
+            {
+                return BadRequest("Esta conversación ya está archivada por este usuario");
+            }
+
+            // Crear registro de archivo para este usuario específico
+            var archivo = new ChatArchivo
+            {
+                UsuarioId = userId.Value,
+                ConversacionId = id,
+                FechaArchivo = DateTime.Now
+            };
+
+            _context.ChatArchivos.Add(archivo);
+            await _context.SaveChangesAsync();
+            await LogActivity("Archivar conversación", $"Conversación #{id} archivada por usuario {userId}");
+
+            return Ok(new { message = "Conversación archivada exitosamente" });
+        }
+
+        // PUT: api/chat/conversaciones/{id}/desarchivar
+        [HttpPut("conversaciones/{id}/desarchivar")]
+        public async Task<ActionResult> DesarchivarConversacion(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var conversacion = await _context.ChatConversaciones
+                .Include(c => c.Usuario)
+                .Include(c => c.Soporte)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (conversacion == null)
+                return NotFound();
+
+            var user = await _context.AuthUsers.FindAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            // Verificar permisos: solo el usuario de la conversación o admin/soporte pueden desarchivar
+            if (user.Role != "admin" && user.Role != "soporte" && conversacion.UsuarioId != userId)
+                return Forbid();
+
+            // Buscar el registro de archivo para este usuario específico
+            var archivo = await _context.ChatArchivos
+                .FirstOrDefaultAsync(ca => ca.ConversacionId == id && ca.UsuarioId == userId);
+
+            if (archivo == null)
+            {
+                return BadRequest("Esta conversación no está archivada por este usuario");
+            }
+
+            // Eliminar el registro de archivo
+            _context.ChatArchivos.Remove(archivo);
+            await _context.SaveChangesAsync();
+            await LogActivity("Desarchivar conversación", $"Conversación #{id} desarchivada por usuario {userId}");
+
+            return Ok(new { message = "Conversación desarchivada exitosamente" });
+        }
+
+        // DELETE: api/chat/conversaciones/{id}
+        [HttpDelete("conversaciones/{id}")]
+        public async Task<ActionResult> EliminarConversacion(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var conversacion = await _context.ChatConversaciones
+                .Include(c => c.Usuario)
+                .Include(c => c.Soporte)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (conversacion == null)
+                return NotFound();
+
+            var user = await _context.AuthUsers.FindAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            // Solo admin puede eliminar conversaciones
+            if (user.Role != "admin")
+                return Forbid();
+
+            // Eliminar mensajes primero
+            var mensajes = await _context.ChatMensajes
+                .Where(m => m.ConversacionId == id)
+                .ToListAsync();
+            _context.ChatMensajes.RemoveRange(mensajes);
+
+            // Eliminar la conversación
+            _context.ChatConversaciones.Remove(conversacion);
+            await _context.SaveChangesAsync();
+
+            await LogActivity("Eliminar conversación", $"Conversación #{id} eliminada");
+
+            return Ok(new { message = "Conversación eliminada exitosamente" });
+        }
+
+        // DELETE: api/chat/mensajes/{id}
+        [HttpDelete("mensajes/{id}")]
+        public async Task<ActionResult> EliminarMensaje(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var mensaje = await _context.ChatMensajes
+                .Include(m => m.Conversacion)
+                .Include(m => m.CreadoPor)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (mensaje == null)
+                return NotFound();
+
+            var user = await _context.AuthUsers.FindAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            // Verificar permisos: solo admin/soporte pueden eliminar mensajes
+            if (user.Role != "admin" && user.Role != "soporte")
+                return Forbid();
+
+            _context.ChatMensajes.Remove(mensaje);
+            await _context.SaveChangesAsync();
+
+            await LogActivity("Eliminar mensaje", $"Mensaje #{id} eliminado de conversación #{mensaje.ConversacionId}");
+
+            return Ok(new { message = "Mensaje eliminado exitosamente" });
+        }
+
+        // POST: api/chat/{id}/marcar-leidos
+        [HttpPost("{id}/marcar-leidos")]
+        public async Task<ActionResult> MarcarMensajesComoLeidos(int id)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var conversacion = await _context.ChatConversaciones
+                .Include(c => c.Mensajes)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (conversacion == null)
+                return NotFound();
+
+            // Marcar todos los mensajes no leídos de esta conversación como leídos
+            var mensajesNoLeidos = conversacion.Mensajes
+                .Where(m => !m.EsLeido && m.CreadoPorId != userId)
+                .ToList();
+
+            foreach (var mensaje in mensajesNoLeidos)
+            {
+                mensaje.EsLeido = true;
+                mensaje.FechaLectura = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Mensajes marcados como leídos" });
+        }
+
         // Métodos auxiliares
         private int? GetCurrentUserId()
         {
@@ -569,10 +889,8 @@ namespace PortalTi.Api.Controllers
     // DTOs
     public class CrearConversacionRequest
     {
-        public string Titulo { get; set; } = string.Empty;
-        public string? Descripcion { get; set; }
-        public string? MensajeInicial { get; set; }
         public int? SoporteId { get; set; }
+        public string? MensajeInicial { get; set; }
     }
 
     public class EnviarMensajeRequest
