@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Services;
 using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
@@ -136,6 +137,39 @@ namespace PortalTi.Api.Controllers
 
                 _db.NominaUsuarios.Add(usuario);
                 await _db.SaveChangesAsync();
+
+                // Notificar a admins y soporte sobre nuevo usuario creado
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar a admins y soporte
+                    await notificationService.CreateForRoleAsync("admin", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "user",
+                        Titulo = "Nuevo usuario creado",
+                        Mensaje = $"Se ha creado un nuevo usuario: {usuario.Nombre} {usuario.Apellido} ({usuario.Email})",
+                        RefTipo = "Usuario",
+                        RefId = usuario.Id,
+                        Ruta = $"/usuarios/{usuario.Id}"
+                    });
+                    
+                    await notificationService.CreateForRoleAsync("soporte", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "user",
+                        Titulo = "Nuevo usuario creado",
+                        Mensaje = $"Se ha creado un nuevo usuario: {usuario.Nombre} {usuario.Apellido} ({usuario.Email})",
+                        RefTipo = "Usuario",
+                        RefId = usuario.Id,
+                        Ruta = $"/usuarios/{usuario.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando nuevo usuario: {ex.Message}");
+                }
 
                 // Log de actividad
                 await LogActivity("create_user", $"Usuario creado: {usuario.Nombre} {usuario.Apellido}", new { 
@@ -403,8 +437,8 @@ namespace PortalTi.Api.Controllers
 
                 foreach (var usuario in usuariosSinEmpresa)
                 {
-                    usuario.Empresa = "Sin empresa";
-                    _logger.LogInformation($"Actualizando usuario {usuario.Id} ({usuario.Nombre} {usuario.Apellido}) con empresa: Sin empresa");
+                    usuario.Empresa = "Empresa A";
+                    _logger.LogInformation($"Actualizando usuario {usuario.Id} ({usuario.Nombre} {usuario.Apellido}) con empresa: Empresa A");
                 }
 
                 await _db.SaveChangesAsync();

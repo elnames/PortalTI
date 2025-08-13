@@ -370,6 +370,28 @@ namespace PortalTi.Api.Controllers
 
                 await _db.SaveChangesAsync();
 
+                // Notificar a admins que el usuario ha firmado el acta
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar a todos los admins/soporte que un usuario ha firmado un acta
+                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    {
+                        UserId = 0, // Se asignará a todos los admins
+                        Tipo = "acta",
+                        Titulo = "Acta firmada por usuario",
+                        Mensaje = $"{asignacion.Usuario.Nombre} {asignacion.Usuario.Apellido} ha firmado un acta para el activo: {asignacion.Activo.Codigo}",
+                        RefTipo = "Acta",
+                        RefId = acta.Id,
+                        Ruta = $"/actas/{acta.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando firma de acta a admins: {ex.Message}");
+                }
+
                 _logger.LogInformation($"Acta guardada exitosamente. ID: {acta.Id}, Estado: {acta.Estado}, Método: {acta.MetodoFirma}");
 
                 return Ok(new { 
@@ -497,6 +519,28 @@ namespace PortalTi.Api.Controllers
 
                 await _db.SaveChangesAsync();
 
+                // Notificar a admins que el usuario ha subido un acta firmado
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar a todos los admins/soporte que un usuario ha subido un acta firmado
+                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    {
+                        UserId = 0, // Se asignará a todos los admins
+                        Tipo = "acta",
+                        Titulo = "Acta firmada subida por usuario",
+                        Mensaje = $"{asignacion.Usuario.Nombre} {asignacion.Usuario.Apellido} ha subido un acta firmado para el activo: {asignacion.Activo.Codigo}",
+                        RefTipo = "Acta",
+                        RefId = actaDb.Id,
+                        Ruta = $"/actas/{actaDb.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando subida de acta a admins: {ex.Message}");
+                }
+
                 return Ok(new { 
                     message = "Acta PDF subida exitosamente",
                     fileName = fileName,
@@ -588,6 +632,27 @@ namespace PortalTi.Api.Controllers
 
                 await _db.SaveChangesAsync();
 
+                // Notificar al usuario que admin/soporte ha subido un acta
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = asignacion.UsuarioId,
+                        Tipo = "acta",
+                        Titulo = "Acta subida por administrador",
+                        Mensaje = $"Se ha subido un acta para el activo {asignacion.Activo?.Codigo} por parte del administrador/soporte.",
+                        RefTipo = "Acta",
+                        RefId = actaDb.Id,
+                        Ruta = $"/actas/{actaDb.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando subida de acta por admin: {ex.Message}");
+                }
+
                 return Ok(new { 
                     message = "Acta subida exitosamente",
                     fileName = fileName,
@@ -607,6 +672,12 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
+                Console.WriteLine($"=== APROBAR ACTA INICIADO ===");
+                Console.WriteLine($"DEBUG: AprobarActa llamado - actaId: {actaId}");
+                Console.WriteLine($"DEBUG: AprobarActa - request.Aprobar: {request.Aprobar}");
+                Console.WriteLine($"DEBUG: AprobarActa - request.Comentarios: {request.Comentarios}");
+                Console.WriteLine($"DEBUG: AprobarActa - Usuario actual: {User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value}");
+                
                 _logger.LogInformation($"AprobarActa llamado - actaId: {actaId}, aprobar: {request.Aprobar}, comentarios: {request.Comentarios}");
                 
                 var acta = await _db.Actas
@@ -616,19 +687,26 @@ namespace PortalTi.Api.Controllers
 
                 if (acta == null)
                 {
+                    Console.WriteLine($"DEBUG: Acta no encontrada con ID: {actaId}");
                     _logger.LogWarning($"Acta no encontrada con ID: {actaId}");
                     return NotFound("Acta no encontrada");
                 }
 
+                Console.WriteLine($"DEBUG: Acta encontrada - ID: {acta.Id}");
+                Console.WriteLine($"DEBUG: Acta encontrada - Estado: {acta.Estado}");
+                Console.WriteLine($"DEBUG: Acta encontrada - MetodoFirma: {acta.MetodoFirma}");
+                Console.WriteLine($"DEBUG: Acta encontrada - UsuarioId: {acta.Asignacion?.UsuarioId}");
+                
                 _logger.LogInformation($"Acta encontrada - Estado: {acta.Estado}, MetodoFirma: {acta.MetodoFirma}");
 
                 // Permitir aprobar/rechazar si:
                 // 1. Es una acta firmada (estado "Firmada")
                 // 2. O es una acta subida por admin/soporte (MetodoFirma "Admin_Subida")
-                if (acta.Estado != "Firmada" && acta.MetodoFirma != "Admin_Subida")
+                // 3. O es una acta ya rechazada (para actualizar comentarios)
+                if (acta.Estado != "Firmada" && acta.MetodoFirma != "Admin_Subida" && acta.Estado != "Rechazada")
                 {
-                    _logger.LogWarning($"Acta con estado incorrecto: {acta.Estado}, MetodoFirma: {acta.MetodoFirma}. Se requiere 'Firmada' o 'Admin_Subida'");
-                    return BadRequest("Solo se pueden aprobar actas firmadas o subidas por admin/soporte");
+                    _logger.LogWarning($"Acta con estado incorrecto: {acta.Estado}, MetodoFirma: {acta.MetodoFirma}. Se requiere 'Firmada', 'Admin_Subida' o 'Rechazada'");
+                    return BadRequest("Solo se pueden aprobar actas firmadas, subidas por admin/soporte, o actualizar comentarios de actas rechazadas");
                 }
 
                 // Obtener el usuario que aprueba
@@ -639,12 +717,73 @@ namespace PortalTi.Api.Controllers
                     aprobadoPorId = adminId;
                 }
 
-                acta.Estado = request.Aprobar ? "Aprobada" : "Rechazada";
-                acta.FechaAprobacion = DateTime.Now;
-                acta.AprobadoPorId = aprobadoPorId;
-                acta.ComentariosAprobacion = request.Comentarios;
+                // Si el acta ya está rechazado, solo actualizar comentarios
+                if (acta.Estado == "Rechazada" && !request.Aprobar)
+                {
+                    _logger.LogInformation($"Actualizando comentarios de acta rechazada - ActaId: {actaId}");
+                    acta.ComentariosAprobacion = request.Comentarios;
+                    // No cambiar estado ni fecha de aprobación
+                }
+                else
+                {
+                    // Cambiar estado solo si no estaba rechazado
+                    acta.Estado = request.Aprobar ? "Aprobada" : "Rechazada";
+                    acta.FechaAprobacion = DateTime.Now;
+                    acta.AprobadoPorId = aprobadoPorId;
+                    acta.ComentariosAprobacion = request.Comentarios;
+                }
 
                 await _db.SaveChangesAsync();
+
+                // Notificar aprobación o rechazo
+                try
+                {
+                    _logger.LogInformation($"Iniciando notificación - UsuarioId: {acta.Asignacion.UsuarioId}, Aprobar: {request.Aprobar}");
+                    Console.WriteLine($"DEBUG: Iniciando notificación - UsuarioId: {acta.Asignacion.UsuarioId}, Aprobar: {request.Aprobar}");
+                    
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    if (request.Aprobar)
+                    {
+                        // Notificar aprobación al usuario
+                        var notificationId = await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = acta.Asignacion.UsuarioId,
+                            Tipo = "acta",
+                            Titulo = "Acta aprobada",
+                            Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido aprobada",
+                            RefTipo = "Acta",
+                            RefId = acta.Id,
+                            Ruta = $"/actas/{acta.Id}"
+                        });
+                        
+                        _logger.LogInformation($"Notificación de aprobación creada exitosamente - ID: {notificationId}");
+                        Console.WriteLine($"DEBUG: Notificación de aprobación creada exitosamente - ID: {notificationId}");
+                    }
+                    else
+                    {
+                        // Notificar rechazo al usuario
+                        var notificationId = await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = acta.Asignacion.UsuarioId,
+                            Tipo = "acta",
+                            Titulo = "Acta rechazada",
+                            Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada: {request.Comentarios}",
+                            RefTipo = "Acta",
+                            RefId = acta.Id,
+                            Ruta = $"/actas/{acta.Id}"
+                        });
+                        
+                        _logger.LogInformation($"Notificación de rechazo creada exitosamente - ID: {notificationId}");
+                        Console.WriteLine($"DEBUG: Notificación de rechazo creada exitosamente - ID: {notificationId}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error notificando aprobación/rechazo - UsuarioId: {acta.Asignacion.UsuarioId}, Aprobar: {request.Aprobar}");
+                    Console.WriteLine($"ERROR: Error notificando aprobación/rechazo: {ex.Message}");
+                    Console.WriteLine($"ERROR: Stack trace: {ex.StackTrace}");
+                }
 
                 return Ok(new { 
                     message = request.Aprobar ? "Acta aprobada exitosamente" : "Acta rechazada",
@@ -976,6 +1115,27 @@ namespace PortalTi.Api.Controllers
                 _db.Actas.Add(nuevaActa);
                 await _db.SaveChangesAsync();
 
+                // Notificar al usuario que se ha marcado como pendiente de firma
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = asignacion.UsuarioId,
+                        Tipo = "acta",
+                        Titulo = "Acta pendiente de firma",
+                        Mensaje = $"Se ha marcado como pendiente de firma tu acta para el activo {asignacion.Activo?.Codigo}. Por favor, firma y sube el acta.",
+                        RefTipo = "Acta",
+                        RefId = nuevaActa.Id,
+                        Ruta = $"/actas/{nuevaActa.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando pendiente de firma: {ex.Message}");
+                }
+
                 _logger.LogInformation($"Acta pendiente creada exitosamente. ID: {nuevaActa.Id}");
 
                 return Ok(new { 
@@ -1033,6 +1193,56 @@ namespace PortalTi.Api.Controllers
         {
             public int AsignacionId { get; set; }
             public string? Observaciones { get; set; }
+        }
+
+        [HttpPost("test-simple")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> TestSimple([FromBody] TestSimpleRequest request)
+        {
+            try
+            {
+                Console.WriteLine($"=== TEST SIMPLE INICIADO ===");
+                Console.WriteLine($"DEBUG: TestSimple - actaId: {request.ActaId}");
+                Console.WriteLine($"DEBUG: TestSimple - aprobar: {request.Aprobar}");
+                Console.WriteLine($"DEBUG: TestSimple - comentarios: {request.Comentarios}");
+                
+                // Simular exactamente lo que hace AprobarActa pero sin validaciones complejas
+                var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                
+                var notificationId = await notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = request.UserId,
+                    Tipo = "test",
+                    Titulo = request.Aprobar ? "Test Aprobación" : "Test Rechazo",
+                    Mensaje = request.Aprobar ? "Test de aprobación simple" : $"Test de rechazo simple: {request.Comentarios}",
+                    RefTipo = "Test",
+                    RefId = request.ActaId,
+                    Ruta = "/test"
+                });
+                
+                Console.WriteLine($"DEBUG: TestSimple - Notificación creada exitosamente - ID: {notificationId}");
+                
+                return Ok(new { 
+                    message = "Test simple completado exitosamente",
+                    notificationId = notificationId,
+                    actaId = request.ActaId,
+                    aprobar = request.Aprobar
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR: TestSimple - Error: {ex.Message}");
+                Console.WriteLine($"ERROR: TestSimple - Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        public class TestSimpleRequest
+        {
+            public int ActaId { get; set; }
+            public bool Aprobar { get; set; }
+            public string Comentarios { get; set; } = "";
+            public int UserId { get; set; }
         }
     }
 } 

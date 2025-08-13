@@ -245,85 +245,125 @@ namespace PortalTi.Api.Controllers
         }
 
         // POST: api/dashboard/seed-data - Endpoint temporal para crear datos de prueba
-        [HttpPost("seed-data")]
-        [Authorize(Roles = "admin")]
-        public async Task<IActionResult> SeedData()
+        [HttpGet("test")]
+        public IActionResult Test()
+        {
+            return Ok(new { message = "API funcionando correctamente", timestamp = DateTime.Now });
+        }
+
+        [HttpPost("seed-data-test")]
+        public IActionResult SeedDataTest()
         {
             try
             {
-                // Crear algunos logs de actividad de ejemplo
-                var adminUser = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Role == "admin");
-                if (adminUser != null)
-                {
-                    var actividades = new List<UserActivityLog>
-                    {
-                        new UserActivityLog
-                        {
-                            UserId = adminUser.Id,
-                            Action = "Login",
-                            Description = "Inicio de sesión exitoso",
-                            Timestamp = DateTime.Now.AddMinutes(-30)
-                        },
-                        new UserActivityLog
-                        {
-                            UserId = adminUser.Id,
-                            Action = "Crear Activo",
-                            Description = "Nuevo activo creado: LAPTOP-001",
-                            Timestamp = DateTime.Now.AddMinutes(-45)
-                        },
-                        new UserActivityLog
-                        {
-                            UserId = adminUser.Id,
-                            Action = "Asignar Activo",
-                            Description = "Activo asignado a usuario: Juan Pérez",
-                            Timestamp = DateTime.Now.AddHours(-1)
-                        },
-                        new UserActivityLog
-                        {
-                            UserId = adminUser.Id,
-                            Action = "Crear Ticket",
-                            Description = "Ticket creado: Problema con impresora",
-                            Timestamp = DateTime.Now.AddHours(-2)
-                        },
-                        new UserActivityLog
-                        {
-                            UserId = adminUser.Id,
-                            Action = "Actualizar Usuario",
-                            Description = "Perfil de usuario actualizado",
-                            Timestamp = DateTime.Now.AddHours(-3)
-                        }
-                    };
-
-                    _db.UserActivityLogs.AddRange(actividades);
-                    await _db.SaveChangesAsync();
-                }
-
-                // Actualizar algunos usuarios con datos de empresa
-                var usuariosSinEmpresa = await _db.NominaUsuarios
-                    .Where(u => string.IsNullOrEmpty(u.Empresa))
-                    .Take(5)
-                    .ToListAsync();
-
-                var empresas = new[] { "Vicsa", "Tecnoboga", "Empresa A", "Empresa B", "Empresa C" };
+                _logger.LogInformation("Iniciando prueba sin autenticación");
                 
-                for (int i = 0; i < usuariosSinEmpresa.Count; i++)
+                // Solo crear un usuario de prueba sin limpiar nada
+                var usuario = new NominaUsuario
                 {
-                    usuariosSinEmpresa[i].Empresa = empresas[i % empresas.Length];
-                }
-
-                await _db.SaveChangesAsync();
-
+                    Nombre = "Test",
+                    Apellido = "Usuario",
+                    Rut = "99999999-9",
+                    Email = "test@empresa.com",
+                    Departamento = "TI y Sistemas",
+                    Empresa = "Empresa A",
+                    Ubicacion = "Oficina Central - Santiago Centro"
+                };
+                
+                _db.NominaUsuarios.Add(usuario);
+                _db.SaveChanges();
+                _logger.LogInformation("Usuario de prueba creado");
+                
                 return Ok(new { 
-                    message = "Datos de prueba creados exitosamente",
-                    actividadesCreadas = 5,
-                    usuariosActualizados = usuariosSinEmpresa.Count
+                    message = "Usuario de prueba creado exitosamente (sin auth)",
+                    details = new {
+                        usuarios = 1,
+                        activos = 0,
+                        asignaciones = 0,
+                        tickets = 0,
+                        actas = 0
+                    }
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al crear datos de prueba");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error al crear usuario de prueba: {Message}", ex.Message);
+                _logger.LogError(ex, "StackTrace: {StackTrace}", ex.StackTrace);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message, stackTrace = ex.StackTrace });
             }
         }
+
+        [HttpPost("seed-data")]
+        [Authorize(Roles = "admin")]
+        public IActionResult SeedData()
+        {
+            try
+            {
+                _logger.LogInformation("Iniciando proceso de limpieza y población de base de datos con datos genéricos (preservando admins)");
+                
+                // Llamar al método de limpieza y población
+                DbInitializer.ClearAndSeedGenericData(_db);
+                
+                // Obtener conteos actualizados
+                var totalUsuarios = _db.NominaUsuarios.Count();
+                var totalActivos = _db.Activos.Count();
+                var totalAsignaciones = _db.AsignacionesActivos.Count();
+                var totalTickets = _db.Tickets.Count();
+                var totalActas = _db.Actas.Count();
+                var totalAdmins = _db.AuthUsers.Count(u => u.Role == "admin");
+                
+                _logger.LogInformation("Base de datos limpiada y poblada exitosamente con datos genéricos");
+                
+                return Ok(new { 
+                    message = "Base de datos limpiada y poblada exitosamente con datos genéricos",
+                    details = new {
+                        usuarios = totalUsuarios,
+                        activos = totalActivos,
+                        asignaciones = totalAsignaciones,
+                        tickets = totalTickets,
+                        actas = totalActas,
+                        admins = totalAdmins
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al limpiar y poblar la base de datos: {Message}", ex.Message);
+                _logger.LogError(ex, "StackTrace: {StackTrace}", ex.StackTrace);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message, stackTrace = ex.StackTrace });
+            }
+        }
+
+        [HttpPost("clear-and-seed")]
+        public IActionResult ClearAndSeedDatabase()
+        {
+            try
+            {
+                _logger.LogInformation("Iniciando proceso de limpieza y población de base de datos con datos genéricos");
+                
+                // Llamar al método de limpieza y población
+                DbInitializer.ClearAndSeedGenericData(_db);
+                
+                _logger.LogInformation("Base de datos limpiada y poblada exitosamente con datos genéricos");
+                
+                return Ok(new { 
+                    message = "Base de datos limpiada y poblada exitosamente con datos genéricos",
+                    details = new {
+                        usuarios = 250,
+                        activos = 500,
+                        asignaciones = 200,
+                        tickets = 50,
+                        actas = 25
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al limpiar y poblar la base de datos");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
+        }
+
+
     }
 }

@@ -118,6 +118,65 @@ namespace PortalTi.Api.Controllers
             }
         }
 
+        // GET: api/asignaciones/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetById(int id)
+        {
+            try
+            {
+                var asignacion = await _db.AsignacionesActivos
+                    .Include(a => a.Activo)
+                    .Include(a => a.Usuario)
+                    .FirstOrDefaultAsync(a => a.Id == id);
+
+                if (asignacion == null)
+                {
+                    return NotFound("Asignación no encontrada");
+                }
+
+                var result = new
+                {
+                    asignacion.Id,
+                    asignacion.FechaAsignacion,
+                    asignacion.FechaDevolucion,
+                    asignacion.Estado,
+                    asignacion.Observaciones,
+                    asignacion.AsignadoPor,
+                    Activo = new
+                    {
+                        asignacion.Activo.Id,
+                        asignacion.Activo.Codigo,
+                        asignacion.Activo.Categoria,
+                        asignacion.Activo.Estado,
+                        asignacion.Activo.Ubicacion,
+                        asignacion.Activo.NombreEquipo,
+                        asignacion.Activo.TipoEquipo,
+                        asignacion.Activo.Nombre,
+                        asignacion.Activo.SistemaOperativo,
+                        asignacion.Activo.NumeroCelular,
+                        asignacion.Activo.Empresa
+                    },
+                    Usuario = new
+                    {
+                        asignacion.Usuario.Id,
+                        asignacion.Usuario.Nombre,
+                        asignacion.Usuario.Apellido,
+                        asignacion.Usuario.Email,
+                        asignacion.Usuario.Departamento,
+                        asignacion.Usuario.Empresa,
+                        asignacion.Usuario.Ubicacion
+                    }
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener asignación por ID: {Id}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
         // GET: api/asignaciones/activo/{activoId}
         [HttpGet("activo/{activoId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetByActivo(int activoId)
@@ -319,9 +378,54 @@ namespace PortalTi.Api.Controllers
 
                 _logger.LogInformation($"Acta pendiente creada automáticamente con ID: {acta.Id}");
 
-                // Obtener información del activo y usuario para el log
+                // Obtener información del activo y usuario para el log y notificaciones
                 var activo = await _db.Activos.FindAsync(request.ActivoId);
                 var usuario = await _db.NominaUsuarios.FindAsync(request.UsuarioId);
+
+                // Notificar asignación
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar al usuario asignado
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = request.UsuarioId,
+                        Tipo = "assignment",
+                        Titulo = "Activo asignado",
+                        Mensaje = $"Se te ha asignado el activo: {activo?.Codigo} - {activo?.NombreEquipo}",
+                        RefTipo = "Activo",
+                        RefId = request.ActivoId,
+                        Ruta = $"/activos/{request.ActivoId}"
+                    });
+                    
+                    // Notificar a admins y soporte
+                    await notificationService.CreateForRoleAsync("admin", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "assignment",
+                        Titulo = "Nueva asignación de activo",
+                        Mensaje = $"Se asignó el activo {activo?.Codigo} a {usuario?.Nombre} {usuario?.Apellido}",
+                        RefTipo = "Activo",
+                        RefId = request.ActivoId,
+                        Ruta = $"/activos/{request.ActivoId}"
+                    });
+                    
+                    await notificationService.CreateForRoleAsync("soporte", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "assignment",
+                        Titulo = "Nueva asignación de activo",
+                        Mensaje = $"Se asignó el activo {activo?.Codigo} a {usuario?.Nombre} {usuario?.Apellido}",
+                        RefTipo = "Activo",
+                        RefId = request.ActivoId,
+                        Ruta = $"/activos/{request.ActivoId}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando asignación: {ex.Message}");
+                }
 
                 // Log de actividad
                 await LogActivity("create_assignment", $"Asignación creada: {activo?.Codigo} → {usuario?.Nombre} {usuario?.Apellido}", new { 
@@ -404,6 +508,51 @@ namespace PortalTi.Api.Controllers
                 asignacion.Observaciones = request.Observaciones;
 
                 await _db.SaveChangesAsync();
+
+                // Notificar devolución
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar al usuario que devolvió el activo
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = asignacion.UsuarioId,
+                        Tipo = "return",
+                        Titulo = "Activo devuelto",
+                        Mensaje = $"Has devuelto el activo: {asignacion.Activo.Codigo} - {asignacion.Activo.NombreEquipo}",
+                        RefTipo = "Activo",
+                        RefId = asignacion.ActivoId,
+                        Ruta = $"/activos/{asignacion.ActivoId}"
+                    });
+                    
+                    // Notificar a admins y soporte
+                    await notificationService.CreateForRoleAsync("admin", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "return",
+                        Titulo = "Activo devuelto",
+                        Mensaje = $"El activo {asignacion.Activo.Codigo} fue devuelto por {asignacion.Usuario.Nombre} {asignacion.Usuario.Apellido}",
+                        RefTipo = "Activo",
+                        RefId = asignacion.ActivoId,
+                        Ruta = $"/activos/{asignacion.ActivoId}"
+                    });
+                    
+                    await notificationService.CreateForRoleAsync("soporte", new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "return",
+                        Titulo = "Activo devuelto",
+                        Mensaje = $"El activo {asignacion.Activo.Codigo} fue devuelto por {asignacion.Usuario.Nombre} {asignacion.Usuario.Apellido}",
+                        RefTipo = "Activo",
+                        RefId = asignacion.ActivoId,
+                        Ruta = $"/activos/{asignacion.ActivoId}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando devolución: {ex.Message}");
+                }
 
                 // Log de actividad
                 await LogActivity("return_assignment", $"Asignación devuelta: {asignacion.Activo.Codigo} ← {asignacion.Usuario.Nombre} {asignacion.Usuario.Apellido}", new { 

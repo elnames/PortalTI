@@ -9,6 +9,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Services;
 using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
@@ -65,6 +66,28 @@ namespace PortalTi.Api.Controllers
 
                 _db.AuthUsers.Add(user);
                 await _db.SaveChangesAsync();
+
+                // Notificar nuevo usuario registrado
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    
+                    // Notificar a admins sobre nuevo usuario
+                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "user",
+                        Titulo = "Nuevo usuario registrado",
+                        Mensaje = $"Se ha registrado un nuevo usuario: {nominaUsuario.Nombre} {nominaUsuario.Apellido} ({req.Email})",
+                        RefTipo = "Usuario",
+                        RefId = user.Id,
+                        Ruta = $"/usuarios/{user.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando nuevo usuario: {ex.Message}");
+                }
 
                 // Log de actividad
                 await LogActivity(user.Id, "register", "Usuario registrado", new { 
@@ -124,7 +147,7 @@ namespace PortalTi.Api.Controllers
                     user.SignaturePath,
                     nombre = perfilUsuario?.Nombre ?? "",
                     apellido = perfilUsuario?.Apellido ?? "",
-                    empresa = perfilUsuario?.Empresa ?? "Vicsa",
+                    empresa = perfilUsuario?.Empresa ?? "Empresa A",
                     ubicacion = perfilUsuario?.Ubicacion ?? "",
                     departamento = perfilUsuario?.Departamento ?? ""
                 } 
@@ -182,7 +205,7 @@ namespace PortalTi.Api.Controllers
                         empresa = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Empresa)
-                            .FirstOrDefault() ?? "Vicsa",
+                            .FirstOrDefault() ?? "Empresa A",
                         ubicacion = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Ubicacion)
@@ -725,7 +748,7 @@ namespace PortalTi.Api.Controllers
                     user.SignaturePath,
                     nombre = perfilUsuario?.Nombre ?? "",
                     apellido = perfilUsuario?.Apellido ?? "",
-                    empresa = perfilUsuario?.Empresa ?? "Vicsa",
+                    empresa = perfilUsuario?.Empresa ?? "Empresa A",
                     ubicacion = perfilUsuario?.Ubicacion ?? "",
                     departamento = perfilUsuario?.Departamento ?? "",
                     Preferencias = !string.IsNullOrEmpty(user.PreferenciasJson)

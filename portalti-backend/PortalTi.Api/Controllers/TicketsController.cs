@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Services;
 using System.Security.Claims;
 
 namespace PortalTi.Api.Controllers
@@ -244,6 +245,27 @@ namespace PortalTi.Api.Controllers
             _context.Tickets.Add(ticket);
             await _context.SaveChangesAsync();
 
+            // Notificar a los admins sobre el nuevo ticket
+            try
+            {
+                var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                {
+                    UserId = 0, // Se asignará a todos los admins
+                    Tipo = "ticket",
+                    Titulo = "Nuevo ticket creado",
+                    Mensaje = $"Se ha creado un nuevo ticket: {ticket.Titulo} por {ticket.NombreSolicitante}",
+                    RefTipo = "Ticket",
+                    RefId = ticket.Id,
+                    Ruta = $"/tickets/{ticket.Id}"
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log del error pero no fallar la creación del ticket
+                Console.WriteLine($"Error notificando a admins: {ex.Message}");
+            }
+
             return CreatedAtAction(nameof(GetTicket), new { id = ticket.Id }, new
             {
                 ticket.Id,
@@ -370,12 +392,15 @@ namespace PortalTi.Api.Controllers
         {
             var notificacion = new Models.Notificacion
             {
-                UsuarioId = soporteId,
+                UserId = soporteId,
                 Tipo = "ticket",
+                Titulo = "Ticket asignado",
                 Mensaje = $"Se te ha asignado el ticket #{ticket.Id}: {ticket.Titulo}",
-                Datos = $"{{\"ticketId\":{ticket.Id},\"titulo\":\"{ticket.Titulo}\"}}",
-                Leida = false,
-                Fecha = DateTime.Now
+                RefTipo = "Ticket",
+                RefId = ticket.Id,
+                Ruta = $"/tickets/{ticket.Id}",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
             };
             _context.Notificaciones.Add(notificacion);
             await _context.SaveChangesAsync();
@@ -417,6 +442,47 @@ namespace PortalTi.Api.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // Notificar cambio de estado
+            try
+            {
+                var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                
+                // Notificar al creador del ticket
+                if (ticket.CreadoPorId.HasValue && ticket.CreadoPorId != userId)
+                {
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = ticket.CreadoPorId.Value,
+                        Tipo = "ticket",
+                        Titulo = "Estado de ticket actualizado",
+                        Mensaje = $"El ticket #{ticket.Id}: {ticket.Titulo} cambió a estado '{estadoDto.Estado}'",
+                        RefTipo = "Ticket",
+                        RefId = ticket.Id,
+                        Ruta = $"/tickets/{ticket.Id}"
+                    });
+                }
+                
+                // Notificar a admins si se resuelve o cierra
+                if ((estadoDto.Estado == "Resuelto" || estadoDto.Estado == "Cerrado") && 
+                    userRole?.ToLower() != "admin")
+                {
+                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    {
+                        UserId = 0,
+                        Tipo = "ticket",
+                        Titulo = "Ticket resuelto/cerrado",
+                        Mensaje = $"El ticket #{ticket.Id}: {ticket.Titulo} fue {estadoDto.Estado.ToLower()} por {User.FindFirst(ClaimTypes.Name)?.Value}",
+                        RefTipo = "Ticket",
+                        RefId = ticket.Id,
+                        Ruta = $"/tickets/{ticket.Id}"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error notificando cambio de estado: {ex.Message}");
+            }
 
             return Ok(new { Mensaje = "Estado actualizado exitosamente" });
         }
@@ -486,6 +552,46 @@ namespace PortalTi.Api.Controllers
 
             _context.ComentariosTickets.Add(comentario);
             await _context.SaveChangesAsync();
+
+            // Notificar nuevo comentario
+            try
+            {
+                var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                
+                // Notificar al creador del ticket si no es quien comentó
+                if (ticket.CreadoPorId.HasValue && ticket.CreadoPorId != userId)
+                {
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = ticket.CreadoPorId.Value,
+                        Tipo = "ticket",
+                        Titulo = "Nuevo comentario en ticket",
+                        Mensaje = $"Se agregó un comentario al ticket #{ticket.Id}: {ticket.Titulo}",
+                        RefTipo = "Ticket",
+                        RefId = ticket.Id,
+                        Ruta = $"/tickets/{ticket.Id}"
+                    });
+                }
+                
+                // Notificar al técnico asignado si no es quien comentó
+                if (ticket.AsignadoAId.HasValue && ticket.AsignadoAId != userId)
+                {
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = ticket.AsignadoAId.Value,
+                        Tipo = "ticket",
+                        Titulo = "Nuevo comentario en ticket",
+                        Mensaje = $"Se agregó un comentario al ticket #{ticket.Id}: {ticket.Titulo}",
+                        RefTipo = "Ticket",
+                        RefId = ticket.Id,
+                        Ruta = $"/tickets/{ticket.Id}"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error notificando comentario: {ex.Message}");
+            }
 
             return Ok(new
             {
