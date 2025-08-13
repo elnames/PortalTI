@@ -9,6 +9,9 @@
 6. [Funcionalidades por Módulo](#funcionalidades-por-módulo)
 7. [Configuración y Despliegue](#configuración-y-despliegue)
 8. [Guías de Desarrollo](#guías-de-desarrollo)
+9. [Integración RustDesk](#integración-rustdesk)
+10. [Sistema de Chat en Tiempo Real](#sistema-de-chat-en-tiempo-real)
+11. [Sistema de Paz y Salvo](#sistema-de-paz-y-salvo)
 
 ---
 
@@ -19,22 +22,32 @@
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │   Backend       │    │   Base de       │
 │   React         │◄──►│   ASP.NET Core  │◄──►│   Datos         │
-│                 │    │   API           │    │   SQL Server    │
+│   + SignalR     │    │   API + SignalR │    │   SQL Server    │
+│                 │    │                 │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   RustDesk      │    │   SignalR Hub   │    │   Archivos      │
+│   Integration   │    │   (Chat)        │    │   (wwwroot)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ### **Stack Tecnológico**
-- **Frontend**: React 18 + Tailwind CSS + React Router
-- **Backend**: ASP.NET Core 8 + Entity Framework Core
+- **Frontend**: React 18 + Tailwind CSS + React Router + SignalR Client
+- **Backend**: ASP.NET Core 8 + Entity Framework Core + SignalR
 - **Base de Datos**: SQL Server 2019+
 - **Autenticación**: JWT Bearer Tokens
-- **Comunicación**: REST API + SignalR (para chat)
+- **Comunicación**: REST API + SignalR (para chat en tiempo real)
+- **Control Remoto**: RustDesk Integration
+- **Archivos**: Sistema de archivos en wwwroot
 
 ---
 
 ## 🗄️ Base de Datos
 
-### **Diagrama ER**
+### **Diagrama ER Actualizado**
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   AuthUsers     │    │ NominaUsuarios  │    │     Activos     │
@@ -61,6 +74,11 @@
                                            ┌─────────────────┐
                                            │  ChatMensajes   │
                                            │   (Mensajes)    │
+                                           └─────────────────┘
+                                                       │
+                                           ┌─────────────────┐
+                                           │   PazYSalvos    │
+                                           │  (Documentos)   │
                                            └─────────────────┘
 ```
 
@@ -115,6 +133,7 @@
 - NumeroCelular (Móviles)
 - Nombre (Otros activos)
 - Cantidad
+- RustDeskId (NUEVO - ID de RustDesk)
 ```
 
 #### **AsignacionesActivos** - Relación Usuario-Activo
@@ -157,6 +176,41 @@
 - AprobadoPorId (FK -> AuthUsers)
 ```
 
+#### **ChatConversaciones** - Conversaciones de Chat (NUEVO)
+```sql
+- Id (PK)
+- Titulo
+- Descripcion
+- Estado (Activa, Cerrada, Pendiente)
+- FechaCreacion
+- CreadoPorId (FK -> AuthUsers)
+- Archivada (NUEVO - boolean)
+```
+
+#### **ChatMensajes** - Mensajes de Chat (NUEVO)
+```sql
+- Id (PK)
+- ConversacionId (FK -> ChatConversaciones)
+- Contenido
+- CreadoPorId (FK -> AuthUsers)
+- FechaCreacion
+- Leido (NUEVO - boolean)
+- EsMensajeChat (NUEVO - boolean)
+```
+
+#### **PazYSalvos** - Documentos de Paz y Salvo (NUEVO)
+```sql
+- Id (PK)
+- UsuarioId (FK -> NominaUsuarios)
+- UsuarioNombre
+- ArchivoPath
+- Estado (Pendiente, Aprobado, Rechazado)
+- ActivosPendientes
+- Notas
+- FechaCreacion
+- FechaSubida
+```
+
 ---
 
 ## 🔧 API Backend
@@ -193,6 +247,7 @@ DELETE /api/activos/{id}      // Eliminar activo
 GET    /api/activos/search    // Búsqueda de activos
 POST   /api/activos/assign    // Asignar activo
 POST   /api/activos/return    // Devolver activo
+PATCH  /api/activos/{id}/rustdesk-id // Actualizar RustDesk ID (NUEVO)
 ```
 
 #### **TicketsController** - Sistema de Tickets
@@ -202,69 +257,67 @@ GET    /api/tickets/{id}      // Obtener ticket
 POST   /api/tickets           // Crear ticket
 PUT    /api/tickets/{id}      // Actualizar ticket
 DELETE /api/tickets/{id}      // Eliminar ticket
-GET    /api/tickets/my-tickets // Mis tickets
 POST   /api/tickets/{id}/comments // Agregar comentario
+```
+
+#### **ChatController** - Sistema de Chat (NUEVO)
+```csharp
+GET    /api/chat/conversaciones           // Listar conversaciones
+GET    /api/chat/conversaciones/archivadas // Conversaciones archivadas
+GET    /api/chat/conversaciones/{id}      // Obtener conversación
+POST   /api/chat/conversaciones           // Crear conversación
+PUT    /api/chat/conversaciones/{id}/archivar // Archivar conversación
+PUT    /api/chat/conversaciones/{id}/desarchivar // Desarchivar conversación
+DELETE /api/chat/conversaciones/{id}      // Eliminar conversación
+POST   /api/chat/conversaciones/{id}/mensajes // Enviar mensaje
+DELETE /api/chat/mensajes/{id}            // Eliminar mensaje
+POST   /api/chat/{id}/marcar-leidos       // Marcar mensajes como leídos
+```
+
+#### **PazYSalvoController** - Sistema de Paz y Salvo (NUEVO)
+```csharp
+GET    /api/pazysalvo                    // Listar documentos
+GET    /api/pazysalvo/{id}               // Obtener documento
+POST   /api/pazysalvo                    // Crear documento
+PUT    /api/pazysalvo/{id}               // Actualizar documento
+DELETE /api/pazysalvo/{id}               // Eliminar documento
+GET    /api/pazysalvo/{id}/download      // Descargar archivo
+GET    /api/pazysalvo/activos-pendientes/{usuarioId} // Activos pendientes
 ```
 
 #### **ActasController** - Gestión de Actas
 ```csharp
-GET    /api/actas             // Listar actas
-GET    /api/actas/{id}        // Obtener acta
-POST   /api/actas             // Crear acta
-PUT    /api/actas/{id}        // Actualizar acta
-GET    /api/actas/{id}/pdf    // Generar PDF
-POST   /api/actas/{id}/approve // Aprobar acta
-```
-
-#### **ChatController** - Chat de Soporte
-```csharp
-GET    /api/chat/conversations // Listar conversaciones
-GET    /api/chat/{id}/messages // Obtener mensajes
-POST   /api/chat/conversations // Crear conversación
-POST   /api/chat/messages     // Enviar mensaje
-PUT    /api/chat/messages/{id}/read // Marcar como leído
+GET    /api/actas              // Listar actas
+GET    /api/actas/{id}         // Obtener acta
+POST   /api/actas              // Crear acta
+PUT    /api/actas/{id}         // Actualizar acta
+DELETE /api/actas/{id}         // Eliminar acta
+POST   /api/actas/{id}/firmar  // Firmar acta
+GET    /api/actas/{id}/pdf     // Descargar PDF
 ```
 
 #### **DashboardController** - Dashboard y Reportes
 ```csharp
-GET    /api/dashboard/stats   // Estadísticas generales
-GET    /api/dashboard/charts  // Datos para gráficos
-POST   /api/dashboard/seed-data // Poblar BD con datos de prueba
+GET    /api/dashboard/stats    // Estadísticas generales
+GET    /api/dashboard/activos  // Estadísticas de activos
+GET    /api/dashboard/tickets  // Estadísticas de tickets
+GET    /api/dashboard/usuarios // Estadísticas de usuarios
+POST   /api/dashboard/poblar-bd // Poblar base de datos
 ```
 
-### **Modelos de Datos**
+### **SignalR Hubs**
 
-#### **DTOs (Data Transfer Objects)**
+#### **ChatHub** - Chat en Tiempo Real (NUEVO)
 ```csharp
-// LoginRequest
-public class LoginRequest
-{
-    public string Username { get; set; }
-    public string Password { get; set; }
-}
+// Métodos del Hub
+ReceiveChatMessage(conversacionId, mensaje)     // Recibir mensaje
+ReceiveNewConversation(conversacion)            // Nueva conversación
+UserConnected(userId)                           // Usuario conectado
+UserDisconnected(userId)                        // Usuario desconectado
 
-// LoginResponse
-public class LoginResponse
-{
-    public string Token { get; set; }
-    public string Username { get; set; }
-    public string Role { get; set; }
-    public DateTime ExpiresAt { get; set; }
-}
-
-// ActivoDTO
-public class ActivoDTO
-{
-    public int Id { get; set; }
-    public string Categoria { get; set; }
-    public string Codigo { get; set; }
-    public string Estado { get; set; }
-    public string Ubicacion { get; set; }
-    public string Empresa { get; set; }
-    public string Marca { get; set; }
-    public string Modelo { get; set; }
-    public string UsuarioAsignado { get; set; }
-}
+// Grupos
+user_{userId}                                   // Grupo por usuario
+role_{role}                                     // Grupo por rol
 ```
 
 ---
@@ -273,371 +326,521 @@ public class ActivoDTO
 
 ### **Estructura de Componentes**
 
-#### **Layout Components**
+#### **Componentes Principales**
 ```
-MainLayout.jsx          // Layout principal con sidebar
-Header.jsx              // Header con navegación
-Sidebar.jsx             // Menú lateral
-Footer.jsx              // Footer
-```
-
-#### **Page Components**
-```
-Dashboard.jsx           // Dashboard principal
-Login.jsx               // Página de login
-Usuarios.jsx            // Lista de usuarios
-UsuariosForm.jsx        // Formulario de usuario
-Activos.jsx             // Lista de activos
-ActivosForm.jsx         // Formulario de activo
-ActivoDetail.jsx        // Detalle de activo
-Tickets.jsx             // Lista de tickets
-CrearTicket.jsx         // Crear ticket
-TicketDetail.jsx        // Detalle de ticket
-Actas.jsx               // Lista de actas
-Chat.jsx                // Chat de soporte
-Perfil.jsx              // Perfil de usuario
-Ajustes.jsx             // Configuración
-```
-
-#### **Modal Components**
-```
-AsignarActivoModal.jsx  // Modal para asignar activo
-GenerarActaModal.jsx    // Modal para generar acta
-GenerarTicketModal.jsx  // Modal para generar ticket
-ChatInternoModal.jsx    // Modal de chat interno
-DeleteConfirmationModal.jsx // Modal de confirmación
-```
-
-#### **Utility Components**
-```
-DataTable.jsx           // Tabla de datos reutilizable
-Toast.jsx               // Notificaciones toast
-Tooltip.jsx             // Tooltips
-AutoCompleteInput.jsx   // Input con autocompletado
-LocationSelector.jsx    // Selector de ubicación
-SignatureDrawer.jsx     // Dibujador de firmas
-```
-
-### **Contextos de React**
-
-#### **AuthContext** - Gestión de Autenticación
-```javascript
-const AuthContext = createContext();
-
-// Estado global
-const [user, setUser] = useState(null);
-const [token, setToken] = useState(localStorage.getItem('token'));
-const [loading, setLoading] = useState(false);
-
-// Funciones
-const login = async (credentials) => { /* ... */ };
-const logout = () => { /* ... */ };
-const updateProfile = async (data) => { /* ... */ };
-```
-
-#### **ThemeContext** - Gestión de Temas
-```javascript
-const ThemeContext = createContext();
-
-// Estado
-const [theme, setTheme] = useState('light');
-
-// Funciones
-const toggleTheme = () => { /* ... */ };
-const setDarkTheme = () => { /* ... */ };
-const setLightTheme = () => { /* ... */ };
-```
-
-#### **NotificationContext** - Sistema de Notificaciones
-```javascript
-const NotificationContext = createContext();
-
-// Estado
-const [notifications, setNotifications] = useState([]);
-
-// Funciones
-const addNotification = (message, type) => { /* ... */ };
-const removeNotification = (id) => { /* ... */ };
-const clearNotifications = () => { /* ... */ };
+src/
+├── components/
+│   ├── DataTable.jsx              // Tabla de datos reutilizable
+│   ├── Header.jsx                 // Encabezado de la aplicación
+│   ├── Sidebar.jsx                // Barra lateral de navegación
+│   ├── FloatingChatIcon.jsx       // Icono flotante de chat (NUEVO)
+│   ├── RemoteControlButton.jsx    // Botón de control remoto (NUEVO)
+│   ├── RustDeskModal.jsx          // Modal de configuración RustDesk (NUEVO)
+│   ├── PazYSalvoManager.jsx       // Gestor de paz y salvo (NUEVO)
+│   └── ...
+├── pages/
+│   ├── Dashboard.jsx              // Página principal
+│   ├── Activos.jsx                // Gestión de activos
+│   ├── Usuarios.jsx               // Gestión de usuarios
+│   ├── Tickets.jsx                // Sistema de tickets
+│   ├── Chat.jsx                   // Chat principal (NUEVO)
+│   ├── PazYSalvo.jsx              // Página de paz y salvo (NUEVO)
+│   └── ...
+├── hooks/
+│   ├── useChatSignalR.js          // Hook para SignalR (NUEVO)
+│   ├── useResponsiveSidebar.js    // Hook para sidebar responsivo (NUEVO)
+│   └── useWindowSize.js           // Hook para tamaño de ventana
+├── contexts/
+│   ├── AuthContext.jsx            // Contexto de autenticación
+│   ├── NotificationContext.jsx    // Contexto de notificaciones
+│   ├── SearchContext.jsx          // Contexto de búsqueda
+│   └── ThemeContext.jsx           // Contexto de tema
+└── services/
+    └── api.js                     // Servicios de API
 ```
 
 ### **Hooks Personalizados**
 
-#### **useWindowSize** - Tamaño de Ventana
+#### **useChatSignalR** - Chat en Tiempo Real (NUEVO)
 ```javascript
-const useWindowSize = () => {
-    const [size, setSize] = useState({
-        width: window.innerWidth,
-        height: window.innerHeight
-    });
+const {
+  connection,
+  onMessageReceived,
+  onConversationReceived,
+  isConnected
+} = useChatSignalR();
 
-    useEffect(() => {
-        const handleResize = () => {
-            setSize({
-                width: window.innerWidth,
-                height: window.innerHeight
-            });
-        };
+// Funcionalidades:
+// - Conexión automática a SignalR
+// - Reconexión automática
+// - Escucha de mensajes en tiempo real
+// - Escucha de nuevas conversaciones
+```
 
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+#### **useResponsiveSidebar** - Sidebar Responsivo (NUEVO)
+```javascript
+const { isSidebarOpen, setIsSidebarOpen } = useResponsiveSidebar();
 
-    return size;
-};
+// Funcionalidades:
+// - Cierre automático en pantallas pequeñas
+// - Apertura automática en pantallas grandes
+// - Gestión del estado del sidebar
 ```
 
 ### **Servicios API**
 
-#### **api.js** - Cliente HTTP
+#### **api.js** - Servicios Centralizados
 ```javascript
-import axios from 'axios';
+// Activos API
+activosAPI.updateRustDeskId(id, rustDeskId)     // Actualizar ID RustDesk
 
-const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5266/api',
-    timeout: 10000
-});
+// Chat API
+chatAPI.getConversaciones()                     // Obtener conversaciones
+chatAPI.getConversacionesArchivadas()           // Conversaciones archivadas
+chatAPI.archivarConversacion(id)                // Archivar conversación
+chatAPI.desarchivarConversacion(id)             // Desarchivar conversación
+chatAPI.eliminarConversacion(id)                // Eliminar conversación
+chatAPI.eliminarMensaje(id)                     // Eliminar mensaje
+chatAPI.marcarMensajesComoLeidos(id)            // Marcar como leídos
 
-// Interceptor para agregar token
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
-
-// Interceptor para manejar errores
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
-    }
-);
-
-export default api;
+// Paz y Salvo API
+pazYSalvoAPI.getAll()                           // Listar documentos
+pazYSalvoAPI.create(data)                       // Crear documento
+pazYSalvoAPI.update(id, data)                   // Actualizar documento
+pazYSalvoAPI.delete(id)                         // Eliminar documento
+pazYSalvoAPI.download(id)                       // Descargar archivo
+pazYSalvoAPI.getActivosPendientes(usuarioId)    // Activos pendientes
 ```
 
 ---
 
 ## 🔐 Autenticación y Seguridad
 
-### **Flujo de Autenticación JWT**
+### **JWT Authentication**
+```csharp
+// Configuración JWT
+{
+  "JwtSettings": {
+    "SecretKey": "tu_clave_secreta_muy_larga",
+    "Issuer": "PortalTI",
+    "Audience": "PortalTIUsers",
+    "ExpirationHours": 24
+  }
+}
 
-1. **Login**
-   ```javascript
-   // Frontend envía credenciales
-   POST /api/auth/login
-   {
-     "username": "admin",
-     "password": "password123"
-   }
-   ```
-
-2. **Respuesta del Servidor**
-   ```json
-   {
-     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-     "username": "admin",
-     "role": "admin",
-     "expiresAt": "2024-01-15T10:30:00Z"
-   }
-   ```
-
-3. **Almacenamiento del Token**
-   ```javascript
-   localStorage.setItem('token', response.data.token);
-   ```
-
-4. **Uso en Requests**
-   ```javascript
-   // Automáticamente agregado por interceptor
-   headers: {
-     'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-   }
-   ```
+// Estructura del Token
+{
+  "sub": "userId",
+  "role": "admin|soporte|usuario",
+  "username": "username",
+  "exp": 1234567890,
+  "iat": 1234567890
+}
+```
 
 ### **Autorización por Roles**
-
-#### **Roles Disponibles**
-- **admin**: Acceso completo al sistema
-- **soporte**: Gestión de activos, tickets y chat
-- **usuario**: Acceso limitado a funcionalidades básicas
-
-#### **Middleware de Autorización**
 ```csharp
-[Authorize(Roles = "admin")]
-[Authorize(Roles = "admin,soporte")]
-[Authorize(Roles = "admin,soporte,usuario")]
+[Authorize(Roles = "admin")]           // Solo administradores
+[Authorize(Roles = "admin,soporte")]   // Admin y soporte
+[Authorize]                            // Usuarios autenticados
 ```
 
 ### **Validación de Datos**
+- **FluentValidation**: Validación en el backend
+- **React Hook Form**: Validación en el frontend
+- **Sanitización**: Prevención de XSS
+- **CSRF Protection**: Protección contra ataques CSRF
 
-#### **FluentValidation**
+---
+
+## 🖥️ Integración RustDesk
+
+### **Arquitectura de Integración**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │    │   RustDesk      │
+│   React         │◄──►│   API           │    │   Local API     │
+│                 │    │                 │    │   (Puerto 21117)│
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### **Funcionalidades Implementadas**
+
+#### **1. Persistencia de IDs**
 ```csharp
-public class LoginRequestValidator : AbstractValidator<LoginRequest>
+// Modelo Activo
+public class Activo
 {
-    public LoginRequestValidator()
-    {
-        RuleFor(x => x.Username)
-            .NotEmpty()
-            .Length(3, 50);
+    // ... otras propiedades
+    public string? RustDeskId { get; set; }
+}
 
-        RuleFor(x => x.Password)
-            .NotEmpty()
-            .MinimumLength(6);
+// API Endpoint
+PATCH /api/activos/{id}/rustdesk-id
+{
+    "rustDeskId": "12345678901234567890"
+}
+```
+
+#### **2. Filtrado Inteligente**
+```javascript
+// Solo equipos compatibles con RustDesk
+const equiposRustDesk = activosAsignados.filter(activo => 
+    ['Equipos', 'Equipo'].includes(activo.Categoria)
+);
+```
+
+#### **3. Modal de Asistencia**
+```javascript
+// Componente RustDeskModal
+- Descarga directa de rustdesk.exe
+- Instrucciones paso a paso
+- Captura manual de ID y contraseña
+- Envío de credenciales por chat
+```
+
+#### **4. API Local de RustDesk**
+```javascript
+// Intentos de captura automática
+const rustDeskAPI = {
+    baseURL: 'http://localhost:21117',
+    endpoints: {
+        getID: '/api/get_id',
+        getPassword: '/api/get_password'
     }
+};
+```
+
+### **Flujo de Trabajo**
+1. **Usuario solicita control remoto**
+2. **Sistema filtra equipos compatibles**
+3. **Se muestra modal de asistencia**
+4. **Usuario descarga/instala RustDesk**
+5. **Usuario ingresa ID manualmente**
+6. **Credenciales se envían por chat**
+7. **Admin/soporte puede conectar**
+
+---
+
+## 💬 Sistema de Chat en Tiempo Real
+
+### **Arquitectura SignalR**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Cliente 1     │    │   SignalR Hub   │    │   Cliente 2     │
+│   (Usuario)     │◄──►│   (ChatHub)     │◄──►│   (Soporte)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │   Base de       │
+                    │   Datos         │
+                    │   (SQL Server)  │
+                    └─────────────────┘
+```
+
+### **Componentes del Sistema**
+
+#### **1. ChatHub (Backend)**
+```csharp
+public class ChatHub : Hub
+{
+    // Gestión de conexiones
+    public override async Task OnConnectedAsync()
+    public override async Task OnDisconnectedAsync(Exception exception)
+    
+    // Grupos de usuarios
+    await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+    await Groups.AddToGroupAsync(Context.ConnectionId, $"role_{role}");
+    
+    // Envío de mensajes
+    await Clients.Group($"user_{userId}").SendAsync("ReceiveChatMessage", conversacionId, mensaje);
+}
+```
+
+#### **2. useChatSignalR (Frontend)**
+```javascript
+const useChatSignalR = () => {
+    // Conexión automática
+    useEffect(() => {
+        const connection = new HubConnectionBuilder()
+            .withUrl("/hubs/chat", { accessTokenFactory: () => token })
+            .build();
+            
+        // Reconexión automática
+        connection.onclose(() => {
+            setTimeout(() => connection.start(), 5000);
+        });
+    }, []);
+    
+    // Escucha de mensajes
+    connection.on("ReceiveChatMessage", (conversacionId, mensaje) => {
+        // Actualizar estado del chat
+    });
+};
+```
+
+#### **3. FloatingChatIcon**
+```javascript
+// Icono flotante con contador
+const FloatingChatIcon = () => {
+    const [totalNoLeidos, setTotalNoLeidos] = useState(0);
+    
+    // Actualización automática del contador
+    useEffect(() => {
+        // Cargar conversaciones y calcular no leídos
+    }, []);
+    
+    return (
+        <div className="fixed bottom-4 right-4 z-[9999]">
+            <button onClick={toggleChat}>
+                <span className="badge">{totalNoLeidos}</span>
+            </button>
+        </div>
+    );
+};
+```
+
+### **Funcionalidades del Chat**
+
+#### **1. Conversaciones Archivadas**
+```javascript
+// Tabs para conversaciones activas y archivadas
+const [activeTab, setActiveTab] = useState('activas');
+
+// Filtrado de conversaciones
+const conversacionesActivas = conversaciones.filter(c => !c.archivada);
+const conversacionesArchivadas = conversaciones.filter(c => c.archivada);
+```
+
+#### **2. Eliminación de Mensajes**
+```javascript
+// Solo admin y soporte pueden eliminar
+const canDeleteMessage = userRole === 'admin' || userRole === 'soporte';
+
+const eliminarMensaje = async (mensajeId) => {
+    if (!canDeleteMessage) return;
+    await chatAPI.eliminarMensaje(mensajeId);
+};
+```
+
+#### **3. Estados de Usuario**
+```javascript
+// Indicador online/offline
+const UserStatus = ({ userId }) => {
+    const [isOnline, setIsOnline] = useState(false);
+    
+    useEffect(() => {
+        // Verificar estado del usuario
+        const checkStatus = async () => {
+            const status = await ChatHub.IsUserOnline(userId);
+            setIsOnline(status);
+        };
+    }, [userId]);
+    
+    return (
+        <div className={`status-indicator ${isOnline ? 'online' : 'offline'}`}>
+            {isOnline ? '🟢' : '🔴'}
+        </div>
+    );
+};
+```
+
+---
+
+## 📄 Sistema de Paz y Salvo
+
+### **Arquitectura del Sistema**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │    │   Sistema de    │
+│   React         │◄──►│   API           │    │   Archivos      │
+│                 │    │                 │    │   (wwwroot)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### **Modelo de Datos**
+```csharp
+public class PazYSalvo
+{
+    public int Id { get; set; }
+    public int UsuarioId { get; set; }
+    public string UsuarioNombre { get; set; }
+    public string ArchivoPath { get; set; }
+    public string Estado { get; set; } // Pendiente, Aprobado, Rechazado
+    public string ActivosPendientes { get; set; }
+    public string Notas { get; set; }
+    public DateTime FechaCreacion { get; set; }
+    public DateTime FechaSubida { get; set; }
+    
+    // Relaciones
+    public virtual NominaUsuario Usuario { get; set; }
+}
+```
+
+### **Gestión de Archivos**
+```csharp
+// Subida de archivos
+public async Task<IActionResult> Create([FromForm] PazYSalvoCreateDto dto)
+{
+    var fileName = $"{Guid.NewGuid()}_{dto.Archivo.FileName}";
+    var filePath = Path.Combine(_webHostEnvironment.WebRootPath, "pazysalvo", fileName);
+    
+    using (var stream = new FileStream(filePath, FileMode.Create))
+    {
+        await dto.Archivo.CopyToAsync(stream);
+    }
+    
+    // Guardar en base de datos
+    var pazYSalvo = new PazYSalvo
+    {
+        UsuarioId = dto.UsuarioId,
+        ArchivoPath = fileName,
+        Estado = "Pendiente"
+    };
+}
+
+// Descarga de archivos
+public async Task<IActionResult> Download(int id)
+{
+    var pazYSalvo = await _db.PazYSalvos.FindAsync(id);
+    var filePath = Path.Combine(_webHostEnvironment.WebRootPath, "pazysalvo", pazYSalvo.ArchivoPath);
+    
+    var memory = new MemoryStream();
+    using (var stream = new FileStream(filePath, FileMode.Open))
+    {
+        await stream.CopyToAsync(memory);
+    }
+    
+    return File(memory.ToArray(), "application/octet-stream", pazYSalvo.ArchivoPath);
+}
+```
+
+### **Validación de Activos Pendientes**
+```csharp
+// Obtener activos pendientes por usuario
+public async Task<IActionResult> GetActivosPendientes(int usuarioId)
+{
+    var activosPendientes = await _db.AsignacionesActivos
+        .Include(aa => aa.Activo)
+        .Where(aa => aa.UsuarioId == usuarioId && 
+                    aa.Estado == "Activa" &&
+                    aa.Activo.Estado != "Dado de Baja")
+        .Select(aa => new
+        {
+            aa.Activo.Codigo,
+            aa.Activo.Categoria,
+            aa.Activo.NombreEquipo,
+            aa.FechaAsignacion
+        })
+        .ToListAsync();
+        
+    return Ok(activosPendientes);
 }
 ```
 
 ---
 
-## 📋 Funcionalidades por Módulo
+## 🎨 Mejoras de UI/UX
 
-### **1. Módulo de Usuarios**
+### **Diseño Responsivo**
+```css
+/* Botones estéticos */
+.btn-primary {
+    @apply bg-gradient-to-r from-purple-600 to-blue-600 
+           hover:from-purple-700 hover:to-blue-700
+           text-white font-medium py-2 px-4 rounded-lg
+           shadow-lg hover:shadow-xl transform hover:scale-105
+           transition-all duration-200;
+}
 
-#### **Gestión de Usuarios de Nómina**
-- ✅ Crear, editar, eliminar usuarios
-- ✅ Búsqueda y filtros avanzados
-- ✅ Asignación de departamentos y empresas
-- ✅ Gestión de ubicaciones
+/* Sidebar responsivo */
+.sidebar {
+    @apply lg:w-64 md:w-48 sm:w-48
+           transition-all duration-300 ease-in-out;
+}
 
-#### **Gestión de Usuarios del Sistema**
-- ✅ Crear cuentas de acceso
-- ✅ Asignación de roles
-- ✅ Gestión de firmas digitales
-- ✅ Configuración de preferencias
+/* Icono flotante */
+.floating-icon {
+    @apply fixed bottom-4 right-4 z-[9999]
+           bg-gradient-to-r from-purple-600 to-blue-600
+           text-white rounded-full p-3 shadow-lg
+           hover:shadow-xl transform hover:scale-110
+           transition-all duration-200;
+}
+```
 
-#### **Perfil de Usuario**
-- ✅ Edición de información personal
-- ✅ Cambio de contraseña
-- ✅ Subida de firma digital
-- ✅ Configuración de tema
+### **Animaciones y Transiciones**
+```javascript
+// Transiciones suaves
+const AnimatedWrapper = ({ children, delay = 0 }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay }}
+    >
+        {children}
+    </motion.div>
+);
 
-### **2. Módulo de Activos**
+// Feedback visual
+const Toast = ({ message, type }) => (
+    <div className={`toast toast-${type}`}>
+        <div className="animate-bounce">🎉</div>
+        <span>{message}</span>
+    </div>
+);
+```
 
-#### **Gestión de Inventario**
-- ✅ Registro de activos por categoría
-- ✅ Especificaciones técnicas detalladas
-- ✅ Estados de activos (Nuevo, Usado, etc.)
-- ✅ Ubicaciones y empresas
+### **Optimizaciones de Rendimiento**
+```javascript
+// Memoización de componentes
+const ExpensiveComponent = React.memo(({ data }) => {
+    return <div>{/* Renderizado costoso */}</div>;
+});
 
-#### **Asignación de Activos**
-- ✅ Asignar activos a usuarios
-- ✅ Historial de asignaciones
-- ✅ Devolución de activos
-- ✅ Estados de asignación
-
-#### **Categorías de Activos**
-- **Equipos**: Desktop, Laptop, Servidor, Workstation
-- **Móviles**: Smartphones, Tablets
-- **Monitores**: Pantallas de diferentes tamaños
-- **Periféricos**: Teclados, mouse, impresoras
-- **Accesorios**: Cables, adaptadores, etc.
-- **Red**: Switches, routers, puntos de acceso
-
-### **3. Módulo de Tickets**
-
-#### **Sistema de Soporte**
-- ✅ Creación de tickets
-- ✅ Asignación de prioridades
-- ✅ Estados de seguimiento
-- ✅ Comentarios internos y externos
-
-#### **Categorías de Tickets**
-- **Hardware**: Problemas con equipos físicos
-- **Software**: Problemas con aplicaciones
-- **Red**: Problemas de conectividad
-- **Otros**: Otros tipos de problemas
-
-#### **Prioridades**
-- **Baja**: Problemas menores
-- **Media**: Problemas moderados
-- **Alta**: Problemas importantes
-- **Crítica**: Problemas urgentes
-
-### **4. Módulo de Actas**
-
-#### **Gestión Documental**
-- ✅ Generación automática de PDFs
-- ✅ Múltiples métodos de firma
-- ✅ Estados de aprobación
-- ✅ Historial de cambios
-
-#### **Métodos de Firma**
-- **Digital**: Firma dibujada en pantalla
-- **PDF_Subido**: Subida de PDF firmado
-- **Admin_Subida**: Firma por administrador
-
-### **5. Módulo de Chat**
-
-#### **Chat de Soporte**
-- ✅ Conversaciones en tiempo real
-- ✅ Mensajes internos
-- ✅ Generación de tickets desde chat
-- ✅ Historial de conversaciones
-
-#### **Estados de Conversación**
-- **Activa**: Conversación en curso
-- **Cerrada**: Conversación finalizada
-- **Pendiente**: Esperando respuesta
-
-### **6. Módulo de Dashboard**
-
-#### **Métricas y Reportes**
-- ✅ Estadísticas en tiempo real
-- ✅ Gráficos interactivos
-- ✅ Filtros por período
-- ✅ KPIs personalizables
-
-#### **Funcionalidades de Desarrollo**
-- ✅ Botón para poblar BD con datos de prueba
-- ✅ Preservación de usuarios admin
-- ✅ Datos genéricos para testing
+// Debouncing para búsquedas
+const useDebounce = (value, delay) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        
+        return () => clearTimeout(handler);
+    }, [value, delay]);
+    
+    return debouncedValue;
+};
+```
 
 ---
 
-## ⚙️ Configuración y Despliegue
+## 🚀 Configuración y Despliegue
 
 ### **Variables de Entorno**
-
-#### **Frontend (.env)**
 ```env
+# Frontend (.env)
 REACT_APP_API_URL=http://localhost:5266
 REACT_APP_ENVIRONMENT=development
-```
 
-#### **Backend (appsettings.json)**
-```json
+# Backend (appsettings.json)
 {
   "ConnectionStrings": {
     "DefaultConnection": "Server=localhost;Database=PortalTi;Trusted_Connection=true;TrustServerCertificate=true;"
   },
   "JwtSettings": {
-    "SecretKey": "tu_clave_secreta_muy_larga_y_segura",
+    "SecretKey": "tu_clave_secreta_muy_larga",
     "Issuer": "PortalTI",
     "Audience": "PortalTIUsers",
     "ExpirationHours": 24
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
   }
 }
 ```
 
 ### **Migraciones de Base de Datos**
-
-#### **Comandos EF Core**
 ```bash
 # Crear migración
 dotnet ef migrations add NombreMigracion
@@ -647,226 +850,156 @@ dotnet ef database update
 
 # Revertir migración
 dotnet ef database update NombreMigracionAnterior
-
-# Generar script SQL
-dotnet ef migrations script
 ```
-
-#### **Scripts de Población**
-- **POBLAR_BD.sql**: Script completo para poblar BD con datos genéricos
-- **Preserva usuarios admin**: No elimina usuarios administradores existentes
-- **Datos realistas**: 250 usuarios, 500 activos, tickets, actas, etc.
 
 ### **Despliegue en Producción**
-
-#### **Frontend (Build)**
 ```bash
-# Instalar dependencias
-npm install
-
-# Build de producción
+# Frontend
 npm run build
+# Servir archivos estáticos con nginx/apache
 
-# Servir archivos estáticos
-# nginx, apache, o servidor web
-```
+# Backend
+dotnet publish -c Release
+# Desplegar en IIS o Azure
 
-#### **Backend (Publish)**
-```bash
-# Publicar aplicación
-dotnet publish -c Release -o ./publish
-
-# Desplegar en IIS
-# Copiar archivos a directorio web
-
-# Desplegar en Azure
-# Azure App Service o Azure Functions
-```
-
-#### **Base de Datos**
-```bash
+# Base de datos
 # SQL Server en servidor dedicado
-# Configurar connection string
-# Ejecutar migraciones
-dotnet ef database update
 ```
 
 ---
 
-## 🛠️ Guías de Desarrollo
+## 🧪 Guías de Desarrollo
 
 ### **Agregar Nueva Funcionalidad**
+1. **Crear modelo** en `Models/`
+2. **Crear migración** con `dotnet ef migrations add`
+3. **Crear controlador** en `Controllers/`
+4. **Crear componente** en `src/components/`
+5. **Crear página** en `src/pages/`
+6. **Agregar rutas** en `App.js`
+7. **Actualizar documentación**
 
-#### **1. Backend**
-```bash
-# 1. Crear modelo en Models/
-# 2. Agregar DbSet en PortalTiContext
-# 3. Crear migración
-dotnet ef migrations add NuevaFuncionalidad
-# 4. Crear controlador en Controllers/
-# 5. Implementar endpoints
-# 6. Agregar validaciones
-# 7. Actualizar documentación
+### **Estándares de Código**
+```csharp
+// Backend - C#
+public class MiController : ControllerBase
+{
+    private readonly ILogger<MiController> _logger;
+    private readonly PortalTiContext _db;
+    
+    public MiController(ILogger<MiController> logger, PortalTiContext db)
+    {
+        _logger = logger;
+        _db = db;
+    }
+    
+    [HttpGet]
+    public async Task<IActionResult> Get()
+    {
+        try
+        {
+            var result = await _db.MiEntidad.ToListAsync();
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener datos");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+}
 ```
 
-#### **2. Frontend**
-```bash
-# 1. Crear componente en components/
-# 2. Crear página en pages/
-# 3. Agregar ruta en App.js
-# 4. Implementar servicios en api.js
-# 5. Agregar al menú en Sidebar.jsx
-# 6. Probar funcionalidad
-```
-
-### **Estructura de Commits**
-```bash
-# Formato: tipo(alcance): descripción
-git commit -m "feat(usuarios): agregar validación de email único"
-git commit -m "fix(activos): corregir error en asignación"
-git commit -m "docs(readme): actualizar documentación"
-git commit -m "style(ui): mejorar diseño del dashboard"
+```javascript
+// Frontend - React
+const MiComponente = ({ data, onAction }) => {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    
+    const handleAction = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            await onAction();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    return (
+        <div className="mi-componente">
+            {loading && <div className="loading">Cargando...</div>}
+            {error && <div className="error">{error}</div>}
+            {/* Contenido del componente */}
+        </div>
+    );
+};
 ```
 
 ### **Testing**
-
-#### **Frontend Testing**
-```bash
-# Tests unitarios
-npm test
-
-# Tests de integración
-npm run test:integration
-
-# Coverage
-npm run test:coverage
-```
-
-#### **Backend Testing**
-```bash
-# Tests unitarios
-dotnet test
-
-# Tests de integración
-dotnet test --filter Category=Integration
-
-# Coverage
-dotnet test --collect:"XPlat Code Coverage"
-```
-
-### **Debugging**
-
-#### **Frontend**
 ```javascript
-// Console logs
-console.log('Debug info:', data);
+// Frontend - Jest + React Testing Library
+import { render, screen, fireEvent } from '@testing-library/react';
+import MiComponente from './MiComponente';
 
-// React DevTools
-// Instalar extensión en navegador
+test('renders correctly', () => {
+    render(<MiComponente data={[]} />);
+    expect(screen.getByText('Mi Componente')).toBeInTheDocument();
+});
 
-// Network tab
-// Revisar requests/responses
+test('handles action correctly', async () => {
+    const mockAction = jest.fn();
+    render(<MiComponente onAction={mockAction} />);
+    
+    fireEvent.click(screen.getByText('Acción'));
+    expect(mockAction).toHaveBeenCalled();
+});
 ```
 
-#### **Backend**
 ```csharp
-// Logging
-_logger.LogInformation("Debug info: {Data}", data);
-_logger.LogError("Error occurred: {Error}", ex.Message);
-
-// Debugger
-Debugger.Break();
-
-// Swagger UI
-// http://localhost:5266/swagger
-```
-
-### **Performance**
-
-#### **Frontend**
-- ✅ Lazy loading de componentes
-- ✅ Memoización con React.memo
-- ✅ Optimización de re-renders
-- ✅ Code splitting
-
-#### **Backend**
-- ✅ Paginación en listas
-- ✅ Caching con Redis
-- ✅ Optimización de queries EF
-- ✅ Compresión de respuestas
-
----
-
-## 📊 Métricas y Monitoreo
-
-### **Logs del Sistema**
-- **Serilog**: Logging estructurado
-- **Niveles**: Debug, Information, Warning, Error
-- **Destinos**: Console, File, Database
-
-### **Métricas de Rendimiento**
-- **Response Time**: Tiempo de respuesta de API
-- **Throughput**: Requests por segundo
-- **Error Rate**: Tasa de errores
-- **Memory Usage**: Uso de memoria
-
-### **Alertas**
-- **Errores 500**: Errores del servidor
-- **Timeout**: Requests que exceden límite
-- **Memory**: Uso alto de memoria
-- **Database**: Problemas de conexión
-
----
-
-## 🔧 Mantenimiento
-
-### **Backup de Base de Datos**
-```sql
--- Backup completo
-BACKUP DATABASE PortalTi TO DISK = 'C:\Backups\PortalTi.bak'
-
--- Backup diferencial
-BACKUP DATABASE PortalTi TO DISK = 'C:\Backups\PortalTi_diff.bak' WITH DIFFERENTIAL
-
--- Restore
-RESTORE DATABASE PortalTi FROM DISK = 'C:\Backups\PortalTi.bak'
-```
-
-### **Limpieza de Datos**
-```sql
--- Limpiar logs antiguos
-DELETE FROM UserActivityLogs WHERE Timestamp < DATEADD(MONTH, -6, GETDATE())
-
--- Limpiar notificaciones leídas
-DELETE FROM Notificaciones WHERE Leida = 1 AND Fecha < DATEADD(MONTH, -1, GETDATE())
-```
-
-### **Actualizaciones**
-```bash
-# Frontend
-npm update
-npm audit fix
-
-# Backend
-dotnet add package NombrePaquete --version NuevaVersion
-dotnet restore
-dotnet build
+// Backend - xUnit
+[Fact]
+public async Task Get_ReturnsOkResult()
+{
+    // Arrange
+    var controller = new MiController(_logger, _db);
+    
+    // Act
+    var result = await controller.Get();
+    
+    // Assert
+    Assert.IsType<OkObjectResult>(result);
+}
 ```
 
 ---
 
-## 📞 Soporte y Contacto
+## 📚 Recursos Adicionales
 
-### **Canales de Soporte**
-- **Email**: javier.rjorquera@gmail.com
-- **Issues**: GitHub Issues
-- **Documentación**: Este archivo
+### **Documentación Externa**
+- **[React Documentation](https://react.dev/)**
+- **[ASP.NET Core Documentation](https://docs.microsoft.com/en-us/aspnet/core/)**
+- **[Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/)**
+- **[SignalR Documentation](https://docs.microsoft.com/en-us/aspnet/core/signalr/)**
+- **[Tailwind CSS](https://tailwindcss.com/docs)**
+- **[RustDesk Documentation](https://rustdesk.com/docs/)**
 
-### **Recursos Adicionales**
-- **API Documentation**: Swagger UI
-- **Code Examples**: Repositorio GitHub
-- **Troubleshooting**: Sección de debugging
+### **Herramientas de Desarrollo**
+- **Visual Studio 2022**: IDE principal para .NET
+- **VS Code**: Editor para React
+- **SQL Server Management Studio**: Gestión de base de datos
+- **Postman**: Testing de APIs
+- **Chrome DevTools**: Debugging de frontend
+
+### **Librerías Principales**
+- **Frontend**: React, React Router, Tailwind CSS, Axios, SignalR Client
+- **Backend**: ASP.NET Core, Entity Framework Core, SignalR, JWT
+- **Base de Datos**: SQL Server
+- **Herramientas**: AutoMapper, FluentValidation, Serilog
 
 ---
 
-*Esta documentación se actualiza regularmente. Última actualización: Agosto 2025*
+**PortalTI** - Documentación Técnica Completa
+*Última actualización: Agosto 2025*

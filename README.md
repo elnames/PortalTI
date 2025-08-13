@@ -21,6 +21,34 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Asignación inteligente**: Sistema de asignación con historial completo
 - **Ubicaciones múltiples**: Oficinas centrales, sucursales y ubicaciones regionales
 - **Empresas multi-tenant**: Soporte para múltiples empresas en un solo sistema
+- **Sistema Operativo**: Registro del sistema operativo de cada equipo
+
+### 🖥️ Control Remoto con RustDesk
+- **Integración RustDesk**: Control remoto directo desde la aplicación
+- **Persistencia de IDs**: Almacenamiento automático de IDs de RustDesk
+- **Filtrado inteligente**: Solo equipos compatibles (Laptop, Desktop, Servidor)
+- **Asistencia rápida**: Modal con instrucciones paso a paso para usuarios
+- **Captura manual**: Entrada manual de ID y contraseña de RustDesk
+- **Ejecutable incluido**: Descarga directa de rustdesk.exe desde la aplicación
+- **Comunicación integrada**: Envío de credenciales por chat interno
+
+### 💬 Chat de Soporte en Tiempo Real
+- **SignalR integrado**: Comunicación instantánea sin recargas
+- **Conversaciones archivadas**: Sistema de archivo tipo WhatsApp
+- **Mensajes no leídos**: Contador automático de mensajes pendientes
+- **Icono flotante**: Acceso rápido al chat desde cualquier página
+- **Panel mini-chat**: Vista previa de conversaciones recientes
+- **Eliminación de mensajes**: Admin/soporte pueden eliminar mensajes
+- **Estados de usuario**: Indicador online/offline en tiempo real
+- **Notificaciones push**: Alertas instantáneas de nuevos mensajes
+
+### 📄 Sistema de Paz y Salvo
+- **Gestión documental**: Subida y gestión de documentos de paz y salvo
+- **Almacenamiento seguro**: Archivos guardados en wwwroot/pazysalvo
+- **Validación de activos**: Verificación de activos pendientes por usuario
+- **Estados de aprobación**: Pendiente, Aprobado, Rechazado
+- **Descarga de archivos**: Acceso directo a documentos subidos
+- **Historial completo**: Seguimiento de todos los documentos por usuario
 
 ### 🎫 Sistema de Tickets de Soporte
 - **Creación múltiple**: Desde usuario, admin o chat integrado
@@ -37,13 +65,6 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Estados de aprobación**: Pendiente, Firmada, Aprobada, Rechazada
 - **Previsualización**: Visualización de actas antes de la firma
 - **Historial completo**: Seguimiento de cambios y aprobaciones
-
-### 💬 Chat de Soporte Integrado
-- **Conversaciones en tiempo real**: Chat interno para soporte técnico
-- **Generación automática de tickets**: Crear tickets desde conversaciones
-- **Mensajes internos**: Comunicación privada entre soporte
-- **Historial persistente**: Conversaciones guardadas y consultables
-- **Estados de conversación**: Activa, Cerrada, Pendiente
 
 ### 📊 Dashboard y Reportes Avanzados
 - **Métricas en tiempo real**: Estadísticas de uso y rendimiento
@@ -71,6 +92,7 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Chart.js**: Gráficos interactivos y responsivos
 - **Axios**: Cliente HTTP para comunicación con API
 - **JWT Decode**: Manejo de tokens de autenticación
+- **SignalR Client**: Comunicación en tiempo real
 
 ### Backend
 - **ASP.NET Core 8**: Framework web moderno
@@ -109,6 +131,13 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Contraste adecuado**: Cumplimiento de estándares WCAG
 - **Etiquetas semánticas**: HTML semántico para lectores de pantalla
 - **ARIA labels**: Atributos de accesibilidad implementados
+
+### 🎨 UI/UX Mejorada
+- **Botones estéticos**: Gradientes, sombras y efectos hover
+- **Iconos flotantes**: Acceso rápido a funcionalidades clave
+- **Animaciones fluidas**: Transiciones suaves entre estados
+- **Feedback visual**: Indicadores claros de acciones y estados
+- **Diseño moderno**: Interfaz limpia y profesional
 
 ## 🚀 Instalación y Configuración
 
@@ -202,16 +231,21 @@ PortalTI/
 │   │   ├── AsignarActivoModal.jsx
 │   │   ├── ChatInternoModal.jsx
 │   │   ├── DataTable.jsx
+│   │   ├── FloatingChatIcon.jsx  # Chat flotante en tiempo real
 │   │   ├── GenerarActaModal.jsx
 │   │   ├── Header.jsx
+│   │   ├── PazYSalvoManager.jsx  # Gestión de paz y salvo
+│   │   ├── RemoteControlButton.jsx # Control remoto RustDesk
+│   │   ├── RustDeskModal.jsx     # Modal de configuración RustDesk
 │   │   ├── Sidebar.jsx
 │   │   └── ...
 │   ├── pages/                   # Páginas principales
 │   │   ├── Actas.jsx
 │   │   ├── Activos.jsx
-│   │   ├── Chat.jsx
+│   │   ├── Chat.jsx             # Chat principal con SignalR
 │   │   ├── Dashboard.jsx
 │   │   ├── Login.jsx
+│   │   ├── PazYSalvo.jsx        # Página de paz y salvo
 │   │   ├── Tickets.jsx
 │   │   └── Usuarios.jsx
 │   ├── contexts/                # Contextos de React
@@ -224,6 +258,8 @@ PortalTI/
 │   ├── layouts/                 # Layouts de la aplicación
 │   │   └── MainLayout.jsx
 │   └── hooks/                   # Custom hooks
+│       ├── useChatSignalR.js    # Hook para SignalR
+│       ├── useResponsiveSidebar.js # Hook para sidebar responsivo
 │       └── useWindowSize.js
 ├── portalti-backend/            # Backend .NET Core
 │   └── PortalTi.Api/           # API principal
@@ -233,21 +269,32 @@ PortalTI/
 │       │   ├── AuthController.cs
 │       │   ├── ChatController.cs
 │       │   ├── DashboardController.cs
+│       │   ├── PazYSalvoController.cs # Controlador paz y salvo
 │       │   ├── TicketsController.cs
 │       │   └── UsuariosController.cs
 │       ├── Models/              # Modelos de datos
 │       │   ├── Acta.cs
-│       │   ├── Activo.cs
+│       │   ├── Activo.cs        # Incluye RustDeskId
 │       │   ├── AuthUser.cs
+│       │   ├── ChatConversacion.cs
+│       │   ├── ChatMensaje.cs
+│       │   ├── PazYSalvo.cs     # Modelo paz y salvo
 │       │   ├── Ticket.cs
 │       │   └── ...
 │       ├── Data/                # Capa de datos
 │       │   ├── PortalTiContext.cs
 │       │   └── DbInitializer.cs
+│       ├── Hubs/                # SignalR Hubs
+│       │   └── ChatHub.cs       # Hub para chat en tiempo real
 │       ├── Migrations/          # Migraciones EF Core
+│       │   ├── AddPazYSalvoTableOnly.cs
+│       │   ├── AddRustDeskIdToActivos.cs
+│       │   └── ...
 │       └── Services/            # Servicios de negocio
 │           └── PdfService.cs
 ├── public/                      # Archivos estáticos
+│   ├── rustdesk.exe            # Ejecutable RustDesk
+│   └── ...
 ├── POBLAR_BD.sql               # Script de población de datos
 └── README.md                   # Este archivo
 ```
@@ -262,6 +309,9 @@ PortalTI/
 - **Gestión de actas**: Aprobación y administración
 - **Chat de soporte**: Acceso completo a conversaciones
 - **Población de datos**: Botón para poblar BD con datos de prueba
+- **Control remoto**: Acceso completo a funcionalidad RustDesk
+- **Gestión de paz y salvo**: Administración de documentos
+- **Eliminación de mensajes**: Puede eliminar mensajes del chat
 
 ### 🛠️ Soporte Técnico (soporte)
 - **Gestión de activos**: Asignar, devolver, dar de baja
@@ -270,6 +320,9 @@ PortalTI/
 - **Gestión de actas**: Crear y gestionar actas de entrega
 - **Reportes básicos**: Métricas de soporte
 - **Comentarios internos**: Comunicación privada en tickets
+- **Control remoto**: Acceso a funcionalidad RustDesk
+- **Asistencia RustDesk**: Ayudar a usuarios con configuración
+- **Eliminación de mensajes**: Puede eliminar mensajes del chat
 
 ### 👤 Usuario Regular (usuario)
 - **Visualización de activos**: Ver activos asignados
@@ -278,6 +331,8 @@ PortalTI/
 - **Chat de soporte**: Comunicación con soporte
 - **Perfil personal**: Editar información personal
 - **Notificaciones**: Recibir alertas del sistema
+- **Paz y salvo**: Subir documentos de paz y salvo
+- **RustDesk**: Recibir asistencia para configuración
 
 ## 🔒 Seguridad y Autenticación
 
@@ -315,6 +370,20 @@ PortalTI/
 - **Persistencia**: Historial de notificaciones
 - **Configuración personal**: Preferencias por usuario
 
+### 🖥️ Control Remoto RustDesk
+- **Integración nativa**: Control remoto desde la aplicación
+- **Persistencia de datos**: IDs guardados automáticamente
+- **Asistencia guiada**: Instrucciones paso a paso
+- **Comunicación integrada**: Envío de credenciales por chat
+- **Filtrado inteligente**: Solo equipos compatibles
+
+### 💬 Chat en Tiempo Real
+- **SignalR integrado**: Comunicación instantánea
+- **Archivado de conversaciones**: Sistema tipo WhatsApp
+- **Contador de mensajes**: Indicador de mensajes no leídos
+- **Icono flotante**: Acceso rápido desde cualquier página
+- **Estados de usuario**: Online/offline en tiempo real
+
 ## 🎯 Casos de Uso Principales
 
 ### 📋 Gestión de Inventario
@@ -323,6 +392,7 @@ PortalTI/
 3. **Seguimiento**: Monitoreo de ubicación y estado
 4. **Mantenimiento**: Control de reparaciones y actualizaciones
 5. **Baja**: Proceso de retiro de activos
+6. **Control remoto**: Configuración y acceso remoto con RustDesk
 
 ### 🎫 Soporte Técnico
 1. **Creación de tickets**: Usuarios reportan problemas
@@ -330,6 +400,8 @@ PortalTI/
 3. **Resolución**: Proceso de solución de problemas
 4. **Seguimiento**: Comunicación y actualizaciones
 5. **Cierre**: Finalización y documentación
+6. **Chat en tiempo real**: Comunicación instantánea
+7. **Control remoto**: Asistencia remota con RustDesk
 
 ### 📄 Gestión Documental
 1. **Generación de actas**: Creación automática de documentos
@@ -337,6 +409,14 @@ PortalTI/
 3. **Aprobación**: Flujo de aprobación administrativa
 4. **Almacenamiento**: Archivo seguro de documentos
 5. **Consulta**: Acceso y búsqueda de actas
+6. **Paz y salvo**: Gestión de documentos de salida
+
+### 💬 Comunicación Interna
+1. **Chat en tiempo real**: Comunicación instantánea
+2. **Conversaciones archivadas**: Organización de chats
+3. **Mensajes no leídos**: Seguimiento de comunicación
+4. **Estados de usuario**: Disponibilidad en tiempo real
+5. **Eliminación de mensajes**: Moderación de contenido
 
 ## 🚀 Despliegue
 
@@ -397,6 +477,11 @@ La documentación de la API está disponible en:
 - **Swagger UI**: `http://localhost:5266/swagger`
 - **OpenAPI JSON**: `http://localhost:5266/swagger/v1/swagger.json`
 
+### **Documentación RustDesk**
+Para información sobre la integración con RustDesk:
+- **[📖 Guía RustDesk](./public/README_RUSTDESK.md)**
+- **[🔧 API RustDesk](./public/GUIA_RUSTDESK_API.md)**
+
 ## 🤝 Contribución
 
 1. **Fork** el proyecto
@@ -433,6 +518,8 @@ Este proyecto está bajo la **Licencia MIT**. Ver el archivo `LICENSE` para más
 - **React Team**: Por el excelente framework
 - **Microsoft**: Por .NET Core y Entity Framework
 - **Tailwind CSS**: Por el framework de estilos
+- **SignalR**: Por la comunicación en tiempo real
+- **RustDesk**: Por la herramienta de control remoto
 - **Comunidad Open Source**: Por las librerías utilizadas
 
 ## 📞 Soporte
