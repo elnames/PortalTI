@@ -70,15 +70,15 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   return (
     <>
       {overlay}
-             <div
-         className={`
-           fixed sm:relative z-40 flex flex-col justify-between bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+      <div
+        className={`
+           fixed sm:relative z-40 flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
            ${isOpen ? (settings.interfaceSettings.compactSidebar ? 'w-48' : 'w-64') : 'w-16'} transition-all duration-200
-           h-full max-h-screen
+           h-full max-h-screen overflow-hidden
            ${isOpen ? 'flex' : 'hidden sm:flex'}
            lg:${isOpen ? 'w-64' : 'w-16'} md:${isOpen ? 'w-48' : 'w-16'} sm:${isOpen ? 'w-48' : 'w-16'}
          `}
-       >
+      >
         {/* Toggle */}
         <button
           onClick={toggleSidebar}
@@ -93,8 +93,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
 
-        {/* Logo */}
-        <div className="mt-4 flex justify-center">
+        {/* Logo - Fijo arriba */}
+        <div className="mt-4 flex justify-center flex-shrink-0">
           <img
             src="/logo.png"
             alt="Portal TI Logo"
@@ -102,8 +102,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           />
         </div>
 
-        {/* Navegación */}
-        <nav className="mt-6 flex-1 space-y-2 px-2">
+        {/* Navegación con scroll - Área flexible */}
+        <nav className="mt-6 flex-1 space-y-2 px-2 overflow-y-auto scrollbar-hide min-h-0">
           {links.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
@@ -123,8 +123,8 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           ))}
         </nav>
 
-        {/* Avatar */}
-        <div className="p-4 flex justify-center">
+        {/* Avatar - Fijo abajo */}
+        <div className="p-4 flex justify-center flex-shrink-0">
           <img
             src="/avatar.png"
             alt="User Avatar"

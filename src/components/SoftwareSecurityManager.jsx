@@ -2,7 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, CheckCircle, XCircle, Plus, Edit2, Trash2, Key } from 'lucide-react';
 import { useNotificationContext } from '../contexts/NotificationContext';
+import UserAutoComplete from './UserAutoComplete';
 import { softwareSecurityAPI } from '../services/api';
+import api from '../services/api';
 
 export default function SoftwareSecurityManager({ activoId, activoData }) {
     const [softwareList, setSoftwareList] = useState([]);
@@ -12,6 +14,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
     const [showAddSoftware, setShowAddSoftware] = useState(false);
     const [showAddSecurity, setShowAddSecurity] = useState(false);
     const [showAddLicense, setShowAddLicense] = useState(false);
+    const [usuarios, setUsuarios] = useState([]);
     const { alertSuccess, alertError } = useNotificationContext();
 
     // Estados para formularios
@@ -33,8 +36,6 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
     const [newLicense, setNewLicense] = useState({
         software: '',
         tipo: 'Perpetua',
-        fechaInicio: '',
-        fechaVencimiento: '',
         numeroLicencia: '',
         usuarioAsignado: '',
         notas: ''
@@ -43,8 +44,24 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
     useEffect(() => {
         if (activoId) {
             loadSoftwareAndSecurity();
+            loadUsuarios();
         }
     }, [activoId]);
+
+    const loadUsuarios = async () => {
+        try {
+            const response = await api.get('/usuarios');
+            setUsuarios(response.data);
+        } catch (error) {
+            console.error('Error al cargar usuarios:', error);
+        }
+    };
+
+    const getUserNameById = (userId) => {
+        if (!userId || !usuarios.length) return 'No asignado';
+        const usuario = usuarios.find(u => u.id === userId);
+        return usuario ? `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || usuario.email || 'Usuario sin nombre' : 'Usuario no encontrado';
+    };
 
     const loadSoftwareAndSecurity = async () => {
         try {
@@ -97,10 +114,12 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
         try {
             const response = await softwareSecurityAPI.createLicencia({
                 ...newLicense,
-                activoId: activoId
+                activoId: activoId,
+                fechaInicio: null,
+                fechaVencimiento: null
             });
             setLicenses(prev => [...prev, response.data]);
-            setNewLicense({ software: '', tipo: 'Perpetua', fechaInicio: '', fechaVencimiento: '', numeroLicencia: '', usuarioAsignado: '', notas: '' });
+            setNewLicense({ software: '', tipo: 'Perpetua', numeroLicencia: '', usuarioAsignado: '', notas: '' });
             setShowAddLicense(false);
             alertSuccess('Licencia agregada correctamente');
         } catch (error) {
@@ -328,9 +347,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 text-sm text-gray-500 dark:text-gray-400">
                                         <p>Licencia: {license.numeroLicencia}</p>
-                                        <p>Usuario: {license.usuarioAsignado}</p>
-                                        <p>Inicio: {license.fechaInicio}</p>
-                                        <p>Vence: {license.fechaVencimiento || 'Perpetua'}</p>
+                                        <p>Usuario: {getUserNameById(license.usuarioAsignado)}</p>
                                     </div>
                                     {license.notas && (
                                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{license.notas}</p>
@@ -493,26 +510,13 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                 onChange={(e) => setNewLicense(prev => ({ ...prev, numeroLicencia: e.target.value }))}
                                 className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
-                            <input
-                                type="text"
-                                placeholder="Usuario asignado"
+                            <UserAutoComplete
                                 value={newLicense.usuarioAsignado}
-                                onChange={(e) => setNewLicense(prev => ({ ...prev, usuarioAsignado: e.target.value }))}
-                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                                type="date"
-                                placeholder="Fecha de inicio"
-                                value={newLicense.fechaInicio}
-                                onChange={(e) => setNewLicense(prev => ({ ...prev, fechaInicio: e.target.value }))}
-                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
-                            <input
-                                type="date"
-                                placeholder="Fecha de vencimiento"
-                                value={newLicense.fechaVencimiento}
-                                onChange={(e) => setNewLicense(prev => ({ ...prev, fechaVencimiento: e.target.value }))}
-                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                onChange={(userId) => setNewLicense(prev => ({ ...prev, usuarioAsignado: userId }))}
+                                usuarios={usuarios}
+                                placeholder="Buscar usuario para asignar licencia..."
+                                label="Usuario asignado"
+                                className="w-full"
                             />
                             <textarea
                                 placeholder="Notas (opcional)"

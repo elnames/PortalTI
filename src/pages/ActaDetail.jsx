@@ -163,42 +163,97 @@ const ActaDetail = () => {
         }
     };
 
+    // 🎯 FLUJO COMPLETO - 6 CONDICIONES DEL OJO AZUL
     const handlePrevisualizarActa = async (acta, asignacionId) => {
         try {
-            const response = await actasAPI.previsualizar(acta.id);
-            const blob = new Blob([response.data], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
+            let response;
+
+            // 1. 🆕 PENDIENTE DE FIRMA - !acta (no existe acta)
+            if (!acta) {
+                response = await actasAPI.previsualizarActa(asignacionId);
+                showToast('Generando acta con firma de admin/soporte para que puedas previsualizar y firmar a mano', 'info');
+            }
+            // 2. ⏳ PENDIENTE DE APROBACIÓN - estado === 'firmada' && metodoFirma === 'PDF_Subido'
+            else if (acta.estado?.toLowerCase() === 'firmada' && acta.metodoFirma?.toLowerCase() === 'pdf_subido') {
+                response = await actasAPI.descargarActa(acta.id);
+                showToast('Previsualizando PDF que subiste para aprobación', 'info');
+            }
+            // 3. ✅ APROBADA - estado === 'aprobada' && metodoFirma === 'PDF_Subido'
+            else if (acta.estado?.toLowerCase() === 'aprobada' && acta.metodoFirma?.toLowerCase() === 'pdf_subido') {
+                response = await actasAPI.descargarActa(acta.id);
+                showToast('Previsualizando tu PDF aprobado', 'info');
+            }
+            // 4. ✍️ FIRMADA DIGITALMENTE - estado === 'firmada' && metodoFirma === 'Digital'
+            else if (acta.estado?.toLowerCase() === 'firmada' && acta.metodoFirma?.toLowerCase() === 'digital') {
+                response = await actasAPI.previsualizarActaFirmado(acta.id);
+                showToast('Previsualizando acta con tu firma digital y firma de admin/soporte', 'info');
+            }
+            // 5. 📤 SUBIDA POR ADMIN/SOPORTE - metodoFirma === 'Admin_Subida'
+            else if (acta.metodoFirma?.toLowerCase() === 'admin_subida') {
+                response = await actasAPI.descargarActa(acta.id);
+                showToast('Previsualizando PDF que subió el admin/soporte', 'info');
+            }
+            // 6. ❌ RECHAZADA - estado === 'rechazada' && metodoFirma === 'PDF_Subido'
+            else if (acta.estado?.toLowerCase() === 'rechazada' && acta.metodoFirma?.toLowerCase() === 'pdf_subido') {
+                response = await actasAPI.previsualizarActa(asignacionId);
+                showToast('Generando acta con firma de admin/soporte para que puedas previsualizar y firmar a mano nuevamente', 'info');
+            }
+            // Caso por defecto - usar previsualización general
+            else {
+                response = await actasAPI.previsualizarActa(asignacionId);
+                showToast('Previsualizando acta', 'info');
+            }
+
+            const url = window.URL.createObjectURL(response.data);
             window.open(url, '_blank');
         } catch (error) {
-            console.error('Error al previsualizar:', error);
-            showToast('Error', 'No se pudo previsualizar el acta', 'error');
+            console.error('Error:', error);
+            showToast('No se pudo previsualizar el acta', 'error');
         }
     };
 
     const handlePrevisualizacionPersonalizada = (acta, asignacion) => {
         setSelectedActaForPreview(acta);
         setSelectedAsignacionForPreview(asignacion);
+        setIncluirFirmaTI(true);
+        setFechaEntrega(new Date().toISOString().split('T')[0]);
         setShowPrevisualizacionModal(true);
+        console.log('Modal abierto con incluirFirmaTI:', true);
     };
 
     const handleConfirmarPrevisualizacion = async () => {
         try {
-            const response = await actasAPI.previsualizarPersonalizada({
-                asignacionId: selectedAsignacionForPreview.id,
+            let response;
+            console.log('Parámetros de previsualización:', {
                 incluirFirmaTI,
-                fechaEntrega: fechaEntrega || new Date().toISOString().split('T')[0]
+                fechaEntrega,
+                selectedActaForPreview: selectedActaForPreview?.id,
+                selectedAsignacionForPreview: selectedAsignacionForPreview?.id
             });
 
-            const blob = new Blob([response.data], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
+            if (selectedActaForPreview) {
+                // Si hay acta, usar previsualización con parámetros personalizados
+                response = await actasAPI.previsualizarActaPersonalizada(selectedActaForPreview.id, {
+                    incluirFirmaTI: incluirFirmaTI,
+                    fechaEntrega: fechaEntrega
+                });
+            } else {
+                // Si no hay acta, generar nueva con parámetros personalizados
+                response = await actasAPI.previsualizarActaPersonalizada(selectedAsignacionForPreview.id, {
+                    incluirFirmaTI: incluirFirmaTI,
+                    fechaEntrega: fechaEntrega
+                });
+            }
+
+            const url = window.URL.createObjectURL(response.data);
             window.open(url, '_blank');
 
             setShowPrevisualizacionModal(false);
             setSelectedActaForPreview(null);
             setSelectedAsignacionForPreview(null);
         } catch (error) {
-            console.error('Error al previsualizar:', error);
-            showToast('Error', 'No se pudo generar la previsualización', 'error');
+            console.error('Error:', error);
+            showToast('Error', 'No se pudo generar la previsualización personalizada', 'error');
         }
     };
 
@@ -220,6 +275,24 @@ const ActaDetail = () => {
             showToast('Error', 'No se pudo procesar la solicitud', 'error');
         } finally {
             setAprobarLoading(false);
+        }
+    };
+
+    const handleDescargarActa = async (actaId) => {
+        try {
+            const response = await actasAPI.descargar(actaId);
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `acta_${asignacion.activo?.codigo}_${asignacion.usuario?.nombre}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error al descargar acta:', error);
+            showToast('Error', 'No se pudo descargar el acta', 'error');
         }
     };
 
@@ -433,22 +506,37 @@ const ActaDetail = () => {
                                 <>
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</label>
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoActaColor(acta.estado)}`}>
-                                            📄 {acta.estado}
-                                        </span>
-                                    </div>
-                                    {acta.metodoFirma && (
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Método de Firma</label>
-                                            <p className="text-sm text-gray-900 dark:text-white">{acta.metodoFirma}</p>
+                                        <div className="flex flex-col space-y-2">
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoActaColor(acta.estado)}`}>
+                                                📄 {acta.estado}
+                                            </span>
+                                            {acta.metodoFirma && (
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Método: {acta.metodoFirma}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Creación</label>
                                         <p className="text-sm text-gray-900 dark:text-white">
                                             {new Date(acta.fechaCreacion).toLocaleDateString('es-ES')}
                                         </p>
                                     </div>
+                                    {acta.fechaSubida && (
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Subida</label>
+                                            <p className="text-sm text-gray-900 dark:text-white">
+                                                {new Date(acta.fechaSubida).toLocaleDateString('es-ES')}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {acta.nombreArchivo && (
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Archivo</label>
+                                            <p className="text-sm text-gray-900 dark:text-white">{acta.nombreArchivo}</p>
+                                        </div>
+                                    )}
                                 </>
                             ) : (
                                 <div className="text-center py-4">
@@ -465,75 +553,110 @@ const ActaDetail = () => {
                         Acciones Disponibles
                     </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex flex-wrap gap-3">
                         {asignacion.estado === 'Activa' && (
                             <>
-                                {/* Generar Acta */}
+                                {/* 📄 GENERAR ACTA - Solo si no hay acta */}
                                 {!acta && (
-                                    <button
-                                        onClick={() => handleGenerarActa(asignacion)}
-                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                    >
-                                        <FileCheck className="w-4 h-4" />
-                                        <span>Generar Acta</span>
-                                    </button>
+                                    <Tooltip content="Generar acta para el usuario">
+                                        <button
+                                            onClick={() => handleGenerarActa(asignacion)}
+                                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        >
+                                            <FileCheck className="w-4 h-4" />
+                                            <span>Generar Acta</span>
+                                        </button>
+                                    </Tooltip>
                                 )}
 
-                                {/* Marcar Pendiente */}
+                                {/* ⏰ MARCAR PENDIENTE - Solo si no hay acta */}
                                 {!acta && (
-                                    <button
-                                        onClick={() => handleMarcarPendienteFirma(asignacion.id)}
-                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                                    >
-                                        <Clock className="w-4 h-4" />
-                                        <span>Marcar Pendiente</span>
-                                    </button>
+                                    <Tooltip content="Marcar como pendiente de firma">
+                                        <button
+                                            onClick={() => handleMarcarPendienteFirma(asignacion.id)}
+                                            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                                        >
+                                            <Clock className="w-4 h-4" />
+                                            <span>Marcar Pendiente</span>
+                                        </button>
+                                    </Tooltip>
                                 )}
 
-                                {/* Subir Acta */}
-                                <button
-                                    onClick={() => handleSubirActaUsuario(asignacion)}
-                                    className="flex items-center justify-center space-x-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                                >
-                                    <Upload className="w-4 h-4" />
-                                    <span>Subir Acta</span>
-                                </button>
-
-                                {/* Previsualizar */}
-                                <button
-                                    onClick={() => {
-                                        if (!acta || acta.estado?.toLowerCase() === 'pendiente') {
-                                            handlePrevisualizacionPersonalizada(acta, asignacion);
-                                        } else {
-                                            handlePrevisualizarActa(acta, asignacion.id);
-                                        }
-                                    }}
-                                    className="flex items-center justify-center space-x-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                                >
-                                    <Eye className="w-4 h-4" />
-                                    <span>Previsualizar</span>
-                                </button>
-
-                                {/* Aprobar */}
-                                {acta && acta.estado?.toLowerCase() !== 'pendiente' && (
+                                {/* 📤 UPLOAD - Siempre disponible */}
+                                <Tooltip content="Subir acta firmada por el usuario">
                                     <button
-                                        onClick={() => setShowAprobarModal(true)}
-                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                        onClick={() => handleSubirActaUsuario(asignacion)}
+                                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                                     >
-                                        <CheckCircle className="w-4 h-4" />
-                                        <span>Aprobar</span>
+                                        <Upload className="w-4 h-4" />
+                                        <span>Subir Acta</span>
                                     </button>
+                                </Tooltip>
+
+                                {/* 👁️ OJO AZUL - Previsualizar según 6 condiciones */}
+                                <Tooltip content="Previsualizar acta según su estado actual">
+                                    <button
+                                        onClick={() => handlePrevisualizarActa(acta, asignacion.id)}
+                                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        <span>Previsualizar</span>
+                                    </button>
+                                </Tooltip>
+
+                                {/* 📥 DESCARGAR - Solo si hay acta */}
+                                {acta && (
+                                    <Tooltip content="Descargar acta">
+                                        <button
+                                            onClick={() => handleDescargarActa(acta.id)}
+                                            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            <span>Descargar</span>
+                                        </button>
+                                    </Tooltip>
                                 )}
 
-                                {/* Rechazar */}
-                                {acta && acta.estado?.toLowerCase() !== 'pendiente' && (
-                                    <button
-                                        onClick={() => setShowRechazarModal(true)}
-                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                    >
-                                        <XCircle className="w-4 h-4" />
-                                        <span>Rechazar</span>
-                                    </button>
+                                {/* ✅ ✓ - Aprobar (siempre disponible si hay acta) */}
+                                {acta && (
+                                    <Tooltip content="Aprobar acta">
+                                        <button
+                                            onClick={() => {
+                                                if (!acta || !acta.id) {
+                                                    console.error('No se puede aprobar: acta no encontrada o sin ID');
+                                                    showToast('Error', 'No se puede aprobar: acta no encontrada', 'error');
+                                                    return;
+                                                }
+                                                console.log('Aprobando acta:', acta.id);
+                                                setShowAprobarModal(true);
+                                            }}
+                                            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                        >
+                                            <CheckCircle className="w-4 h-4" />
+                                            <span>Aprobar</span>
+                                        </button>
+                                    </Tooltip>
+                                )}
+
+                                {/* ❌ X - Rechazar (siempre disponible si hay acta) */}
+                                {acta && (
+                                    <Tooltip content="Rechazar acta">
+                                        <button
+                                            onClick={() => {
+                                                if (!acta || !acta.id) {
+                                                    console.error('No se puede rechazar: acta no encontrada o sin ID');
+                                                    showToast('Error', 'No se puede rechazar: acta no encontrada', 'error');
+                                                    return;
+                                                }
+                                                console.log('Rechazando acta:', acta.id);
+                                                setShowRechazarModal(true);
+                                            }}
+                                            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                            <span>Rechazar</span>
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </>
                         )}
@@ -560,18 +683,49 @@ const ActaDetail = () => {
                             </p>
                         </div>
 
+                        <div>
+                            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado de Asignación</label>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(asignacion.estado)}`}>
+                                {asignacion.estado}
+                            </span>
+                        </div>
+
                         {acta && (
                             <>
                                 <div>
-                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Archivo del Acta</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{acta.nombreArchivo}</p>
+                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">ID del Acta</label>
+                                    <p className="text-sm text-gray-900 dark:text-white">{acta.id}</p>
                                 </div>
+                                <div>
+                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado del Acta</label>
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoActaColor(acta.estado)}`}>
+                                        📄 {acta.estado}
+                                    </span>
+                                </div>
+                                {acta.nombreArchivo && (
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Archivo del Acta</label>
+                                        <p className="text-sm text-gray-900 dark:text-white">{acta.nombreArchivo}</p>
+                                    </div>
+                                )}
                                 {acta.fechaSubida && (
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Fecha de Subida</label>
                                         <p className="text-sm text-gray-900 dark:text-white">
-                                            {new Date(acta.fechaSubida).toLocaleDateString('es-ES')}
+                                            {new Date(acta.fechaSubida).toLocaleDateString('es-ES', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
                                         </p>
+                                    </div>
+                                )}
+                                {acta.observaciones && (
+                                    <div className="md:col-span-2">
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Observaciones</label>
+                                        <p className="text-sm text-gray-900 dark:text-white">{acta.observaciones}</p>
                                     </div>
                                 )}
                             </>
@@ -649,59 +803,82 @@ const ActaDetail = () => {
                 </div>
             )}
 
-            {/* Modal de Previsualización Personalizada */}
+            {/* Modal de previsualización personalizada */}
             {showPrevisualizacionModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                            Previsualización Personalizada
-                        </h3>
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+                        <div className="mt-3">
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                                Previsualización Personalizada
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                    <div className="flex">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                                                Personaliza la previsualización del acta en estado pendiente de firma.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="flex items-center space-x-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={incluirFirmaTI}
-                                        onChange={(e) => setIncluirFirmaTI(e.target.checked)}
-                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                         Incluir firma de TI
-                                    </span>
-                                </label>
-                            </div>
+                                    </label>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={incluirFirmaTI}
+                                            onChange={(e) => {
+                                                const newValue = e.target.checked;
+                                                setIncluirFirmaTI(newValue);
+                                                console.log('Checkbox cambiado a:', newValue);
+                                            }}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                            Mostrar firma de TI en el documento
+                                        </label>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Fecha de Entrega
-                                </label>
-                                <input
-                                    type="date"
-                                    value={fechaEntrega}
-                                    onChange={(e) => setFechaEntrega(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                />
-                            </div>
-                        </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Fecha de entrega
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={fechaEntrega}
+                                        onChange={(e) => setFechaEntrega(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    />
+                                </div>
 
-                        <div className="flex justify-end space-x-3 mt-6">
-                            <button
-                                onClick={() => {
-                                    setShowPrevisualizacionModal(false);
-                                    setSelectedActaForPreview(null);
-                                    setSelectedAsignacionForPreview(null);
-                                }}
-                                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleConfirmarPrevisualizacion}
-                                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-                            >
-                                Generar Previsualización
-                            </button>
+                                <div className="flex justify-end space-x-2">
+                                    <button
+                                        onClick={() => {
+                                            setShowPrevisualizacionModal(false);
+                                            setSelectedActaForPreview(null);
+                                            setSelectedAsignacionForPreview(null);
+                                        }}
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleConfirmarPrevisualizacion}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700"
+                                    >
+                                        Previsualizar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

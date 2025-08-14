@@ -164,9 +164,9 @@ export default function ActivoDetail() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                 <div className="flex items-center space-x-4">
                     <button
                         onClick={() => navigate(-1)}
@@ -175,24 +175,24 @@ export default function ActivoDetail() {
                         <ArrowLeft className="h-5 w-5" />
                     </button>
                     <div className="flex items-center space-x-4">
-                        <div className="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center">
+                        <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-blue-600 flex items-center justify-center">
                             {getCategoryIcon(activo.categoria)}
                         </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
                                 {activo.nombreEquipo || activo.codigo}
                             </h1>
-                            <p className="text-gray-500 dark:text-gray-400">{activo.codigo}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{activo.codigo}</p>
                         </div>
                     </div>
                 </div>
-                                 <button
-                     onClick={() => navigate(`/activos/${activo.codigo}/editar`)}
-                     className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                 >
-                     <Edit2 className="h-4 w-4" />
-                     <span>Editar activo</span>
-                 </button>
+                <button
+                    onClick={() => navigate(`/activos/${activo.codigo}/editar`)}
+                    className="flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto"
+                >
+                    <Edit2 className="h-4 w-4" />
+                    <span>Editar activo</span>
+                </button>
             </div>
 
             {/* Status Badge */}
@@ -210,35 +210,38 @@ export default function ActivoDetail() {
 
             {/* Tabs */}
             <div className="border-b border-gray-200 dark:border-gray-700">
-                <nav className="-mb-px flex space-x-8">
-                    {[
-                        { id: 'info', label: 'Información', icon: HardDrive },
-                        { id: 'software', label: 'Software & Seguridad', icon: Shield, show: true },
-                        { id: 'conexion', label: 'Conexión Remota', icon: Monitor, show: true },
-                                                 { id: 'asignacion', label: 'Asignación', icon: User, show: true },
-                        { id: 'historial', label: 'Historial', icon: History, show: true }
-                    ].filter(tab => tab.show !== false).map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                                }`}
-                        >
-                            <tab.icon className="h-4 w-4" />
-                            <span>{tab.label}</span>
-                        </button>
-                    ))}
-                </nav>
+                <div className="overflow-x-auto scrollbar-hide">
+                    <nav className="-mb-px flex space-x-8 min-w-max px-4">
+                        {[
+                            { id: 'info', label: 'Información', icon: HardDrive },
+                            { id: 'software', label: 'Software & Seguridad', icon: Shield, show: true },
+                            { id: 'conexion', label: 'Conexión Remota', icon: Monitor, show: true },
+                            { id: 'asignacion', label: 'Asignación', icon: User, show: true },
+                            { id: 'historial', label: 'Historial', icon: History, show: true }
+                        ].filter(tab => tab.show !== false).map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                <tab.icon className="h-4 w-4 flex-shrink-0" />
+                                <span className="hidden sm:inline">{tab.label}</span>
+                                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                            </button>
+                        ))}
+                    </nav>
+                </div>
             </div>
 
             {/* Tab Content */}
             <div className="mt-6">
                 {activeTab === 'info' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                         {/* Información General */}
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                                 <HardDrive className="h-5 w-5 mr-2 text-blue-600" />
                                 Información General
@@ -287,7 +290,7 @@ export default function ActivoDetail() {
                         </div>
 
                         {/* Especificaciones Técnicas */}
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                                 <Cpu className="h-5 w-5 mr-2 text-blue-600" />
                                 Especificaciones Técnicas
@@ -354,8 +357,8 @@ export default function ActivoDetail() {
 
                 {activeTab === 'asignacion' && (
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                            <div className="flex justify-between items-center">
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                                     <User className="h-5 w-5 mr-2 text-blue-600" />
                                     {activo.asignadoA ? 'Usuario Asignado' : 'Asignación de Activo'}
@@ -364,7 +367,7 @@ export default function ActivoDetail() {
                                     {!activo.asignadoA ? (
                                         <button
                                             onClick={() => setShowAsignarModal(true)}
-                                            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                            className="flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto"
                                         >
                                             <Plus className="h-4 w-4" />
                                             <span>Asignar Activo</span>
@@ -372,7 +375,7 @@ export default function ActivoDetail() {
                                     ) : (
                                         <button
                                             onClick={handleQuitarAsignacion}
-                                            className="flex items-center space-x-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                            className="flex items-center justify-center space-x-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 w-full sm:w-auto"
                                         >
                                             <X className="h-4 w-4" />
                                             <span>Quitar Asignación</span>
@@ -381,9 +384,9 @@ export default function ActivoDetail() {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-6">
+                        <div className="p-4 sm:p-6">
                             {activo.asignadoA ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                                     {/* Información del Usuario */}
                                     <div className="space-y-4">
                                         <div className="flex items-center space-x-3">
