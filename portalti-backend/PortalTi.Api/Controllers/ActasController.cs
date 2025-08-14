@@ -697,8 +697,8 @@ namespace PortalTi.Api.Controllers
                 if (acta == null)
                     return NotFound("Acta no encontrada");
 
-                if (!acta.PuedeSerAprobada && !acta.PuedeSerRechazada)
-                    return BadRequest("El acta no puede ser aprobada o rechazada en su estado actual");
+                if (!acta.EsFirmada)
+                    return BadRequest("El acta debe estar firmada para poder ser aprobada o rechazada");
 
                 var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 int? aprobadoPorId = null;
