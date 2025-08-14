@@ -260,8 +260,15 @@ const ActaDetail = () => {
     const handleAprobarActa = async (actaId, aprobado, comentarios = '') => {
         try {
             setAprobarLoading(true);
-            await actasAPI.aprobar(actaId, { Aprobar: aprobado, Comentarios: comentarios });
+            console.log('=== APROBAR ACTA FRONTEND ===');
+            console.log('DEBUG: actaId recibido:', actaId);
+            console.log('DEBUG: aprobado recibido:', aprobado);
+            console.log('DEBUG: comentarios recibido:', comentarios);
+            console.log('DEBUG: datos a enviar:', { Aprobar: aprobado, Comentarios: comentarios });
+            console.log('DEBUG: URL que se llamará:', `/actas/${actaId}/aprobar`);
 
+            await actasAPI.aprobarActa(actaId, { Aprobar: aprobado, Comentarios: comentarios });
+            
             const mensaje = aprobado ? 'Acta aprobada correctamente' : 'Acta rechazada correctamente';
             showToast('Éxito', mensaje, 'success');
 
@@ -269,10 +276,17 @@ const ActaDetail = () => {
             setShowRechazarModal(false);
             setComentariosAprobacion('');
 
-            fetchActaData(); // Recargar datos
+            // Recargar datos para actualizar el estado
+            fetchActaData();
+            
+            // También navegar de vuelta a la gestión de actas para ver los cambios
+            setTimeout(() => {
+                navigate('/gestion-actas');
+            }, 1000);
         } catch (error) {
-            console.error('Error al aprobar/rechazar acta:', error);
-            showToast('Error', 'No se pudo procesar la solicitud', 'error');
+            console.error('Error al procesar acta:', error);
+            console.error('DEBUG: Error completo:', error.response?.data);
+            showToast('Error', 'No se pudo procesar la acta', 'error');
         } finally {
             setAprobarLoading(false);
         }
@@ -893,6 +907,15 @@ const ActaDetail = () => {
                         </h3>
 
                         <div className="space-y-4">
+                            {/* Información del acta */}
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                    <p><strong>Activo:</strong> {asignacion?.activo?.codigo} - {asignacion?.activo?.categoria}</p>
+                                    <p><strong>Usuario:</strong> {asignacion?.usuario?.nombre} {asignacion?.usuario?.apellido}</p>
+                                    <p><strong>Estado actual:</strong> {acta?.estado}</p>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Comentarios (opcional)
@@ -938,6 +961,15 @@ const ActaDetail = () => {
                         </h3>
 
                         <div className="space-y-4">
+                            {/* Información del acta */}
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                    <p><strong>Activo:</strong> {asignacion?.activo?.codigo} - {asignacion?.activo?.categoria}</p>
+                                    <p><strong>Usuario:</strong> {asignacion?.usuario?.nombre} {asignacion?.usuario?.apellido}</p>
+                                    <p><strong>Estado actual:</strong> {acta?.estado}</p>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Comentarios (requerido)
