@@ -112,7 +112,7 @@ const ActaDetail = () => {
 
     const handleMarcarPendienteFirma = async (asignacionId) => {
         try {
-            await actasAPI.marcarPendienteFirma(asignacionId);
+            await actasAPI.marcarPendienteFirma({ asignacionId });
             showToast('Éxito', 'Acta marcada como pendiente de firma', 'success');
             fetchActaData(); // Recargar datos
         } catch (error) {
@@ -146,7 +146,7 @@ const ActaDetail = () => {
             formData.append('asignacionId', selectedAsignacionForUpload.id);
             formData.append('observaciones', observaciones);
 
-            await actasAPI.subirActa(formData);
+            await actasAPI.subirActaAdmin(formData);
 
             setShowUploadModal(false);
             setSelectedFile(null);
@@ -260,7 +260,7 @@ const ActaDetail = () => {
     const handleAprobarActa = async (actaId, aprobado, comentarios = '') => {
         try {
             setAprobarLoading(true);
-            await actasAPI.aprobarActa(actaId, { Aprobar: aprobado, Comentarios: comentarios });
+            await actasAPI.aprobar(actaId, { Aprobar: aprobado, Comentarios: comentarios });
 
             const mensaje = aprobado ? 'Acta aprobada correctamente' : 'Acta rechazada correctamente';
             showToast('Éxito', mensaje, 'success');
@@ -280,7 +280,7 @@ const ActaDetail = () => {
 
     const handleDescargarActa = async (actaId) => {
         try {
-            const response = await actasAPI.descargar(actaId);
+            const response = await actasAPI.descargarActa(actaId);
             const blob = new Blob([response.data], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
