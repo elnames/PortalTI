@@ -697,8 +697,12 @@ namespace PortalTi.Api.Controllers
                 if (acta == null)
                     return NotFound("Acta no encontrada");
 
-                if (!acta.EsFirmada)
-                    return BadRequest("El acta debe estar firmada para poder ser aprobada o rechazada");
+                // Para aprobar, el acta debe estar firmada
+                if (request.Aprobar && !acta.EsFirmada)
+                    return BadRequest("El acta debe estar firmada para poder ser aprobada");
+                
+                // Para rechazar, se puede hacer en cualquier estado
+                // No se necesita validación adicional
 
                 var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 int? aprobadoPorId = null;

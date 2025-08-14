@@ -13,8 +13,8 @@ const ActaActions = ({ acta, asignacion, onActionComplete, onApprove, onReject }
   const canDownload = acta && acta.rutaArchivo;
   const canSign = !acta || acta.estado?.toLowerCase() === 'pendiente' || acta.estado?.toLowerCase() === 'rechazada';
   const canUpload = !acta || acta.estado?.toLowerCase() === 'pendiente' || acta.estado?.toLowerCase() === 'rechazada';
-  const canApprove = acta && acta.estado?.toLowerCase() === 'firmada';
-  const canReject = acta && acta.estado?.toLowerCase() === 'firmada';
+  const canApprove = acta && acta.estado?.toLowerCase() === 'firmada'; // Solo aprobar si está firmada
+  const canReject = acta; // Se puede rechazar en cualquier estado
 
   // Función para previsualizar acta según su estado
   const handlePreview = async () => {
