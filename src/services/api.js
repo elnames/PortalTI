@@ -260,11 +260,17 @@ export const softwareSecurityAPI = {
 export const pazYSalvoAPI = {
     getAll: () => api.get('/pazysalvo'),
     getById: (id) => api.get(`/pazysalvo/${id}`),
-    create: (formData) => api.post('/pazysalvo', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    create: (formData) => api.post('/pazysalvo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
     update: (id, data) => api.put(`/pazysalvo/${id}`, data),
     delete: (id) => api.delete(`/pazysalvo/${id}`),
+    eliminar: (id) => api.delete(`/pazysalvo/${id}/eliminar`),
     download: (id) => api.get(`/pazysalvo/download/${id}`, { responseType: 'blob' }),
-    getActivosPendientes: (usuarioId) => api.get(`/pazysalvo/activos-pendientes/${usuarioId}`)
+    preview: (id) => api.get(`/pazysalvo/preview/${id}`),
+    getActivosPendientes: (usuarioId) => api.get(`/pazysalvo/activos-pendientes/${usuarioId}`),
+    getActivosPendientesTodos: () => api.get('/pazysalvo/activos-pendientes-todos'),
+    marcarActivoDevuelto: (data) => api.post('/pazysalvo/marcar-activo-devuelto', data)
 };
 
 export default api;

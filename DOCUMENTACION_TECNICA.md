@@ -577,8 +577,8 @@ const useChatSignalR = () => {
     // Escucha de mensajes
     connection.on("ReceiveChatMessage", (conversacionId, mensaje) => {
         // Actualizar estado del chat
-    });
-};
+            });
+        };
 ```
 
 #### **3. FloatingChatIcon**
@@ -591,7 +591,7 @@ const FloatingChatIcon = () => {
     useEffect(() => {
         // Cargar conversaciones y calcular no leídos
     }, []);
-    
+
     return (
         <div className="fixed bottom-4 right-4 z-[9999]">
             <button onClick={toggleChat}>
