@@ -58,20 +58,23 @@ export const checkTicketsApiHealth = async () => {
 
 // Métodos para Actas
 export const actasAPI = {
+    // CONSULTAS
     getMisActas: () => api.get('/actas/mis-actas'),
     getActasPendientesAprobacion: () => api.get('/actas/pendientes-aprobacion'),
     getTodasActas: () => api.get('/actas/todas'),
     getByAsignacionId: (asignacionId) => api.get(`/actas/asignacion/${asignacionId}`),
+
+    // ACCIONES DE ACTA
+    marcarPendienteFirma: (data) => api.post('/actas/marcar-pendiente-firma', data),
     firmarDigital: (data) => api.post('/actas/firmar-digital', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirPdf: (formData) => api.post('/actas/subir-pdf', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirActaAdmin: (formData) => api.post('/actas/subir-admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    aprobarActa: (actaId, data) => api.post(`/actas/${actaId}/aprobar`, data),
 
-    // Endpoints de previsualización según el flujo completo
+    // PREVISUALIZACIÓN Y DESCARGA
     previsualizarActa: (asignacionId) => api.get(`/actas/previsualizar/${asignacionId}`, { responseType: 'blob' }),
     previsualizarActaFirmado: (actaId) => api.get(`/actas/previsualizar-firmado/${actaId}`, { responseType: 'blob' }),
     descargarActa: (actaId) => api.get(`/actas/${actaId}/descargar`, { responseType: 'blob' }),
-
-    // Endpoint para previsualización personalizada
     previsualizarActaPersonalizada: (id, params = {}) => {
         const queryParams = new URLSearchParams();
         if (params.incluirFirmaTI !== undefined) {
@@ -81,32 +84,12 @@ export const actasAPI = {
             queryParams.append('fechaEntrega', params.fechaEntrega);
         }
         const url = `/actas/previsualizar-personalizada/${id}?${queryParams}`;
-        console.log('URL de previsualización:', url);
         return api.get(url, { responseType: 'blob' });
     },
 
-    // Endpoints de acción
-    aprobar: (actaId, data) => {
-        console.log('=== API APROBAR ACTA ===');
-        console.log('DEBUG: actaId:', actaId);
-        console.log('DEBUG: data:', data);
-        console.log('DEBUG: URL:', `/actas/${actaId}/aprobar`);
-        return api.post(`/actas/${actaId}/aprobar`, data);
-    },
-    aprobarActa: (actaId, data) => {
-        console.log('=== API APROBAR ACTA ===');
-        console.log('DEBUG: actaId:', actaId);
-        console.log('DEBUG: data:', data);
-        console.log('DEBUG: URL:', `/actas/${actaId}/aprobar`);
-        return api.post(`/actas/${actaId}/aprobar`, data);
-    },
-    testSimple: (data) => api.post('/actas/test-simple', data),
-    eliminarActa: (actaId) => api.delete(`/actas/${actaId}`),
+    // UTILIDADES
     subirFirma: (formData) => api.post('/actas/subir-firma', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    marcarPendienteFirma: (asignacionId) => api.post('/actas/marcar-pendiente-firma', { asignacionId }),
-    subirActa: (formData) => api.post('/actas/subir-admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    previsualizar: (actaId) => api.get(`/actas/previsualizar-firmado/${actaId}`, { responseType: 'blob' }),
-    previsualizarPersonalizada: (params) => api.post('/actas/previsualizar-personalizada', params, { responseType: 'blob' })
+    eliminarActa: (actaId) => api.delete(`/actas/${actaId}`)
 };
 
 // Métodos para Asignaciones (incluye generación de actas)
