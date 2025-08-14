@@ -57,7 +57,13 @@ namespace PortalTi.Api.Controllers
                     .OrderByDescending(a => a.FechaCreacion)
                     .ToListAsync();
 
-                var result = actas.Select(a => new
+                // Eliminar duplicados por AsignacionId, manteniendo solo el más reciente
+                var actasUnicas = actas
+                    .GroupBy(a => a.AsignacionId)
+                    .Select(g => g.OrderByDescending(a => a.FechaCreacion).First())
+                    .ToList();
+
+                var result = actasUnicas.Select(a => new
                 {
                     a.Id,
                     a.Estado,
@@ -224,7 +230,13 @@ namespace PortalTi.Api.Controllers
                     .OrderByDescending(a => a.FechaCreacion)
                     .ToListAsync();
 
-                var result = actas.Select(a => new
+                // Eliminar duplicados por AsignacionId, manteniendo solo el más reciente
+                var actasUnicas = actas
+                    .GroupBy(a => a.AsignacionId)
+                    .Select(g => g.OrderByDescending(a => a.FechaCreacion).First())
+                    .ToList();
+
+                var result = actasUnicas.Select(a => new
                 {
                     a.Id,
                     a.Estado,
@@ -1099,7 +1111,22 @@ namespace PortalTi.Api.Controllers
                 if (actaExistente != null)
                 {
                     _logger.LogWarning($"Ya existe un acta para la asignación {request.AsignacionId}. ID del acta: {actaExistente.Id}");
-                    return BadRequest("Ya existe un acta para esta asignación");
+                    
+                    // Si ya existe un acta, actualizar su estado a "Pendiente" en lugar de crear uno nuevo
+                    actaExistente.Estado = "Pendiente";
+                    actaExistente.MetodoFirma = "Pendiente";
+                    actaExistente.FechaCreacion = DateTime.Now;
+                    actaExistente.Observaciones = request.Observaciones ?? "Acta marcada como pendiente de firma por admin/soporte";
+                    
+                    await _db.SaveChangesAsync();
+                    
+                    _logger.LogInformation($"Acta existente actualizada a pendiente. ID: {actaExistente.Id}");
+                    
+                    return Ok(new { 
+                        message = "Acta marcada como pendiente de firma exitosamente",
+                        actaId = actaExistente.Id,
+                        asignacionId = request.AsignacionId
+                    });
                 }
 
                 // Crear nuevo acta pendiente
