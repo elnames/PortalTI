@@ -58,12 +58,14 @@ namespace PortalTi.Api.Controllers
                         .Where(aa => aa.Estado == "Activa")
                         .Select(aa => new
                         {
+                            asignacionId = aa.Id,
                             aa.Usuario.Id,
                             aa.Usuario.Nombre,
                             aa.Usuario.Apellido,
                             aa.Usuario.Email,
                             aa.Usuario.Departamento,
-                            aa.FechaAsignacion
+                            aa.FechaAsignacion,
+                            aa.Estado
                         })
                         .FirstOrDefault()
                 });
@@ -183,12 +185,14 @@ namespace PortalTi.Api.Controllers
                         .Where(aa => aa.Estado == "Activa")
                         .Select(aa => new
                         {
+                            asignacionId = aa.Id,
                             aa.Usuario.Id,
                             aa.Usuario.Nombre,
                             aa.Usuario.Apellido,
                             aa.Usuario.Email,
                             aa.Usuario.Departamento,
-                            aa.FechaAsignacion
+                            aa.FechaAsignacion,
+                            aa.Estado
                         })
                         .FirstOrDefault()
                 };

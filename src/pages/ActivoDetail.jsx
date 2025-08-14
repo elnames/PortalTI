@@ -19,11 +19,15 @@ import {
     History,
     Activity,
     Shield,
-    Key
+    Key,
+    Plus,
+    X
 } from 'lucide-react'
 import api from '../services/api'
 import SoftwareSecurityManager from '../components/SoftwareSecurityManager'
 import RemoteConnectionManager from '../components/RemoteConnectionManager'
+import AsignarActivoModal from '../components/AsignarActivoModal'
+import { useNotificationContext } from '../contexts/NotificationContext'
 
 export default function ActivoDetail() {
     const { id: codigo } = useParams()
@@ -32,29 +36,53 @@ export default function ActivoDetail() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [activeTab, setActiveTab] = useState('info')
+    const [showAsignarModal, setShowAsignarModal] = useState(false)
+    const { showNotification, alertSuccess, alertError } = useNotificationContext()
 
-    useEffect(() => {
-        const fetchActivo = async () => {
-            if (!codigo) {
-                setError('Código de activo no válido')
-                setLoading(false)
-                return
-            }
-
-            try {
-                setLoading(true)
-                const { data } = await api.get(`/activos/${codigo}`)
-                setActivo(data)
-            } catch (err) {
-                console.error('Error al cargar activo:', err)
-                setError('Error al cargar el activo')
-            } finally {
-                setLoading(false)
-            }
+    const fetchActivo = async () => {
+        if (!codigo) {
+            setError('Código de activo no válido')
+            setLoading(false)
+            return
         }
 
+        try {
+            setLoading(true)
+            const { data } = await api.get(`/activos/${codigo}`)
+            setActivo(data)
+        } catch (err) {
+            console.error('Error al cargar activo:', err)
+            setError('Error al cargar el activo')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
         fetchActivo()
     }, [codigo])
+
+    const handleAsignacionCreada = () => {
+        fetchActivo() // Recargar el activo para mostrar la nueva asignación
+    }
+
+    const handleQuitarAsignacion = async () => {
+        if (!activo.asignadoA || !activo.asignadoA.asignacionId) {
+            console.error('No hay asignación activa para quitar');
+            return;
+        }
+
+        if (window.confirm('¿Estás seguro de que quieres quitar la asignación de este activo?')) {
+            try {
+                await api.delete(`/asignaciones/${activo.asignadoA.asignacionId}`);
+                alertSuccess('Asignación quitada exitosamente');
+                fetchActivo(); // Recargar el activo
+            } catch (error) {
+                console.error('Error al quitar asignación:', error);
+                alertError('Error al quitar la asignación');
+            }
+        }
+    }
 
     const getStatusColor = (estado) => {
         switch (estado?.toLowerCase()) {
@@ -158,23 +186,24 @@ export default function ActivoDetail() {
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={() => navigate(`/activos/${activo.codigo}/editar`)}
-                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                    <Edit2 className="h-4 w-4" />
-                    <span>Editar activo</span>
-                </button>
+                                 <button
+                     onClick={() => navigate(`/activos/${activo.codigo}/editar`)}
+                     className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                 >
+                     <Edit2 className="h-4 w-4" />
+                     <span>Editar activo</span>
+                 </button>
             </div>
 
             {/* Status Badge */}
             <div className="flex items-center space-x-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(activo.estado)}`}>
-                    {activo.estado}
-                </span>
-                {activo.asignadoA && (
+                {activo.asignadoA ? (
                     <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                         Asignado
+                    </span>
+                ) : (
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(activo.estado)}`}>
+                        {activo.estado}
                     </span>
                 )}
             </div>
@@ -186,15 +215,15 @@ export default function ActivoDetail() {
                         { id: 'info', label: 'Información', icon: HardDrive },
                         { id: 'software', label: 'Software & Seguridad', icon: Shield, show: true },
                         { id: 'conexion', label: 'Conexión Remota', icon: Monitor, show: true },
-                        { id: 'asignacion', label: 'Asignación', icon: User, show: activo.asignadoA },
+                                                 { id: 'asignacion', label: 'Asignación', icon: User, show: true },
                         { id: 'historial', label: 'Historial', icon: History, show: true }
                     ].filter(tab => tab.show !== false).map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                                 }`}
                         >
                             <tab.icon className="h-4 w-4" />
@@ -323,65 +352,96 @@ export default function ActivoDetail() {
                     </div>
                 )}
 
-                {activeTab === 'asignacion' && activo.asignadoA && (
+                {activeTab === 'asignacion' && (
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                                <User className="h-5 w-5 mr-2 text-blue-600" />
-                                Usuario Asignado
-                            </h3>
-                        </div>
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Información del Usuario */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center space-x-3">
-                                        <User className="h-4 w-4 text-gray-400" />
-                                        <div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Nombre Completo</p>
-                                            <p className="font-medium text-gray-900 dark:text-white">
-                                                {activo.asignadoA.nombre} {activo.asignadoA.apellido}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <Mail className="h-4 w-4 text-gray-400" />
-                                        <div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
-                                            <p className="font-medium text-gray-900 dark:text-white">{activo.asignadoA.email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <Building className="h-4 w-4 text-gray-400" />
-                                        <div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Departamento</p>
-                                            <p className="font-medium text-gray-900 dark:text-white">{activo.asignadoA.departamento}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Información de Asignación */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center space-x-3">
-                                        <Calendar className="h-4 w-4 text-gray-400" />
-                                        <div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Fecha de Asignación</p>
-                                            <p className="font-medium text-gray-900 dark:text-white">
-                                                {formatDate(activo.asignadoA.fechaAsignacion)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <Activity className="h-4 w-4 text-gray-400" />
-                                        <div>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Estado de Asignación</p>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(activo.asignadoA.estado || 'Activa')}`}>
-                                                {activo.asignadoA.estado || 'Activa'}
-                                            </span>
-                                        </div>
-                                    </div>
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                                    <User className="h-5 w-5 mr-2 text-blue-600" />
+                                    {activo.asignadoA ? 'Usuario Asignado' : 'Asignación de Activo'}
+                                </h3>
+                                <div className="flex space-x-2">
+                                    {!activo.asignadoA ? (
+                                        <button
+                                            onClick={() => setShowAsignarModal(true)}
+                                            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            <span>Asignar Activo</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleQuitarAsignacion}
+                                            className="flex items-center space-x-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span>Quitar Asignación</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
+                        </div>
+                        <div className="p-6">
+                            {activo.asignadoA ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Información del Usuario */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center space-x-3">
+                                            <User className="h-4 w-4 text-gray-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Nombre Completo</p>
+                                                <p className="font-medium text-gray-900 dark:text-white">
+                                                    {activo.asignadoA.nombre} {activo.asignadoA.apellido}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <Mail className="h-4 w-4 text-gray-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                                                <p className="font-medium text-gray-900 dark:text-white">{activo.asignadoA.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <Building className="h-4 w-4 text-gray-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Departamento</p>
+                                                <p className="font-medium text-gray-900 dark:text-white">{activo.asignadoA.departamento}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Información de Asignación */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center space-x-3">
+                                            <Calendar className="h-4 w-4 text-gray-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Fecha de Asignación</p>
+                                                <p className="font-medium text-gray-900 dark:text-white">
+                                                    {formatDate(activo.asignadoA.fechaAsignacion)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <Activity className="h-4 w-4 text-gray-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">Estado de Asignación</p>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(activo.asignadoA.estado || 'Activa')}`}>
+                                                    {activo.asignadoA.estado || 'Activa'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <User className="mx-auto h-12 w-12 text-gray-400" />
+                                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Activo sin asignar</h3>
+                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                        Este activo no está asignado a ningún usuario. Haz clic en "Asignar Activo" para asignarlo.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -414,6 +474,16 @@ export default function ActivoDetail() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Asignación */}
+            {activo && (
+                <AsignarActivoModal
+                    isOpen={showAsignarModal}
+                    onClose={() => setShowAsignarModal(false)}
+                    activo={activo}
+                    onAsignacionCreada={handleAsignacionCreada}
+                />
+            )}
         </div>
     )
 }
