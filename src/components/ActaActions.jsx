@@ -4,7 +4,7 @@ import { actasAPI } from '../services/api';
 import { Eye, Download, CheckCircle, XCircle, Upload, PenTool, Clock } from 'lucide-react';
 import Tooltip from './Tooltip';
 
-const ActaActions = ({ acta, asignacion, onActionComplete }) => {
+const ActaActions = ({ acta, asignacion, onActionComplete, onApprove, onReject }) => {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -129,10 +129,30 @@ const ActaActions = ({ acta, asignacion, onActionComplete }) => {
   };
 
   // Función para aprobar acta
-  const handleApprove = async (comentarios = '') => {
+  const handleApprove = () => {
+    if (onApprove) {
+      onApprove();
+    } else {
+      // Fallback: hacer la acción directamente
+      handleApproveDirect();
+    }
+  };
+
+  // Función para rechazar acta
+  const handleReject = () => {
+    if (onReject) {
+      onReject();
+    } else {
+      // Fallback: hacer la acción directamente
+      handleRejectDirect();
+    }
+  };
+
+  // Función para aprobar acta directamente (fallback)
+  const handleApproveDirect = async () => {
     try {
       setLoading(true);
-      await actasAPI.aprobarActa(acta.id, { Aprobar: true, Comentarios: comentarios });
+      await actasAPI.aprobarActa(acta.id, { Aprobar: true, Comentarios: '' });
       showToast('Éxito', 'Acta aprobada correctamente', 'success');
       if (onActionComplete) onActionComplete();
     } catch (error) {
@@ -143,11 +163,11 @@ const ActaActions = ({ acta, asignacion, onActionComplete }) => {
     }
   };
 
-  // Función para rechazar acta
-  const handleReject = async (comentarios = '') => {
+  // Función para rechazar acta directamente (fallback)
+  const handleRejectDirect = async () => {
     try {
       setLoading(true);
-      await actasAPI.aprobarActa(acta.id, { Aprobar: false, Comentarios: comentarios });
+      await actasAPI.aprobarActa(acta.id, { Aprobar: false, Comentarios: '' });
       showToast('Éxito', 'Acta rechazada correctamente', 'success');
       if (onActionComplete) onActionComplete();
     } catch (error) {
@@ -224,33 +244,33 @@ const ActaActions = ({ acta, asignacion, onActionComplete }) => {
         </Tooltip>
       )}
 
-      {/* Botón de Aprobar */}
-      {canApprove && (
-        <Tooltip content="Aprobar acta">
-          <button
-            onClick={() => handleApprove()}
-            disabled={loading}
-            className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-          >
-            <CheckCircle className="w-4 h-4" />
-            <span>Aprobar</span>
-          </button>
-        </Tooltip>
-      )}
+             {/* Botón de Aprobar */}
+       {canApprove && (
+         <Tooltip content="Aprobar acta">
+           <button
+             onClick={handleApprove}
+             disabled={loading}
+             className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+           >
+             <CheckCircle className="w-4 h-4" />
+             <span>Aprobar</span>
+           </button>
+         </Tooltip>
+       )}
 
-      {/* Botón de Rechazar */}
-      {canReject && (
-        <Tooltip content="Rechazar acta">
-          <button
-            onClick={() => handleReject()}
-            disabled={loading}
-            className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-          >
-            <XCircle className="w-4 h-4" />
-            <span>Rechazar</span>
-          </button>
-        </Tooltip>
-      )}
+       {/* Botón de Rechazar */}
+       {canReject && (
+         <Tooltip content="Rechazar acta">
+           <button
+             onClick={handleReject}
+             disabled={loading}
+             className="flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+           >
+             <XCircle className="w-4 h-4" />
+             <span>Rechazar</span>
+           </button>
+         </Tooltip>
+       )}
 
       {/* Indicador de carga */}
       {loading && (

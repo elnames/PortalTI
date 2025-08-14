@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { asignacionesAPI, actasAPI } from '../services/api';
 import GenerarActaModal from '../components/GenerarActaModal';
+import ActaActions from '../components/ActaActions';
 import Tooltip from '../components/Tooltip';
 
 const ActaDetail = () => {
@@ -567,9 +568,10 @@ const ActaDetail = () => {
                         Acciones Disponibles
                     </h3>
 
-                    <div className="flex flex-wrap gap-3">
+                    <div className="space-y-4">
+                        {/* Acciones específicas de admin/soporte */}
                         {asignacion.estado === 'Activa' && (
-                            <>
+                            <div className="flex flex-wrap gap-3">
                                 {/* 📄 GENERAR ACTA - Solo si no hay acta */}
                                 {!acta && (
                                     <Tooltip content="Generar acta para el usuario">
@@ -606,74 +608,22 @@ const ActaDetail = () => {
                                         <span>Subir Acta</span>
                                     </button>
                                 </Tooltip>
-
-                                {/* 👁️ OJO AZUL - Previsualizar según 6 condiciones */}
-                                <Tooltip content="Previsualizar acta según su estado actual">
-                                    <button
-                                        onClick={() => handlePrevisualizarActa(acta, asignacion.id)}
-                                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                    >
-                                        <Eye className="w-4 h-4" />
-                                        <span>Previsualizar</span>
-                                    </button>
-                                </Tooltip>
-
-                                {/* 📥 DESCARGAR - Solo si hay acta */}
-                                {acta && (
-                                    <Tooltip content="Descargar acta">
-                                        <button
-                                            onClick={() => handleDescargarActa(acta.id)}
-                                            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                                        >
-                                            <Download className="w-4 h-4" />
-                                            <span>Descargar</span>
-                                        </button>
-                                    </Tooltip>
-                                )}
-
-                                {/* ✅ ✓ - Aprobar (siempre disponible si hay acta) */}
-                                {acta && (
-                                    <Tooltip content="Aprobar acta">
-                                        <button
-                                            onClick={() => {
-                                                if (!acta || !acta.id) {
-                                                    console.error('No se puede aprobar: acta no encontrada o sin ID');
-                                                    showToast('Error', 'No se puede aprobar: acta no encontrada', 'error');
-                                                    return;
-                                                }
-                                                console.log('Aprobando acta:', acta.id);
-                                                setShowAprobarModal(true);
-                                            }}
-                                            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                        >
-                                            <CheckCircle className="w-4 h-4" />
-                                            <span>Aprobar</span>
-                                        </button>
-                                    </Tooltip>
-                                )}
-
-                                {/* ❌ X - Rechazar (siempre disponible si hay acta) */}
-                                {acta && (
-                                    <Tooltip content="Rechazar acta">
-                                        <button
-                                            onClick={() => {
-                                                if (!acta || !acta.id) {
-                                                    console.error('No se puede rechazar: acta no encontrada o sin ID');
-                                                    showToast('Error', 'No se puede rechazar: acta no encontrada', 'error');
-                                                    return;
-                                                }
-                                                console.log('Rechazando acta:', acta.id);
-                                                setShowRechazarModal(true);
-                                            }}
-                                            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                        >
-                                            <XCircle className="w-4 h-4" />
-                                            <span>Rechazar</span>
-                                        </button>
-                                    </Tooltip>
-                                )}
-                            </>
+                            </div>
                         )}
+
+                        {/* Acciones del acta usando el componente centralizado */}
+                        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                Acciones del Acta
+                            </h4>
+                            <ActaActions 
+                                acta={acta} 
+                                asignacion={asignacion} 
+                                onActionComplete={fetchActaData}
+                                onApprove={() => setShowAprobarModal(true)}
+                                onReject={() => setShowRechazarModal(true)}
+                            />
+                        </div>
                     </div>
                 </div>
 
