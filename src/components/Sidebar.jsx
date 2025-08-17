@@ -37,6 +37,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     // Enlaces para administradores
     links = [
       { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/calendario', icon: CheckSquare, label: 'Calendario' },
       { to: '/usuarios', icon: Users, label: 'Usuarios' },
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
@@ -50,6 +51,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     // Enlaces para soporte técnico
     links = [
       { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/calendario', icon: CheckSquare, label: 'Calendario' },
       { to: '/usuarios', icon: Users, label: 'Usuarios' },
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },

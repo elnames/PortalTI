@@ -27,6 +27,7 @@ namespace PortalTi.Api.Data
         public DbSet<ProgramaSeguridad> ProgramasSeguridad { get; set; }
         public DbSet<Licencia> Licencias { get; set; }
         public DbSet<PazYSalvo> PazYSalvos { get; set; }
+        public DbSet<CalendarEvent> CalendarEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -242,6 +243,19 @@ namespace PortalTi.Api.Data
 
             modelBuilder.Entity<PazYSalvo>()
                 .HasIndex(p => p.UsuarioId);
+
+            // Calendario
+            modelBuilder.Entity<CalendarEvent>()
+                .HasOne(e => e.CreatedBy)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedById)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<CalendarEvent>()
+                .HasIndex(e => e.Start);
+
+            modelBuilder.Entity<CalendarEvent>()
+                .HasIndex(e => e.CreatedAt);
         }
     }
 }

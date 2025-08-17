@@ -191,6 +191,15 @@ export const reportesAPI = {
     })
 };
 
+// Métodos para Calendario (admin/soporte)
+export const calendarioAPI = {
+    getEvents: (params = {}) => api.get('/calendario/events', { params }),
+    create: (data) => api.post('/calendario', data),
+    getById: (id) => api.get(`/calendario/${id}`),
+    update: (id, data) => api.put(`/calendario/${id}`, data),
+    remove: (id) => api.delete(`/calendario/${id}`)
+};
+
 // Métodos para Notificaciones
 export const notificacionesAPI = {
     getMisNotificaciones: () => api.get('/notifications'),

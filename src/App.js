@@ -33,6 +33,7 @@ import ActaDetail from './pages/ActaDetail';
 import Chat from './pages/Chat';
 import PrevisualizarActa from './pages/PrevisualizarActa';
 import PazYSalvo from './pages/PazYSalvo';
+import Calendario from './pages/Calendario';
 
 export default function App() {
   const { isSidebarOpen, toggleSidebar } = useResponsiveSidebar();
@@ -192,6 +193,16 @@ export default function App() {
             element={
               <RequireRole roles={['admin', 'soporte']}>
                 <PazYSalvo />
+              </RequireRole>
+            }
+          />
+
+          {/* Calendario - Solo admin y soporte */}
+          <Route
+            path="calendario"
+            element={
+              <RequireRole roles={['admin', 'soporte']}>
+                <Calendario />
               </RequireRole>
             }
           />
