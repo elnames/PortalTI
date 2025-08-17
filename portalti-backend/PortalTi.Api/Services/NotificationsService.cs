@@ -13,6 +13,7 @@ namespace PortalTi.Api.Services
         Task MarkReadAsync(int userId, int[] ids);
         Task<int> GetUnreadCountAsync(int userId);
         Task<bool> DeleteAsync(int userId, int notificationId);
+        Task<int> DeleteAllAsync(int userId);
         Task SendToUserAsync(int userId, NotificationDto notification);
         Task SendToRoleAsync(string role, NotificationDto notification);
         Task<int> CreateForRoleAsync(string role, CreateNotificationDto notification);
@@ -104,6 +105,17 @@ namespace PortalTi.Api.Services
             _context.Notificaciones.Remove(notification);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<int> DeleteAllAsync(int userId)
+        {
+            var toDelete = await _context.Notificaciones
+                .Where(n => n.UserId == userId)
+                .ToListAsync();
+            if (toDelete.Count == 0) return 0;
+            _context.Notificaciones.RemoveRange(toDelete);
+            await _context.SaveChangesAsync();
+            return toDelete.Count;
         }
 
         public async Task SendToUserAsync(int userId, NotificationDto notification)

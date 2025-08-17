@@ -98,6 +98,18 @@ namespace PortalTi.Api.Controllers
             return NoContent();
         }
 
+        // DELETE: api/notifications (borrar todas)
+        [HttpDelete]
+        public async Task<IActionResult> DeleteAll()
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var count = await _notificationsService.DeleteAllAsync(userId.Value);
+            return Ok(new { deleted = count });
+        }
+
         // GET: api/notifications/unread-count
         [HttpGet("unread-count")]
         public async Task<ActionResult<int>> GetUnreadCount()
