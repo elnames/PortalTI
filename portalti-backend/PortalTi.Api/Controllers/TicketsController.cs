@@ -19,6 +19,15 @@ namespace PortalTi.Api.Controllers
             _context = context;
         }
 
+        private async Task<int?> ResolveAuthUserIdByEmail(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+            var normalized = email.Trim().ToLower();
+            var user = await _context.AuthUsers
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == normalized && u.IsActive);
+            return user?.Id;
+        }
+
         // GET: api/tickets - Obtener tickets según el rol del usuario
         [HttpGet]
         [Authorize]
@@ -242,6 +251,17 @@ namespace PortalTi.Api.Controllers
                 FechaCreacion = DateTime.Now
             };
 
+            // Intentar asociar el AuthUser creador si existe por email
+            try
+            {
+                var creador = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Username == ticketDto.EmailSolicitante && u.IsActive);
+                if (creador != null)
+                {
+                    ticket.CreadoPorId = creador.Id;
+                }
+            }
+            catch { }
+
             _context.Tickets.Add(ticket);
             await _context.SaveChangesAsync();
 
@@ -330,6 +350,30 @@ namespace PortalTi.Api.Controllers
                 
                 // Notificar al soporte (opcional, ya es el mismo usuario)
                 await NotificarAsignacionSoporte(ticket, userId);
+
+                // Notificar al creador del ticket (o mapeo por email)
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    int? creadorId = ticket.CreadoPorId ?? await ResolveAuthUserIdByEmail(ticket.EmailSolicitante);
+                    if (creadorId.HasValue)
+                    {
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = creadorId.Value,
+                            Tipo = "ticket",
+                            Titulo = "Tu ticket fue asignado",
+                            Mensaje = $"Tu ticket #{ticket.Id} fue asignado a soporte",
+                            RefTipo = "Ticket",
+                            RefId = ticket.Id,
+                            Ruta = "/mis-tickets"
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando asignación a creador: {ex.Message}");
+                }
                 return Ok(new { Mensaje = "Ticket autoasignado exitosamente" });
             }
 
@@ -381,29 +425,57 @@ namespace PortalTi.Api.Controllers
                 
                 // Notificar al soporte asignado
                 await NotificarAsignacionSoporte(ticket, soporte.Id);
+
+                // Notificar al creador del ticket (o mapeo por email) que ya está asignado
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    int? creadorId = ticket.CreadoPorId ?? await ResolveAuthUserIdByEmail(ticket.EmailSolicitante);
+                    if (creadorId.HasValue)
+                    {
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = creadorId.Value,
+                            Tipo = "ticket",
+                            Titulo = "Tu ticket fue asignado",
+                            Mensaje = $"Tu ticket #{ticket.Id} fue asignado a {soporte.Username}",
+                            RefTipo = "Ticket",
+                            RefId = ticket.Id,
+                            Ruta = "/mis-tickets"
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error notificando asignación a creador: {ex.Message}");
+                }
                 return Ok(new { Mensaje = "Ticket asignado exitosamente" });
             }
 
             return Forbid();
         }
 
-        // Método virtual para notificar al soporte (impleméntalo según tu infraestructura)
+        // Notificar asignación a soporte usando el servicio central (persiste + SignalR)
         private async Task NotificarAsignacionSoporte(Ticket ticket, int soporteId)
         {
-            var notificacion = new Models.Notificacion
+            try
             {
-                UserId = soporteId,
-                Tipo = "ticket",
-                Titulo = "Ticket asignado",
-                Mensaje = $"Se te ha asignado el ticket #{ticket.Id}: {ticket.Titulo}",
-                RefTipo = "Ticket",
-                RefId = ticket.Id,
-                Ruta = $"/tickets/{ticket.Id}",
-                IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.Notificaciones.Add(notificacion);
-            await _context.SaveChangesAsync();
+                var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                await notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = soporteId,
+                    Tipo = "ticket",
+                    Titulo = "Ticket asignado",
+                    Mensaje = $"Se te ha asignado el ticket #{ticket.Id}: {ticket.Titulo}",
+                    RefTipo = "Ticket",
+                    RefId = ticket.Id,
+                    Ruta = $"/tickets/{ticket.Id}"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error notificando asignación a soporte {soporteId}: {ex.Message}");
+            }
         }
 
         // PUT: api/tickets/{id}/estado - Cambiar estado del ticket
@@ -448,15 +520,31 @@ namespace PortalTi.Api.Controllers
             {
                 var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
                 
-                // Notificar al creador del ticket
-                if (ticket.CreadoPorId.HasValue && ticket.CreadoPorId != userId)
+                // Notificar al creador del ticket (con fallback a email)
+                int? creadorId = ticket.CreadoPorId ?? await ResolveAuthUserIdByEmail(ticket.EmailSolicitante);
+                if (creadorId.HasValue && creadorId != userId)
                 {
                     await notificationService.CreateAsync(new CreateNotificationDto
                     {
-                        UserId = ticket.CreadoPorId.Value,
+                        UserId = creadorId.Value,
                         Tipo = "ticket",
-                        Titulo = "Estado de ticket actualizado",
-                        Mensaje = $"El ticket #{ticket.Id}: {ticket.Titulo} cambió a estado '{estadoDto.Estado}'",
+                        Titulo = "Estado de tu ticket actualizado",
+                        Mensaje = $"Tu ticket #{ticket.Id}: {ticket.Titulo} cambió a '{estadoDto.Estado}'",
+                        RefTipo = "Ticket",
+                        RefId = ticket.Id,
+                        Ruta = "/mis-tickets"
+                    });
+                }
+                
+                // Notificar al soporte asignado si no es quien ejecuta el cambio
+                if (ticket.AsignadoAId.HasValue && ticket.AsignadoAId.Value != userId)
+                {
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = ticket.AsignadoAId.Value,
+                        Tipo = "ticket",
+                        Titulo = "Ticket actualizado",
+                        Mensaje = $"El ticket #{ticket.Id}: {ticket.Titulo} cambió a '{estadoDto.Estado}'",
                         RefTipo = "Ticket",
                         RefId = ticket.Id,
                         Ruta = $"/tickets/{ticket.Id}"
