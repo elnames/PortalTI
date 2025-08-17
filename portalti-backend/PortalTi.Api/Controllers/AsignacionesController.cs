@@ -25,6 +25,16 @@ namespace PortalTi.Api.Controllers
             _pdfService = pdfService;
         }
 
+        private async Task<int?> ResolveAuthUserIdByNominaId(int nominaUsuarioId)
+        {
+            // Busca el email en Nómina y luego mapea a AuthUsers por Username
+            var nomina = await _db.NominaUsuarios.FindAsync(nominaUsuarioId);
+            if (nomina == null || string.IsNullOrWhiteSpace(nomina.Email)) return null;
+            var normalized = nomina.Email.Trim().ToLower();
+            var auth = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username.ToLower() == normalized && u.IsActive);
+            return auth?.Id;
+        }
+
         // GET: api/asignaciones/sugerencias-asignado-por
         [HttpGet("sugerencias-asignado-por")]
         public async Task<ActionResult<IEnumerable<string>>> GetSugerenciasAsignadoPor()
@@ -386,18 +396,25 @@ namespace PortalTi.Api.Controllers
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    
-                    // Notificar al usuario asignado
-                    await notificationService.CreateAsync(new CreateNotificationDto
+                    // Notificar al usuario asignado (mapear Nómina -> AuthUser)
+                    var authUserId = await ResolveAuthUserIdByNominaId(request.UsuarioId);
+                    if (authUserId.HasValue)
                     {
-                        UserId = request.UsuarioId,
-                        Tipo = "assignment",
-                        Titulo = "Activo asignado",
-                        Mensaje = $"Se te ha asignado el activo: {activo?.Codigo} - {activo?.NombreEquipo}",
-                        RefTipo = "Activo",
-                        RefId = request.ActivoId,
-                        Ruta = $"/activos/{request.ActivoId}"
-                    });
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = authUserId.Value,
+                            Tipo = "assignment",
+                            Titulo = "Activo asignado",
+                            Mensaje = $"Se te ha asignado el activo: {activo?.Codigo} - {activo?.NombreEquipo}",
+                            RefTipo = "Activo",
+                            RefId = request.ActivoId,
+                            Ruta = "/mis-activos"
+                        });
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No se encontró AuthUser para NominaUsuarioId {NominaId} ({Email})", usuario?.Id, usuario?.Email);
+                    }
                     
                     // Notificar a admins y soporte
                     await notificationService.CreateForRoleAsync("admin", new CreateNotificationDto
@@ -513,18 +530,25 @@ namespace PortalTi.Api.Controllers
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    
-                    // Notificar al usuario que devolvió el activo
-                    await notificationService.CreateAsync(new CreateNotificationDto
+                    // Notificar al usuario (mapear Nómina -> AuthUser)
+                    var authUserId = await ResolveAuthUserIdByNominaId(asignacion.UsuarioId);
+                    if (authUserId.HasValue)
                     {
-                        UserId = asignacion.UsuarioId,
-                        Tipo = "return",
-                        Titulo = "Activo devuelto",
-                        Mensaje = $"Has devuelto el activo: {asignacion.Activo.Codigo} - {asignacion.Activo.NombreEquipo}",
-                        RefTipo = "Activo",
-                        RefId = asignacion.ActivoId,
-                        Ruta = $"/activos/{asignacion.ActivoId}"
-                    });
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = authUserId.Value,
+                            Tipo = "return",
+                            Titulo = "Activo devuelto",
+                            Mensaje = $"Has devuelto el activo: {asignacion.Activo.Codigo} - {asignacion.Activo.NombreEquipo}",
+                            RefTipo = "Activo",
+                            RefId = asignacion.ActivoId,
+                            Ruta = "/mis-activos"
+                        });
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No se encontró AuthUser para devolución (NominaUsuarioId {NominaId})", asignacion.UsuarioId);
+                    }
                     
                     // Notificar a admins y soporte
                     await notificationService.CreateForRoleAsync("admin", new CreateNotificationDto
