@@ -420,16 +420,20 @@ namespace PortalTi.Api.Controllers
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    await notificationService.CreateAsync(new CreateNotificationDto
+                    var authUser = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == acta.Asignacion.Usuario.Email);
+                    if (authUser != null)
                     {
-                        UserId = acta.Asignacion.UsuarioId,
-                        Tipo = "acta",
-                        Titulo = "Acta rechazada",
-                        Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {req.Motivo}",
-                        RefTipo = "Acta",
-                        RefId = acta.Id,
-                        Ruta = $"/actas/{acta.Id}"
-                    });
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = authUser.Id,
+                            Tipo = "acta",
+                            Titulo = "Acta rechazada",
+                            Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {req.Motivo}",
+                            RefTipo = "Acta",
+                            RefId = acta.Id,
+                            Ruta = $"/actas/{acta.Id}"
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -646,16 +650,20 @@ namespace PortalTi.Api.Controllers
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    await notificationService.CreateAsync(new CreateNotificationDto
+                    var authUser = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == asignacion.Usuario.Email);
+                    if (authUser != null)
                     {
-                        UserId = asignacion.UsuarioId,
-                        Tipo = "acta",
-                        Titulo = "Acta pendiente de firma",
-                        Mensaje = $"Se ha marcado como pendiente de firma tu acta para el activo {asignacion.Activo?.Codigo}. Por favor, firma y sube el acta.",
-                        RefTipo = "Acta",
-                        RefId = acta.Id,
-                        Ruta = $"/actas/{acta.Id}"
-                    });
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = authUser.Id,
+                            Tipo = "acta",
+                            Titulo = "Acta pendiente de firma",
+                            Mensaje = $"Se ha marcado como pendiente de firma tu acta para el activo {asignacion.Activo?.Codigo}. Por favor, firma y sube el acta.",
+                            RefTipo = "Acta",
+                            RefId = acta.Id,
+                            Ruta = $"/actas/{acta.Id}"
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -779,11 +787,11 @@ namespace PortalTi.Api.Controllers
 
                 await _db.SaveChangesAsync();
 
-                // Notificar a admins
+                // Notificar a admins y soporte
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    var payload = new CreateNotificationDto
                     {
                         UserId = 0,
                         Tipo = "acta",
@@ -792,7 +800,9 @@ namespace PortalTi.Api.Controllers
                         RefTipo = "Acta",
                         RefId = acta.Id,
                         Ruta = $"/gestion-actas/{asignacionId}"
-                    });
+                    };
+                    await notificationService.CreateForRoleAsync("admin", payload);
+                    await notificationService.CreateForRoleAsync("soporte", payload);
                 }
                 catch (Exception ex)
                 {
@@ -890,11 +900,11 @@ namespace PortalTi.Api.Controllers
 
                 await _db.SaveChangesAsync();
 
-                // Notificar a admins
+                // Notificar a admins y soporte
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    await notificationService.CreateForAdminsAsync(new CreateNotificationDto
+                    var payload = new CreateNotificationDto
                     {
                         UserId = 0,
                         Tipo = "acta",
@@ -903,7 +913,9 @@ namespace PortalTi.Api.Controllers
                         RefTipo = "Acta",
                         RefId = actaDb.Id,
                         Ruta = $"/gestion-actas/{asignacionId}"
-                    });
+                    };
+                    await notificationService.CreateForRoleAsync("admin", payload);
+                    await notificationService.CreateForRoleAsync("soporte", payload);
                 }
                 catch (Exception ex)
                 {
@@ -1006,16 +1018,20 @@ namespace PortalTi.Api.Controllers
                 try
                 {
                     var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                    await notificationService.CreateAsync(new CreateNotificationDto
+                    var authUser = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == asignacion.Usuario.Email);
+                    if (authUser != null)
                     {
-                        UserId = asignacion.UsuarioId,
-                        Tipo = "acta",
-                        Titulo = "Acta subida por administrador",
-                        Mensaje = $"Se ha subido un acta para el activo {asignacion.Activo?.Codigo} por parte del administrador/soporte.",
-                        RefTipo = "Acta",
-                        RefId = actaDb.Id,
-                        Ruta = $"/actas/{actaDb.Id}"
-                    });
+                        await notificationService.CreateAsync(new CreateNotificationDto
+                        {
+                            UserId = authUser.Id,
+                            Tipo = "acta",
+                            Titulo = "Acta subida por administrador",
+                            Mensaje = $"Se ha subido un acta para el activo {asignacion.Activo?.Codigo} por parte del administrador/soporte.",
+                            RefTipo = "Acta",
+                            RefId = actaDb.Id,
+                            Ruta = $"/actas/{actaDb.Id}"
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1096,16 +1112,20 @@ namespace PortalTi.Api.Controllers
                         if (acta.Asignacion != null)
                         {
                             var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                            await notificationService.CreateAsync(new CreateNotificationDto
+                            var authUser = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == acta.Asignacion.Usuario.Email);
+                            if (authUser != null)
                             {
-                                UserId = acta.Asignacion.UsuarioId,
-                                Tipo = "acta",
-                                Titulo = "Acta aprobada",
-                                Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido aprobada.",
-                                RefTipo = "Acta",
-                                RefId = acta.Id,
-                                Ruta = $"/actas/{acta.Id}"
-                            });
+                                await notificationService.CreateAsync(new CreateNotificationDto
+                                {
+                                    UserId = authUser.Id,
+                                    Tipo = "acta",
+                                    Titulo = "Acta aprobada",
+                                    Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido aprobada.",
+                                    RefTipo = "Acta",
+                                    RefId = acta.Id,
+                                    Ruta = $"/actas/{acta.Id}"
+                                });
+                            }
                         }
                         else
                         {
@@ -1142,16 +1162,20 @@ namespace PortalTi.Api.Controllers
                         if (acta.Asignacion != null)
                         {
                             var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                            await notificationService.CreateAsync(new CreateNotificationDto
+                            var authUser = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == acta.Asignacion.Usuario.Email);
+                            if (authUser != null)
                             {
-                                UserId = acta.Asignacion.UsuarioId,
-                                Tipo = "acta",
-                                Titulo = "Acta rechazada",
-                                Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {request.Comentarios}",
-                                RefTipo = "Acta",
-                                RefId = acta.Id,
-                                Ruta = $"/actas/{acta.Id}"
-                            });
+                                await notificationService.CreateAsync(new CreateNotificationDto
+                                {
+                                    UserId = authUser.Id,
+                                    Tipo = "acta",
+                                    Titulo = "Acta rechazada",
+                                    Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {request.Comentarios}",
+                                    RefTipo = "Acta",
+                                    RefId = acta.Id,
+                                    Ruta = $"/actas/{acta.Id}"
+                                });
+                            }
                         }
                         else
                         {

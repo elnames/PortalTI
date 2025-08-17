@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useSearch } from '../contexts/SearchContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useNavigate } from 'react-router-dom'
-// import NotificationBell from './NotificationBell'
+import NotificationBell from './NotificationBell'
 
 export default function Header({ toggleSidebar }) {
     const { user, logout } = useAuth()
@@ -112,19 +112,7 @@ export default function Header({ toggleSidebar }) {
         }
     }
 
-    const formatTime = (timestamp) => {
-        const date = new Date(timestamp)
-        const now = new Date()
-        const diff = now - date
-        const minutes = Math.floor(diff / 60000)
-        const hours = Math.floor(diff / 3600000)
-        const days = Math.floor(diff / 86400000)
-
-        if (minutes < 1) return 'Ahora'
-        if (minutes < 60) return `${minutes}m`
-        if (hours < 24) return `${hours}h`
-        return `${days}d`
-    }
+    // (eliminado helper formatTime sin uso)
 
     return (
         <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -275,7 +263,7 @@ export default function Header({ toggleSidebar }) {
                             )}
                         </button>
 
-                        {/* Notificaciones removidas temporalmente hasta reimplementar el nuevo sistema */}
+                        <NotificationBell />
 
                         {/* Menú de usuario */}
                         <HeadlessMenu as="div" className="relative">
