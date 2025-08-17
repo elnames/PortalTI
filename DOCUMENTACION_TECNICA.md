@@ -306,17 +306,18 @@ GET    /api/actas/{id}/preview-auto            // Previsualización inteligente
 ### 📄 PDF, Almacenamiento y Versionado (Actas)
 
 1) Carpeta de destino: `wwwroot/actas/<Categoria>`.
-2) Nombre legible: `Acta de entrega - Nombre Apellido dd de mes de yyyy`.
-3) Versionado: si existe el archivo, se generan `v1`, `v2`, ... (`GetNextVersionedFileName`).
-4) Hash: se calcula SHA256 del PDF y se registra en `Observaciones`.
-5) Previsualización: endpoint `preview-auto` prioriza `PDF_Usuario > PDF_Admin > Digital_Signed > Plantilla`.
+2) Logo en encabezado: el servicio intenta en este orden: `public/logo.png` → `wwwroot/logo.png` → `public/logo-vicsa.png` → `wwwroot/logo-vicsa.png`; si ninguno existe, muestra “Portal TI”.
+3) Nombre legible: `Acta de entrega - Nombre Apellido dd de mes de yyyy`.
+4) Versionado: si existe el archivo, se generan `v1`, `v2`, ... (`GetNextVersionedFileName`).
+5) Hash: se calcula SHA256 del PDF y se registra en `Observaciones`.
+6) Previsualización: endpoint `preview-auto` prioriza `PDF_Usuario > PDF_Admin > Digital_Signed > Plantilla`.
 
 ### 🔔 Notificaciones (Resumen técnico)
 
 - Persistentes en BD (`Notificaciones`) y SignalR para push en tiempo real.
 - Grupos: `user_{userId}` y `role_{role}`.
-- Eventos principales: firma usuario, subida PDF, aprobación, rechazo, marcado pendiente, subida TI.
-- Endpoints auxiliares: `/notifications`, `/notifications/read`, etc.
+- Eventos: firma usuario, subida PDF, aprobación, rechazo, marcado pendiente, subida TI, asignación/devolución de activo (mapeo Nómina→AuthUser), asignación y cambio de estado de ticket (mapeo Email→AuthUser), nuevo comentario en ticket.
+- Endpoints: `GET /notifications`, `POST /notifications/read`, `DELETE /notifications/{id}`, `DELETE /notifications` (borrar todas), `GET /notifications/unread-count` (opcional).
 
 #### **DashboardController** - Dashboard y Reportes
 ```csharp

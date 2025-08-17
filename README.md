@@ -61,6 +61,7 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 
 ### 📄 Gestión de Actas y Documentación
 - **Actas de entrega**: Generación automática de PDFs y previsualización en navegador
+- **Logo PDF**: usa `public/logo.png` por defecto (post cierre comercial); fallback a `wwwroot/logo.png`; se eliminó uso de logos antiguos
 - **Métodos de firma**: `Digital`, `PDF_Subido`, `Admin_Subida`
 - **Estados**: `Pendiente`, `Pendiente de aprobación`, `Firmada`, `Aprobada`, `Rechazada`, `Anulada`
 - **Almacenamiento por categoría**: PDFs en `wwwroot/actas/<Categoria>` (Equipos, Móviles, Monitores, Periféricos, Accesorios, Red)
@@ -77,8 +78,9 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 
 ### 🔔 Sistema de Notificaciones
 - **Notificaciones en tiempo real (SignalR)** y persistentes en BD
-- **Eventos clave**: firma de usuario, subida de PDF, aprobación, rechazo, marcado como pendiente, subida TI
+- **Eventos clave**: firma de usuario, subida de PDF, aprobación, rechazo, marcado como pendiente, subida TI, asignación/devolución de activo, asignación y cambio de estado de ticket, nuevo comentario
 - **Estado de lectura** y agrupación por usuario/rol
+- **Front**: campana moderna (auto-marcar leídas al abrir sin desaparecer, scroll de 3–4, borrar una/todas, limpieza progresiva, dark/light)
 
 ## 🛠️ Stack Tecnológico
 
