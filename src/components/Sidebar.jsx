@@ -11,7 +11,8 @@ import {
   Shield,
   FileText,
   MessageCircle,
-  CheckSquare
+  CheckSquare,
+  BadgeCheck
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
@@ -43,7 +44,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
       { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
-      { to: '/pazysalvo', icon: CheckSquare, label: 'Paz y Salvo' },
+      { to: '/pazysalvo', icon: BadgeCheck, label: 'Paz y Salvo' },
       { to: '/reportes', icon: BarChart2, label: 'Reportes' },
       { to: '/configuracion', icon: Shield, label: 'Configuración Admin' }
     ];
@@ -57,7 +58,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
       { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
-      { to: '/pazysalvo', icon: CheckSquare, label: 'Paz y Salvo' }
+      { to: '/pazysalvo', icon: BadgeCheck, label: 'Paz y Salvo' }
     ];
   } else {
     // Enlaces para usuarios regulares
