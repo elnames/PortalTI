@@ -6,14 +6,16 @@ export default function useNotifications() {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [connection, setConnection] = useState(null);
+  const MAX_ITEMS = 30;
 
   const load = useCallback(async () => {
     try {
       console.log("DEBUG: Cargando notificaciones...");
-      const { data } = await api.get("/notifications?isRead=false&take=20");
+      // Traer últimas notificaciones (leídas y no leídas) para no perder historial reciente
+      const { data } = await api.get("/notifications?take=" + MAX_ITEMS);
       console.log("DEBUG: Notificaciones cargadas:", data);
-      setItems(data);
-      setUnread(data.length);
+      setItems(Array.isArray(data) ? data : []);
+      setUnread((Array.isArray(data) ? data : []).filter(n => !n.isRead).length);
     } catch (error) {
       console.error("Error cargando notificaciones:", error);
     }
@@ -26,8 +28,11 @@ export default function useNotifications() {
       const ids = items.map(x => x.id);
       if (!ids.length) return;
       await api.post("/notifications/read", { ids });
+      const updated = items.map(item => ({ ...item, isRead: true }));
+      setItems(updated);
       setUnread(0);
-      setItems(prev => prev.map(item => ({ ...item, isRead: true })));
+      // Limpieza progresiva: borrar en backend los más antiguos leídos si excede MAX_ITEMS
+      cleanupOldRead(updated);
     } catch (error) {
       console.error("Error marcando notificaciones como leídas:", error);
     }
@@ -36,14 +41,55 @@ export default function useNotifications() {
   const markAsRead = async (id) => {
     try {
       await api.post("/notifications/read", { ids: [id] });
-      setUnread(prev => Math.max(0, prev - 1));
-      setItems(prev => prev.map(item =>
-        item.id === id ? { ...item, isRead: true } : item
-      ));
+      setItems(prev => {
+        const next = prev.map(item => item.id === id ? { ...item, isRead: true } : item);
+        setUnread(next.filter(n => !n.isRead).length);
+        return next;
+      });
     } catch (error) {
       console.error("Error marcando notificación como leída:", error);
     }
   };
+
+  const deleteNotification = async (id) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      setItems(prev => prev.filter(n => n.id !== id));
+      setUnread(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Error eliminando notificación:", error);
+    }
+  };
+
+  const deleteAll = async () => {
+    try {
+      await api.delete('/notifications');
+      setItems([]);
+      setUnread(0);
+    } catch (error) {
+      console.error('Error eliminando todas las notificaciones:', error);
+    }
+  };
+
+  // Elimina progresivamente notificaciones leídas más antiguas si excede MAX_ITEMS
+  const cleanupOldRead = useCallback(async (current = items) => {
+    try {
+      const list = [...current];
+      if (list.length <= MAX_ITEMS) return;
+      const readOldest = list
+        .filter(n => n.isRead)
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const overflow = list.length - MAX_ITEMS;
+      const toDelete = readOldest.slice(0, Math.min(overflow, 10)); // borrar como máximo 10 por ciclo
+      for (const n of toDelete) {
+        try { await api.delete(`/notifications/${n.id}`); } catch {}
+      }
+      // Refrescar lista después de limpiar
+      load();
+    } catch (e) {
+      // silencioso
+    }
+  }, [items, load]);
 
   useEffect(() => {
     load();
@@ -89,8 +135,13 @@ export default function useNotifications() {
 
     const handleReceive = (notification) => {
       console.log("DEBUG: Notificación recibida en frontend:", notification);
-      setItems(prev => [notification, ...prev]);
-      setUnread(prev => prev + 1);
+      setItems(prev => {
+        // evitar duplicados
+        const filtered = prev.filter(n => n.id !== notification.id);
+        const next = [notification, ...filtered].slice(0, MAX_ITEMS);
+        setUnread(next.filter(n => !n.isRead).length);
+        return next;
+      });
     };
 
     conn.on("ReceiveNotification", handleReceive);
@@ -120,6 +171,8 @@ export default function useNotifications() {
     unread,
     markAllRead,
     markAsRead,
+    deleteNotification,
+    deleteAll,
     connection
   };
 }

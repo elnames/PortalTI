@@ -128,7 +128,7 @@ export default function Header({ toggleSidebar }) {
                             <Menu className="h-6 w-6" />
                         </button>
                         <div className="flex-shrink-0">
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Portal IT</h1>
+                            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Portal TI 🖥️</h1>
                         </div>
 
                         {/* Solo mostrar búsqueda para admin y soporte */}

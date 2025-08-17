@@ -28,7 +28,8 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
     };
 
     const getStyles = () => {
-        const baseStyles = "fixed top-4 right-4 z-50 max-w-sm w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 transform transition-all duration-300";
+        // z-40 para ir por debajo del header si este usa z-50
+        const baseStyles = "fixed top-16 right-4 z-40 max-w-sm w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 transform transition-all duration-300";
         
         if (isVisible) {
             return `${baseStyles} translate-x-0 opacity-100`;

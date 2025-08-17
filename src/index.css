@@ -148,3 +148,17 @@ code {
 .dark {
     color-scheme: dark;
 }
+
+/* Popover de notificaciones: adaptar a tema oscuro/claro */
+.notification-popover .ant-popover-inner {
+    background-color: #ffffff;
+}
+.dark .notification-popover .ant-popover-inner {
+    background-color: #111827; /* gray-900 */
+}
+.notification-popover .ant-popover-inner .ant-list-item {
+    border-color: rgba(0,0,0,0.05);
+}
+.dark .notification-popover .ant-popover-inner .ant-list-item {
+    border-color: rgba(255,255,255,0.06);
+}

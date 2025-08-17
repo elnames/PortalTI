@@ -8,6 +8,7 @@ import { useResponsiveSidebar } from './hooks/useResponsiveSidebar';
 
 
 import Login from './pages/Login';
+import AccessDenied from './pages/AccessDenied';
 import Dashboard from './pages/Dashboard';
 import Activos from './pages/Activos';
 import ActivosForm from './pages/ActivosForm';
@@ -40,6 +41,7 @@ export default function App() {
     <Routes>
       {/* Públicas */}
       <Route path="/login" element={<Login />} />
+      <Route path="/access-denied" element={<AccessDenied />} />
       <Route path="/crear-ticket" element={<CrearTicket />} />
 
       {/* Redirección de la ruta raíz al dashboard */}
