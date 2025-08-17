@@ -1,37 +1,39 @@
 import React, { useState } from 'react';
 import { X, Download, FileText, Calendar, User } from 'lucide-react';
-import { asignacionesAPI } from '../services/api';
+import { asignacionesAPI, actasAPI } from '../services/api';
 
 export default function GenerarActaModal({ isOpen, onClose, asignacion }) {
     const [loading, setLoading] = useState(false);
     const [includeSignature, setIncludeSignature] = useState(false);
     const [fechaEntrega, setFechaEntrega] = useState('');
+    const [observaciones, setObservaciones] = useState('');
 
     if (!isOpen || !asignacion) return null;
 
     const handleGenerarActa = async () => {
         setLoading(true);
         try {
-            const params = {
-                includeSignature: includeSignature
+            const payload = {
+                AsignacionId: asignacion.id,
+                IncluirFirmaTI: includeSignature,
+                FechaEntrega: fechaEntrega || null,
+                Observaciones: observaciones || null
             };
-            
-            if (fechaEntrega) {
-                params.fechaEntrega = new Date(fechaEntrega).toISOString();
-            }
 
-            const { data } = await asignacionesAPI.generarActa(asignacion.id, params);
-            
-            // Crear y descargar el PDF
-            const blob = new Blob([data], { type: 'application/pdf' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Acta_${asignacion.activo?.codigo}_${asignacion.usuario?.nombre}_${asignacion.usuario?.apellido}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            const { data } = await actasAPI.generarActaAdmin(payload);
+
+            // Abrir previsualización del PDF generado (descarga directa)
+            try {
+                // Abrir previsualización en una nueva pestaña (no forzar descarga)
+                const actaId = data.actaId;
+                if (actaId) {
+                    const preview = await actasAPI.previewAuto(actaId);
+                    const url = window.URL.createObjectURL(preview.data);
+                    window.open(url, '_blank');
+                }
+            } catch (e) {
+                console.warn('No se pudo abrir la previsualización:', e);
+            }
             
             onClose();
         } catch (error) {
@@ -122,6 +124,18 @@ export default function GenerarActaModal({ isOpen, onClose, asignacion }) {
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 Si no se especifica, se usará la fecha actual
                             </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Observaciones (opcional)
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={observaciones}
+                                onChange={(e) => setObservaciones(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
                         </div>
                     </div>
 

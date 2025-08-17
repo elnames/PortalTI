@@ -12,7 +12,7 @@ namespace PortalTi.Api.Models
         
         [Required]
         public string Estado { get; set; } = "Pendiente"; 
-        // Estados: Pendiente, Firmada, Aprobada, Rechazada
+        // Estados: Pendiente, Pendiente_de_aprobacion, Firmada, Aprobada, Rechazada, Anulada
         
         [Required]
         public string MetodoFirma { get; set; } = "Pendiente";
@@ -34,6 +34,7 @@ namespace PortalTi.Api.Models
         
         // Propiedades calculadas para facilitar el trabajo
         public bool EsPendiente => Estado?.ToLower() == "pendiente";
+        public bool EsPendienteAprobacion => Estado?.ToLower() == "pendiente_de_aprobacion" || Estado?.ToLower() == "pendiente de aprobacion" || Estado?.ToLower() == "pendiente de aprobación";
         public bool EsFirmada => Estado?.ToLower() == "firmada";
         public bool EsAprobada => Estado?.ToLower() == "aprobada";
         public bool EsRechazada => Estado?.ToLower() == "rechazada";
@@ -45,7 +46,7 @@ namespace PortalTi.Api.Models
         
         // Propiedades para determinar qué acciones están disponibles
         public bool PuedeSerFirmada => EsPendiente || EsRechazada;
-        public bool PuedeSerAprobada => EsFirmada;
+        public bool PuedeSerAprobada => EsFirmada || EsPendienteAprobacion;
         public bool PuedeSerRechazada => EsFirmada;
         public bool PuedeSerPrevisualizada => true; // Siempre se puede previsualizar
         public bool PuedeSerDescargada => !string.IsNullOrEmpty(RutaArchivo);

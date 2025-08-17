@@ -1,30 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Search,
   Calendar,
-  User,
   HardDrive,
-  CheckCircle,
-  XCircle,
-  Eye,
-  FileCheck,
   ChevronLeft,
   ChevronRight,
-  Plus,
-  Upload,
-  Download,
-  Trash2,
   Filter,
-  Clock
+  Eye,
+  Trash2,
+  FileCheck,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { asignacionesAPI, actasAPI } from '../services/api';
 import GenerarActaModal from '../components/GenerarActaModal';
-import Tooltip from '../components/Tooltip';
-import TestNotifications from '../components/TestNotifications';
+// Eliminado TestNotifications: ahora las notificaciones se gestionan desde el detalle de actas
 
 const GestionActas = () => {
   const { showToast } = useToast();
@@ -1032,120 +1025,7 @@ const GestionActas = () => {
                           })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            {asignacion.estado === 'Activa' && (
-                              <>
-                                {/* 📄 GENERAR ACTA - Solo si no hay acta */}
-                                {!actasPorAsignacion[asignacion.id] && (
-                                  <Tooltip content="Generar acta para el usuario">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleGenerarActa(asignacion);
-                                      }}
-                                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                    >
-                                      <FileCheck className="w-4 h-4" />
-                                    </button>
-                                  </Tooltip>
-                                )}
-
-                                {/* ⏰ MARCAR PENDIENTE - Solo si no hay acta */}
-                                {!actasPorAsignacion[asignacion.id] && (
-                                  <Tooltip content="Marcar como pendiente de firma">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleMarcarPendienteFirma(asignacion.id);
-                                      }}
-                                      className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 p-1 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                                    >
-                                      <Clock className="w-4 h-4" />
-                                    </button>
-                                  </Tooltip>
-                                )}
-
-                                {/* 📤 UPLOAD - Siempre disponible */}
-                                <Tooltip content="Subir acta firmada por el usuario">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSubirActaUsuario(asignacion);
-                                    }}
-                                    className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 p-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                                  >
-                                    <Upload className="w-4 h-4" />
-                                  </button>
-                                </Tooltip>
-
-                                {/* 👁️ OJO NARANJA - Previsualizar según 4 condiciones */}
-                                <Tooltip content="Previsualizar acta">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const acta = actasPorAsignacion[asignacion.id];
-                                      // Si está en estado "pendiente de firma", mostrar modal personalizado
-                                      if (!acta || acta.estado?.toLowerCase() === 'pendiente') {
-                                        handlePrevisualizacionPersonalizada(acta, asignacion);
-                                      } else {
-                                        // Para otros estados, usar previsualización normal
-                                        handlePrevisualizarActa(acta, asignacion.id);
-                                      }
-                                    }}
-                                    className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 p-1 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                </Tooltip>
-
-                                {/* ✅ ✓ - Aprobar (en todos los estados excepto pendiente) */}
-                                {actasPorAsignacion[asignacion.id] &&
-                                  actasPorAsignacion[asignacion.id].estado?.toLowerCase() !== 'pendiente' && (
-                                    <Tooltip content="Aprobar acta">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const acta = actasPorAsignacion[asignacion.id];
-                                          if (!acta || !acta.id) {
-                                            console.error('No se puede aprobar: acta no encontrada o sin ID');
-                                            showToast('Error', 'No se puede aprobar: acta no encontrada', 'error');
-                                            return;
-                                          }
-                                          console.log('Aprobando acta:', acta.id);
-                                          handleAprobarActa(acta.id, true);
-                                        }}
-                                        className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 p-1 rounded hover:bg-green-50 dark:hover:bg-green-900/20"
-                                      >
-                                        <CheckCircle className="w-4 h-4" />
-                                      </button>
-                                    </Tooltip>
-                                  )}
-
-                                {/* ❌ X - Rechazar (en todos los estados excepto pendiente) */}
-                                {actasPorAsignacion[asignacion.id] &&
-                                  actasPorAsignacion[asignacion.id].estado?.toLowerCase() !== 'pendiente' && (
-                                    <Tooltip content="Rechazar acta">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const acta = actasPorAsignacion[asignacion.id];
-                                          if (!acta || !acta.id) {
-                                            console.error('No se puede rechazar: acta no encontrada o sin ID');
-                                            showToast('Error', 'No se puede rechazar: acta no encontrada', 'error');
-                                            return;
-                                          }
-                                          console.log('Rechazando acta:', acta.id);
-                                          handleAprobarActa(acta.id, false);
-                                        }}
-                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                                      >
-                                        <XCircle className="w-4 h-4" />
-                                      </button>
-                                    </Tooltip>
-                                  )}
-                              </>
-                            )}
-                          </div>
+                          {/* Acciones eliminadas: la gestión ahora ocurre en el detalle de actas */}
                         </td>
                       </tr>
                     ))
@@ -1177,13 +1057,7 @@ const GestionActas = () => {
                 Gestiona las actas de todos los usuarios
               </p>
             </div>
-            <button
-              onClick={() => setShowUploadModalActas(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Subir Acta</span>
-            </button>
+            {/* Botones de control general eliminados. Las acciones se realizan en el detalle. */}
           </div>
 
           {/* Estadísticas de Control de Actas */}
@@ -1650,8 +1524,7 @@ const GestionActas = () => {
         </div>
       )}
 
-      {/* Componente de Prueba de Notificaciones */}
-      <TestNotifications />
+      {/* Componente de Prueba de Notificaciones eliminado */}
     </div>
   );
 };

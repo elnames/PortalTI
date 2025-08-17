@@ -5,6 +5,8 @@ using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
 using System.Text.Json;
+using System.Globalization;
+using System.Text;
 
 namespace PortalTi.Api.Controllers
 {
@@ -272,6 +274,330 @@ namespace PortalTi.Api.Controllers
 
         #region ACCIONES DE ACTA
 
+        [HttpPost("generar")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> GenerarActa([FromBody] GenerarActaRequest request)
+        {
+            try
+            {
+                if (request == null || request.AsignacionId <= 0)
+                    return BadRequest("Datos inválidos para generar acta");
+
+                var asignacion = await _db.AsignacionesActivos
+                    .Include(aa => aa.Usuario)
+                    .Include(aa => aa.Activo)
+                    .FirstOrDefaultAsync(aa => aa.Id == request.AsignacionId);
+
+                if (asignacion == null)
+                    return NotFound("Asignación no encontrada");
+
+                // Firma TI opcional
+                string? adminSignaturePath = null;
+                if (request.IncluirFirmaTI == true)
+                {
+                    var adminUser = await _db.AuthUsers
+                        .FirstOrDefaultAsync(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath));
+                    adminSignaturePath = adminUser?.SignaturePath;
+                }
+
+                var fechaEntrega = !string.IsNullOrWhiteSpace(request.FechaEntrega)
+                    && DateTime.TryParse(request.FechaEntrega, out var fecha)
+                        ? fecha
+                        : asignacion.FechaAsignacion;
+
+                // Generar PDF (con o sin firma TI)
+                byte[] pdfBytes = _pdfService.GenerateActaEntregaWithSignatures(
+                    asignacion,
+                    asignacion.Activo,
+                    asignacion.Usuario,
+                    adminSignaturePath,
+                    null,
+                    fechaEntrega
+                );
+
+                // Guardar PDF en wwwroot/actas/<categoria>
+                string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
+                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                Directory.CreateDirectory(uploadsDir);
+
+                string fileName = GenerateHumanReadableActaFileName(asignacion.Usuario, fechaEntrega);
+                string filePath = Path.Combine(uploadsDir, fileName);
+                await System.IO.File.WriteAllBytesAsync(filePath, pdfBytes);
+
+                // Crear/actualizar Acta
+                var acta = await _db.Actas.FirstOrDefaultAsync(a => a.AsignacionId == request.AsignacionId);
+                var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                int? aprobadoPorId = null;
+                if (int.TryParse(currentUserId, out int adminId))
+                {
+                    aprobadoPorId = adminId;
+                }
+
+                if (acta == null)
+                {
+                    acta = new Acta
+                    {
+                        AsignacionId = request.AsignacionId,
+                        Estado = request.IncluirFirmaTI == true ? "Firmada" : "Pendiente",
+                        MetodoFirma = "Admin_Subida",
+                        NombreArchivo = fileName,
+                        RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
+                        FechaFirma = DateTime.Now,
+                        FechaSubida = DateTime.Now,
+                        AprobadoPorId = null,
+                        Observaciones = request.Observaciones ?? string.Empty,
+                        ComentariosAprobacion = null
+                    };
+                    _db.Actas.Add(acta);
+                }
+                else
+                {
+                    acta.Estado = request.IncluirFirmaTI == true ? "Firmada" : "Pendiente";
+                    acta.MetodoFirma = "Admin_Subida";
+                    acta.NombreArchivo = fileName;
+                    acta.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                    acta.FechaFirma = DateTime.Now;
+                    acta.FechaSubida = DateTime.Now;
+                    acta.AprobadoPorId = null;
+                    acta.Observaciones = request.Observaciones ?? string.Empty;
+                    acta.ComentariosAprobacion = null;
+                }
+
+                await _db.SaveChangesAsync();
+
+                return Ok(new {
+                    message = "Acta generada y marcada como pendiente de firma",
+                    actaId = acta.Id,
+                    fileName
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al generar acta");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpPost("{actaId}/rechazar")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> RechazarActa(int actaId, [FromBody] MotivoRequest req)
+        {
+            try
+            {
+                // Motivo opcional
+
+                var acta = await _db.Actas
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Usuario)
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Activo)
+                    .FirstOrDefaultAsync(a => a.Id == actaId);
+
+                if (acta == null)
+                    return NotFound("Acta no encontrada");
+
+                var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                int? aprobadoPorId = null;
+                if (int.TryParse(currentUserId, out int adminId))
+                {
+                    aprobadoPorId = adminId;
+                }
+
+                acta.Estado = "Rechazada";
+                acta.FechaAprobacion = DateTime.Now;
+                acta.AprobadoPorId = aprobadoPorId;
+                acta.ComentariosAprobacion = string.IsNullOrWhiteSpace(req?.Motivo) ? null : req.Motivo;
+                try
+                {
+                    await _db.SaveChangesAsync();
+                }
+                catch (Exception saveEx)
+                {
+                    _logger.LogError(saveEx, "Error guardando cambios al rechazar acta {ActaId}", actaId);
+                    return StatusCode(400, new { message = "No se pudo actualizar el estado del acta", error = saveEx.Message });
+                }
+
+                try
+                {
+                    var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                    await notificationService.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = acta.Asignacion.UsuarioId,
+                        Tipo = "acta",
+                        Titulo = "Acta rechazada",
+                        Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {req.Motivo}",
+                        RefTipo = "Acta",
+                        RefId = acta.Id,
+                        Ruta = $"/actas/{acta.Id}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error al enviar notificación de rechazo");
+                }
+
+                return Ok(new { message = "Acta rechazada", actaId = acta.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al rechazar acta");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpPost("{actaId}/pendiente")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> MarcarPendiente(int actaId)
+        {
+            try
+            {
+                var acta = await _db.Actas.FirstOrDefaultAsync(a => a.Id == actaId);
+                if (acta == null)
+                    return NotFound("Acta no encontrada");
+
+                acta.Estado = "Pendiente";
+                acta.MetodoFirma = "Pendiente";
+                await _db.SaveChangesAsync();
+                return Ok(new { message = "Acta marcada como pendiente de firma", actaId = acta.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al marcar pendiente el acta");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpPost("{actaId}/upload-pdf-ti")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> UploadPdfTI(int actaId, IFormFile pdf, [FromForm] string observaciones = "")
+        {
+            try
+            {
+                if (pdf == null || pdf.Length == 0)
+                    return BadRequest("No se proporcionó ningún archivo");
+
+                var isPdfMime = pdf.ContentType != null && pdf.ContentType.ToLower().Contains("application/pdf");
+                var isPdfExt = Path.GetExtension(pdf.FileName)?.ToLower() == ".pdf";
+                if (!isPdfMime && !isPdfExt)
+                    return BadRequest("Solo se permiten archivos PDF");
+
+                var acta = await _db.Actas
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Usuario)
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Activo)
+                    .FirstOrDefaultAsync(a => a.Id == actaId);
+
+                if (acta == null)
+                    return NotFound("Acta no encontrada");
+
+                string categoriaFolder = GetCategoriaFolder(acta.Asignacion.Activo.Categoria);
+                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                Directory.CreateDirectory(uploadsDir);
+
+                string fileName = GenerateHumanReadableActaFileName(acta.Asignacion.Usuario, DateTime.Now);
+                string filePath = Path.Combine(uploadsDir, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await pdf.CopyToAsync(stream);
+                }
+
+                acta.Estado = "Firmada";
+                acta.MetodoFirma = "Admin_Subida";
+                acta.NombreArchivo = fileName;
+                acta.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                acta.FechaFirma = DateTime.Now;
+                acta.FechaSubida = DateTime.Now;
+                acta.Observaciones = observaciones;
+                await _db.SaveChangesAsync();
+
+                return Ok(new { message = "PDF subido por TI", actaId = acta.Id, fileName });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al subir PDF TI");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpPost("{actaId}/anular")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> AnularActa(int actaId, [FromBody] MotivoRequest req)
+        {
+            try
+            {
+                // Motivo opcional
+
+                var acta = await _db.Actas.FirstOrDefaultAsync(a => a.Id == actaId);
+                if (acta == null)
+                    return NotFound("Acta no encontrada");
+
+                acta.Estado = "Anulada";
+                acta.ComentariosAprobacion = string.IsNullOrWhiteSpace(req?.Motivo) ? null : req.Motivo;
+                acta.FechaAprobacion = DateTime.Now;
+                await _db.SaveChangesAsync();
+                return Ok(new { message = "Acta anulada", actaId = acta.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al anular acta");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        [HttpGet("{actaId}/preview-auto")]
+        public async Task<IActionResult> PrevisualizarAuto(int actaId)
+        {
+            try
+            {
+                var acta = await _db.Actas
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Usuario)
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Activo)
+                    .FirstOrDefaultAsync(a => a.Id == actaId);
+
+                if (acta == null)
+                    return NotFound("Acta no encontrada");
+
+                // Prioridad: PDF_Usuario (MetodoFirma=PDF_Subido) > PDF_Admin (Admin_Subida) > Digital_Signed (Digital) > Plantilla
+                if (!string.IsNullOrEmpty(acta.RutaArchivo) &&
+                    (acta.MetodoFirma?.ToLower() == "pdf_subido" || acta.MetodoFirma?.ToLower() == "admin_subida"))
+                {
+                    string filePath = Path.Combine("wwwroot", acta.RutaArchivo);
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                        return File(fileBytes, "application/pdf", acta.NombreArchivo ?? "acta.pdf");
+                    }
+                }
+
+                if (acta.MetodoFirma?.ToLower() == "digital")
+                {
+                    // Generar con firmas
+                    string? userSig = null;
+                    var userAuth = await _db.AuthUsers.FirstOrDefaultAsync(u => u.Username == acta.Asignacion.Usuario.Email);
+                    if (userAuth != null && !string.IsNullOrEmpty(userAuth.SignaturePath)) userSig = userAuth.SignaturePath;
+
+                    string? adminSig = null;
+                    var adminUser = await _db.AuthUsers.FirstOrDefaultAsync(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath));
+                    adminSig = adminUser?.SignaturePath;
+
+                    byte[] pdfBytes = _pdfService.GenerateActaEntregaWithSignatures(acta.Asignacion, acta.Asignacion.Activo, acta.Asignacion.Usuario, adminSig, userSig, acta.Asignacion.FechaAsignacion);
+                    return File(pdfBytes, "application/pdf", acta.NombreArchivo ?? "acta.pdf");
+                }
+
+                // Plantilla por defecto
+                byte[] plantillaBytes = _pdfService.GenerateActaEntregaWithSignatures(acta.Asignacion, acta.Asignacion.Activo, acta.Asignacion.Usuario, null, null, acta.Asignacion.FechaAsignacion);
+                return File(plantillaBytes, "application/pdf", acta.NombreArchivo ?? "acta.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en previsualización auto");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
         [HttpPost("marcar-pendiente-firma")]
         [Authorize(Roles = "admin,soporte")]
         public async Task<IActionResult> MarcarPendienteFirma([FromBody] MarcarPendienteFirmaRequest request)
@@ -288,8 +614,7 @@ namespace PortalTi.Api.Controllers
                 if (asignacion == null)
                     return NotFound("Asignación no encontrada");
 
-                if (asignacion.Estado != "Activa")
-                    return BadRequest("Solo se pueden marcar como pendiente de firma las asignaciones activas");
+                // Permitir marcar pendiente bajo cualquier estado de la asignación
 
                 // Buscar acta existente o crear nueva
                 var acta = await _db.Actas.FirstOrDefaultAsync(a => a.AsignacionId == request.AsignacionId);
@@ -396,9 +721,36 @@ namespace PortalTi.Api.Controllers
                     });
                 }
 
-                // Buscar acta existente o crear nueva
+                // Obtener firma de admin/soporte (si existe) para incluirla en el PDF
+                string? adminSignaturePath = null;
+                var adminUser = await _db.AuthUsers
+                    .FirstOrDefaultAsync(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath));
+                adminSignaturePath = adminUser?.SignaturePath;
+
+                // Generar PDF con ambas firmas
+                byte[] pdfBytes = _pdfService.GenerateActaEntregaWithSignatures(
+                    asignacion,
+                    asignacion.Activo,
+                    asignacion.Usuario,
+                    adminSignaturePath,
+                    currentUser.SignaturePath,
+                    asignacion.FechaAsignacion
+                );
+
+                // Guardar PDF en wwwroot/actas/<categoria>
+                string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
+                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                Directory.CreateDirectory(uploadsDir);
+
+                // Versionado y hash
+                string baseName = GenerateHumanReadableActaFileName(asignacion.Usuario, asignacion.FechaAsignacion).Replace(".pdf", "");
+                string fileName = GetNextVersionedFileName(uploadsDir, baseName);
+                string filePath = Path.Combine(uploadsDir, fileName);
+                await System.IO.File.WriteAllBytesAsync(filePath, pdfBytes);
+                string sha256 = ComputeSha256(pdfBytes);
+
+                // Buscar acta existente o crear nueva y actualizar metadatos con el PDF generado
                 var acta = await _db.Actas.FirstOrDefaultAsync(a => a.AsignacionId == asignacionId);
-                
                 if (acta == null)
                 {
                     acta = new Acta
@@ -406,24 +758,23 @@ namespace PortalTi.Api.Controllers
                         AsignacionId = asignacionId,
                         Estado = "Firmada",
                         MetodoFirma = "Digital",
-                        NombreArchivo = currentUser.SignaturePath.Split('/').Last(),
-                        RutaArchivo = currentUser.SignaturePath,
+                        NombreArchivo = fileName,
+                        RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
                         FechaFirma = DateTime.Now,
                         FechaSubida = DateTime.Now,
-                        Observaciones = string.IsNullOrEmpty(observaciones) ? "Firma digital del perfil aplicada por el usuario" : observaciones
+                        Observaciones = string.IsNullOrEmpty(observaciones) ? $"Firma digital aplicada [SHA256:{sha256}]" : $"{observaciones} [SHA256:{sha256}]"
                     };
                     _db.Actas.Add(acta);
                 }
                 else
                 {
-                    // Actualizar acta existente
                     acta.Estado = "Firmada";
                     acta.MetodoFirma = "Digital";
-                    acta.NombreArchivo = currentUser.SignaturePath.Split('/').Last();
-                    acta.RutaArchivo = currentUser.SignaturePath;
+                    acta.NombreArchivo = fileName;
+                    acta.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
                     acta.FechaFirma = DateTime.Now;
                     acta.FechaSubida = DateTime.Now;
-                    acta.Observaciones = string.IsNullOrEmpty(observaciones) ? "Firma digital del perfil actualizada por el usuario" : observaciones;
+                    acta.Observaciones = string.IsNullOrEmpty(observaciones) ? $"Firma digital aplicada [SHA256:{sha256}]" : $"{observaciones} [SHA256:{sha256}]";
                 }
 
                 await _db.SaveChangesAsync();
@@ -450,7 +801,9 @@ namespace PortalTi.Api.Controllers
 
                 return Ok(new { 
                     message = "Acta firmada digitalmente exitosamente",
-                    actaId = acta.Id
+                    actaId = acta.Id,
+                    hash = sha256,
+                    fileName
                 });
             }
             catch (Exception ex)
@@ -485,7 +838,9 @@ namespace PortalTi.Api.Controllers
                 if (acta == null || acta.Length == 0)
                     return BadRequest("No se proporcionó ningún archivo");
 
-                if (!acta.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                var isPdfByMimeUser = acta.ContentType != null && acta.ContentType.ToLower().Contains("application/pdf");
+                var isPdfByExtUser = Path.GetExtension(acta.FileName)?.ToLower() == ".pdf";
+                if (!isPdfByMimeUser && !isPdfByExtUser)
                     return BadRequest("Solo se permiten archivos PDF");
 
                 // Crear estructura de carpetas
@@ -493,8 +848,8 @@ namespace PortalTi.Api.Controllers
                 string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
 
-                // Generar nombre de archivo
-                string fileName = GenerateActaFileName(asignacion.Usuario, asignacion.Activo.Categoria);
+                // Generar nombre de archivo legible
+                string fileName = GenerateHumanReadableActaFileName(asignacion.Usuario, DateTime.Now);
                 string filePath = Path.Combine(uploadsDir, fileName);
 
                 // Guardar archivo
@@ -511,7 +866,7 @@ namespace PortalTi.Api.Controllers
                     actaDb = new Acta
                     {
                         AsignacionId = asignacionId,
-                        Estado = "Firmada",
+                        Estado = "Pendiente_de_aprobacion",
                         MetodoFirma = "PDF_Subido",
                         NombreArchivo = fileName,
                         RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
@@ -524,7 +879,7 @@ namespace PortalTi.Api.Controllers
                 else
                 {
                     // Actualizar acta existente
-                    actaDb.Estado = "Firmada";
+                    actaDb.Estado = "Pendiente_de_aprobacion";
                     actaDb.MetodoFirma = "PDF_Subido";
                     actaDb.NombreArchivo = fileName;
                     actaDb.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
@@ -686,20 +1041,25 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
+                if (request == null)
+                {
+                    _logger.LogWarning("AprobarActa - request nulo para actaId {ActaId}", actaId);
+                    return BadRequest("Datos inválidos para procesar el acta");
+                }
+
                 _logger.LogInformation($"AprobarActa - actaId: {actaId}, aprobado: {request.Aprobar}");
                 
                 var acta = await _db.Actas
                     .Include(a => a.Asignacion)
                     .ThenInclude(aa => aa.Usuario)
-                    .Include(a => a.Asignacion.Activo)
+                    .Include(a => a.Asignacion)
+                    .ThenInclude(aa => aa.Activo)
                     .FirstOrDefaultAsync(a => a.Id == actaId);
 
                 if (acta == null)
                     return NotFound("Acta no encontrada");
 
-                // Para aprobar, el acta debe estar firmada
-                if (request.Aprobar && !acta.EsFirmada)
-                    return BadRequest("El acta debe estar firmada para poder ser aprobada");
+                // Aprobación sin restricción dura de estado para permitir overrides TI
                 
                 // Para rechazar, se puede hacer en cualquier estado
                 // No se necesita validación adicional
@@ -716,22 +1076,41 @@ namespace PortalTi.Api.Controllers
                     acta.Estado = "Aprobada";
                     acta.FechaAprobacion = DateTime.Now;
                     acta.AprobadoPorId = aprobadoPorId;
-                    acta.ComentariosAprobacion = request.Comentarios;
+                    acta.ComentariosAprobacion = string.IsNullOrWhiteSpace(request.Comentarios) ? null : request.Comentarios;
+
+                    // Guardar primero el cambio de estado del acta
+                    try
+                    {
+                        await _db.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException dbEx)
+                    {
+                        var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
+                        _logger.LogError(dbEx, "AprobarActa - error guardando cambios (aprobación) para acta {ActaId}. Inner: {Inner}", acta.Id, innerMsg);
+                        return BadRequest($"No se pudo guardar los cambios del acta. Detalle: {innerMsg}");
+                    }
 
                     // Notificar al usuario
                     try
                     {
-                        var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                        await notificationService.CreateAsync(new CreateNotificationDto
+                        if (acta.Asignacion != null)
                         {
-                            UserId = acta.Asignacion.UsuarioId,
-                            Tipo = "acta",
-                            Titulo = "Acta aprobada",
-                            Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido aprobada.",
-                            RefTipo = "Acta",
-                            RefId = acta.Id,
-                            Ruta = $"/actas/{acta.Id}"
-                        });
+                            var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                            await notificationService.CreateAsync(new CreateNotificationDto
+                            {
+                                UserId = acta.Asignacion.UsuarioId,
+                                Tipo = "acta",
+                                Titulo = "Acta aprobada",
+                                Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido aprobada.",
+                                RefTipo = "Acta",
+                                RefId = acta.Id,
+                                Ruta = $"/actas/{acta.Id}"
+                            });
+                        }
+                        else
+                        {
+                            _logger.LogWarning("AprobarActa - Asignacion nula al notificar aprobación para acta {ActaId}", acta.Id);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -743,30 +1122,47 @@ namespace PortalTi.Api.Controllers
                     acta.Estado = "Rechazada";
                     acta.FechaAprobacion = DateTime.Now;
                     acta.AprobadoPorId = aprobadoPorId;
-                    acta.ComentariosAprobacion = request.Comentarios;
+                    acta.ComentariosAprobacion = string.IsNullOrWhiteSpace(request.Comentarios) ? null : request.Comentarios;
+
+                    // Guardar primero el cambio de estado del acta
+                    try
+                    {
+                        await _db.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException dbEx)
+                    {
+                        var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
+                        _logger.LogError(dbEx, "AprobarActa - error guardando cambios (rechazo) para acta {ActaId}. Inner: {Inner}", acta.Id, innerMsg);
+                        return BadRequest($"No se pudo guardar los cambios del acta. Detalle: {innerMsg}");
+                    }
 
                     // Notificar al usuario
                     try
                     {
-                        var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
-                        await notificationService.CreateAsync(new CreateNotificationDto
+                        if (acta.Asignacion != null)
                         {
-                            UserId = acta.Asignacion.UsuarioId,
-                            Tipo = "acta",
-                            Titulo = "Acta rechazada",
-                            Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {request.Comentarios}",
-                            RefTipo = "Acta",
-                            RefId = acta.Id,
-                            Ruta = $"/actas/{acta.Id}"
-                        });
+                            var notificationService = HttpContext.RequestServices.GetRequiredService<INotificationsService>();
+                            await notificationService.CreateAsync(new CreateNotificationDto
+                            {
+                                UserId = acta.Asignacion.UsuarioId,
+                                Tipo = "acta",
+                                Titulo = "Acta rechazada",
+                                Mensaje = $"Tu acta para el activo {acta.Asignacion.Activo?.Codigo} ha sido rechazada. Motivo: {request.Comentarios}",
+                                RefTipo = "Acta",
+                                RefId = acta.Id,
+                                Ruta = $"/actas/{acta.Id}"
+                            });
+                        }
+                        else
+                        {
+                            _logger.LogWarning("AprobarActa - Asignacion nula al notificar rechazo para acta {ActaId}", acta.Id);
+                        }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Error al enviar notificación de rechazo");
                     }
                 }
-
-                await _db.SaveChangesAsync();
 
                 return Ok(new { 
                     message = $"Acta {(request.Aprobar ? "aprobada" : "rechazada")} exitosamente",
@@ -1058,20 +1454,57 @@ namespace PortalTi.Api.Controllers
 
         private string GetCategoriaFolder(string categoria)
         {
-            return categoria?.ToLower() switch
+            if (string.IsNullOrWhiteSpace(categoria)) return "Equipos";
+
+            // Normalizar: minúsculas y sin acentos
+            string normalized = RemoveDiacritics(categoria.ToLowerInvariant());
+
+            // Monitores
+            if (normalized.Contains("monitor"))
+                return "Monitores";
+
+            // Periféricos (impresora, escáner, teclado, mouse)
+            if (normalized.Contains("perifer") || normalized.Contains("impresor") || normalized.Contains("scanner") ||
+                normalized.Contains("teclado") || normalized.Contains("mouse"))
+                return "Periféricos";
+
+            // Accesorios (adaptadores, cables, hubs, etc.)
+            if (normalized.Contains("accesorio") || normalized.Contains("accesorios") ||
+                normalized.Contains("adaptador") || normalized.Contains("cable") || normalized.Contains("hub"))
+                return "Accesorios";
+
+            // Móviles
+            if (normalized.Contains("movil") || normalized.Contains("moviles") || normalized.Contains("celular") ||
+                normalized.Contains("telefono") || normalized.Contains("tablet"))
+                return "Móviles";
+
+            // Red
+            if (normalized.Contains("red") || normalized.Contains("router") || normalized.Contains("switch") ||
+                normalized.Contains("access point") || normalized.Contains("ap ") || normalized.EndsWith(" ap") ||
+                normalized.Contains("firewall"))
+                return "Red";
+
+            // Equipos (resto: laptop/desktop/pc/notebook/torre)
+            if (normalized.Contains("equipo") || normalized.Contains("laptop") || normalized.Contains("desktop") ||
+                normalized.Contains("pc") || normalized.Contains("computador") || normalized.Contains("notebook") ||
+                normalized.Contains("torre"))
+                return "Equipos";
+
+            return "Equipos"; // Por defecto a Equipos
+        }
+
+        private static string RemoveDiacritics(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            var normalized = text.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (var ch in normalized)
             {
-                "laptop" => "Equipos",
-                "desktop" => "Equipos",
-                "monitor" => "Equipos",
-                "teclado" => "Accesorios",
-                "mouse" => "Accesorios",
-                "impresora" => "Equipos",
-                "scanner" => "Equipos",
-                "tablet" => "Móviles",
-                "celular" => "Móviles",
-                "accesorio" => "Accesorios",
-                _ => "Otros"
-            };
+                var uc = CharUnicodeInfo.GetUnicodeCategory(ch);
+                if (uc != UnicodeCategory.NonSpacingMark)
+                    sb.Append(ch);
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
         private string GenerateActaFileName(NominaUsuario usuario, string categoria, bool isAdmin = false)
@@ -1079,6 +1512,33 @@ namespace PortalTi.Api.Controllers
             string prefix = isAdmin ? "Admin" : "Usuario";
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             return $"Acta de entrega - {usuario.Nombre} {usuario.Apellido} - {categoria} - {prefix}_{timestamp}.pdf";
+        }
+
+        // Nombre legible: "Acta de entrega - Nombre Apellido dd MMMM yyyy.pdf"
+        private string GenerateHumanReadableActaFileName(NominaUsuario usuario, DateTime fechaEntrega)
+        {
+            var culture = new System.Globalization.CultureInfo("es-ES");
+            string fecha = fechaEntrega.ToString("dd 'de' MMMM 'de' yyyy", culture);
+            return $"Acta de entrega - {usuario.Nombre} {usuario.Apellido} {fecha}.pdf";
+        }
+
+        private string GetNextVersionedFileName(string dir, string baseName)
+        {
+            int version = 1;
+            string candidate = $"{baseName} v{version}.pdf";
+            while (System.IO.File.Exists(Path.Combine(dir, candidate)))
+            {
+                version++;
+                candidate = $"{baseName} v{version}.pdf";
+            }
+            return candidate;
+        }
+
+        private string ComputeSha256(byte[] bytes)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var hash = sha.ComputeHash(bytes);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
 
         #endregion
@@ -1096,6 +1556,20 @@ namespace PortalTi.Api.Controllers
     {
         public bool Aprobar { get; set; }
         public string? Comentarios { get; set; }
+    }
+
+    public class GenerarActaRequest
+    {
+        public int AsignacionId { get; set; }
+        public bool? IncluirFirmaTI { get; set; }
+        public string? FechaEntrega { get; set; }
+        public string? Observaciones { get; set; }
+        public string? Plantilla { get; set; }
+    }
+
+    public class MotivoRequest
+    {
+        public string? Motivo { get; set; }
     }
 
     #endregion

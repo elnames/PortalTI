@@ -108,14 +108,15 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 6) Asegurar que la base de datos existe y las migraciones están aplicadas
+// 6) Aplicar migraciones pendientes y preparar datos base
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<PortalTiContext>();
-    context.Database.EnsureCreated();
-    
-    // Inicializar datos por defecto
-    DbInitializer.Initialize(context);
+    // Aplicar migraciones (schema-first correcto)
+    context.Database.Migrate();
+
+    // Sembrar datos si la BD está vacía
+    DbInitializer.SeedIfEmpty(context);
 }
 
 // 7) Middlewares (¡¡¡orden crítico!!!)

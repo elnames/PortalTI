@@ -6,19 +6,70 @@ namespace PortalTi.Api.Data
 {
     public static class DbInitializer
     {
-        public static void Initialize(PortalTiContext context)
+        // Mantengo el seeding pero separado de la creación de esquema
+        public static void SeedIfEmpty(PortalTiContext context)
         {
-            // Asegurar que la base de datos esté creada
-            context.Database.EnsureCreated();
-
-            // Verificar si ya hay datos
-            if (context.NominaUsuarios.Any())
-            {
-                return; // La base de datos ya tiene datos
-            }
-
-            // Poblar con datos iniciales si está vacía
+            if (context.NominaUsuarios.Any()) return;
             SeedInitialData(context);
+        }
+
+        /// <summary>
+        /// Asegura que la tabla Notificaciones tenga las columnas requeridas por el modelo actual.
+        /// Crea la tabla si no existe, o agrega columnas faltantes si la estructura es antigua.
+        /// </summary>
+        private static void EnsureNotificationsSchema(PortalTiContext context)
+        {
+            // Crear tabla si no existe
+            var createTableSql = @"
+IF OBJECT_ID(N'[dbo].[Notificaciones]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Notificaciones](
+        [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        [UserId] INT NOT NULL,
+        [Tipo] NVARCHAR(40) NOT NULL,
+        [Titulo] NVARCHAR(150) NOT NULL,
+        [Mensaje] NVARCHAR(500) NOT NULL,
+        [RefTipo] NVARCHAR(40) NULL,
+        [RefId] INT NULL,
+        [Ruta] NVARCHAR(200) NULL,
+        [IsRead] BIT NOT NULL CONSTRAINT [DF_Notificaciones_IsRead] DEFAULT(0),
+        [CreatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_Notificaciones_CreatedAt] DEFAULT(SYSUTCDATETIME())
+    );
+END";
+
+            context.Database.ExecuteSqlRaw(createTableSql);
+
+            // Agregar columnas faltantes (para tablas antiguas)
+            var addMissingColumnsSql = @"
+IF COL_LENGTH('dbo.Notificaciones', 'UserId') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [UserId] INT NOT NULL CONSTRAINT [DF_Notificaciones_UserId] DEFAULT(0);
+IF COL_LENGTH('dbo.Notificaciones', 'Titulo') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [Titulo] NVARCHAR(150) NULL;
+IF COL_LENGTH('dbo.Notificaciones', 'Ruta') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [Ruta] NVARCHAR(200) NULL;
+IF COL_LENGTH('dbo.Notificaciones', 'RefTipo') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [RefTipo] NVARCHAR(40) NULL;
+IF COL_LENGTH('dbo.Notificaciones', 'RefId') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [RefId] INT NULL;
+IF COL_LENGTH('dbo.Notificaciones', 'IsRead') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [IsRead] BIT NOT NULL CONSTRAINT [DF_Notificaciones_IsRead_2] DEFAULT(0);
+IF COL_LENGTH('dbo.Notificaciones', 'CreatedAt') IS NULL
+    ALTER TABLE dbo.Notificaciones ADD [CreatedAt] DATETIME2 NOT NULL CONSTRAINT [DF_Notificaciones_CreatedAt_2] DEFAULT(SYSUTCDATETIME());
+";
+
+            context.Database.ExecuteSqlRaw(addMissingColumnsSql);
+
+            // Índices básicos si faltan
+            var createIndexesSql = @"
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notificaciones_UserId_IsRead_CreatedAt' AND object_id = OBJECT_ID('dbo.Notificaciones'))
+    CREATE INDEX [IX_Notificaciones_UserId_IsRead_CreatedAt] ON [dbo].[Notificaciones] ([UserId], [IsRead], [CreatedAt]);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notificaciones_RefTipo_RefId' AND object_id = OBJECT_ID('dbo.Notificaciones'))
+    CREATE INDEX [IX_Notificaciones_RefTipo_RefId] ON [dbo].[Notificaciones] ([RefTipo], [RefId]);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notificaciones_CreatedAt' AND object_id = OBJECT_ID('dbo.Notificaciones'))
+    CREATE INDEX [IX_Notificaciones_CreatedAt] ON [dbo].[Notificaciones] ([CreatedAt]);
+";
+
+            context.Database.ExecuteSqlRaw(createIndexesSql);
         }
 
         public static void ClearAndSeedGenericData(PortalTiContext context)

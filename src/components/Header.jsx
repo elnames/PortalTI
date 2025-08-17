@@ -1,12 +1,12 @@
 // src/components/Header.jsx
-import { Search, Bell, User, Settings, LogOut, ChevronDown, X, Loader2, Sun, Moon, Menu } from 'lucide-react'
+import { Search, User, Settings, LogOut, ChevronDown, X, Loader2, Sun, Moon, Menu } from 'lucide-react'
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react'
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useSearch } from '../contexts/SearchContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useNavigate } from 'react-router-dom'
-import NotificationBell from './NotificationBell'
+// import NotificationBell from './NotificationBell'
 
 export default function Header({ toggleSidebar }) {
     const { user, logout } = useAuth()
@@ -275,8 +275,7 @@ export default function Header({ toggleSidebar }) {
                             )}
                         </button>
 
-                        {/* Notificaciones */}
-                        <NotificationBell />
+                        {/* Notificaciones removidas temporalmente hasta reimplementar el nuevo sistema */}
 
                         {/* Menú de usuario */}
                         <HeadlessMenu as="div" className="relative">

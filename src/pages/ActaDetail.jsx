@@ -26,6 +26,7 @@ import { asignacionesAPI, actasAPI } from '../services/api';
 import GenerarActaModal from '../components/GenerarActaModal';
 import ActaActions from '../components/ActaActions';
 import Tooltip from '../components/Tooltip';
+import StatusBadge from '../components/StatusBadge';
 
 const ActaDetail = () => {
     const { id } = useParams();
@@ -143,7 +144,7 @@ const ActaDetail = () => {
         try {
             setUploading(true);
             const formData = new FormData();
-            formData.append('archivo', selectedFile);
+            formData.append('acta', selectedFile);
             formData.append('asignacionId', selectedAsignacionForUpload.id);
             formData.append('observaciones', observaciones);
 
@@ -522,9 +523,7 @@ const ActaDetail = () => {
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</label>
                                         <div className="flex flex-col space-y-2">
-                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoActaColor(acta.estado)}`}>
-                                                📄 {acta.estado}
-                                            </span>
+                                            <StatusBadge estado={acta.estado} />
                                             {acta.metodoFirma && (
                                                 <div className="text-xs text-gray-500 dark:text-gray-400">
                                                     Método: {acta.metodoFirma}
@@ -569,43 +568,16 @@ const ActaDetail = () => {
                     </h3>
 
                     <div className="space-y-4">
-                        {/* Acciones específicas de admin/soporte */}
-                        {asignacion.estado === 'Activa' && (
+                        {/* Acciones TI (siempre visibles para admin/soporte) */}
+                        {(user?.role === 'admin' || user?.role === 'soporte') && (
                             <div className="flex flex-wrap gap-3">
-                                {/* 📄 GENERAR ACTA - Solo si no hay acta */}
-                                {!acta && (
-                                    <Tooltip content="Generar acta para el usuario">
-                                        <button
-                                            onClick={() => handleGenerarActa(asignacion)}
-                                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                        >
-                                            <FileCheck className="w-4 h-4" />
-                                            <span>Generar Acta</span>
-                                        </button>
-                                    </Tooltip>
-                                )}
-
-                                {/* ⏰ MARCAR PENDIENTE - Solo si no hay acta */}
-                                {!acta && (
-                                    <Tooltip content="Marcar como pendiente de firma">
-                                        <button
-                                            onClick={() => handleMarcarPendienteFirma(asignacion.id)}
-                                            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                                        >
-                                            <Clock className="w-4 h-4" />
-                                            <span>Marcar Pendiente</span>
-                                        </button>
-                                    </Tooltip>
-                                )}
-
-                                {/* 📤 UPLOAD - Siempre disponible */}
-                                <Tooltip content="Subir acta firmada por el usuario">
+                                <Tooltip content="Generar acta (con opciones de firma TI y fecha)">
                                     <button
-                                        onClick={() => handleSubirActaUsuario(asignacion)}
-                                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                        onClick={() => handleGenerarActa(asignacion)}
+                                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                                     >
-                                        <Upload className="w-4 h-4" />
-                                        <span>Subir Acta</span>
+                                        <FileCheck className="w-4 h-4" />
+                                        <span>Generar Acta</span>
                                     </button>
                                 </Tooltip>
                             </div>
@@ -622,6 +594,7 @@ const ActaDetail = () => {
                                 onActionComplete={fetchActaData}
                                 onApprove={() => setShowAprobarModal(true)}
                                 onReject={() => setShowRechazarModal(true)}
+                                currentUserRole={user?.role}
                             />
                         </div>
                     </div>
@@ -670,6 +643,14 @@ const ActaDetail = () => {
                                     <div>
                                         <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Archivo del Acta</label>
                                         <p className="text-sm text-gray-900 dark:text-white">{acta.nombreArchivo}</p>
+                                    </div>
+                                )}
+                                {acta.observaciones && acta.observaciones.includes('SHA256:') && (
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Hash (SHA256)</label>
+                                        <p className="text-xs font-mono break-all text-gray-700 dark:text-gray-300">
+                                            {acta.observaciones.split('SHA256:')[1].replace(']', '').trim()}
+                                        </p>
                                     </div>
                                 )}
                                 {acta.fechaSubida && (

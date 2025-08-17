@@ -65,11 +65,17 @@ export const actasAPI = {
     getByAsignacionId: (asignacionId) => api.get(`/actas/asignacion/${asignacionId}`),
 
     // ACCIONES DE ACTA
+    generarActaAdmin: (data) => api.post('/actas/generar', data),
     marcarPendienteFirma: (data) => api.post('/actas/marcar-pendiente-firma', data),
     firmarDigital: (data) => api.post('/actas/firmar-digital', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirPdf: (formData) => api.post('/actas/subir-pdf', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirActaAdmin: (formData) => api.post('/actas/subir-admin', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     aprobarActa: (actaId, data) => api.post(`/actas/${actaId}/aprobar`, data),
+    rechazarActa: (actaId, data) => api.post(`/actas/${actaId}/rechazar`, data),
+    marcarPendiente: (actaId) => api.post(`/actas/${actaId}/pendiente`),
+    uploadPdfTI: (actaId, formData) => api.post(`/actas/${actaId}/upload-pdf-ti`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    anularActa: (actaId, data) => api.post(`/actas/${actaId}/anular`, data),
+    previewAuto: (actaId) => api.get(`/actas/${actaId}/preview-auto`, { responseType: 'blob' }),
 
     // PREVISUALIZACIÓN Y DESCARGA
     previsualizarActa: (asignacionId) => api.get(`/actas/previsualizar/${asignacionId}`, { responseType: 'blob' }),

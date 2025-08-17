@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Eye, FileText, CheckCircle, Clock, XCircle, Upload, PenTool } from 'lucide-react';
 import { actasAPI } from '../services/api';
+import StatusBadge from '../components/StatusBadge';
 import Tooltip from '../components/Tooltip';
 import SignatureDrawer from '../components/SignatureDrawer';
 
@@ -272,7 +273,7 @@ const Actas = () => {
   const filteredActas = actas.filter(acta => {
     switch (activeTab) {
       case 'pendientes':
-        return acta.estado?.toLowerCase() === 'pendiente' || acta.estado?.toLowerCase() === 'pendiente de aprobación';
+        return acta.estado?.toLowerCase() === 'pendiente' || acta.estado?.toLowerCase() === 'pendiente de aprobación' || acta.estado?.toLowerCase() === 'pendiente_de_aprobacion';
       case 'firmadas':
         return acta.estado?.toLowerCase() === 'firmada' || acta.estado?.toLowerCase() === 'firmado';
       case 'rechazadas':
@@ -330,7 +331,7 @@ const Actas = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pendientes</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {actas.filter(a => a.estado?.toLowerCase() === 'pendiente' || a.estado?.toLowerCase() === 'pendiente de aprobación').length}
+                {actas.filter(a => a.estado?.toLowerCase() === 'pendiente' || a.estado?.toLowerCase() === 'pendiente de aprobación' || a.estado?.toLowerCase() === 'pendiente_de_aprobacion').length}
               </p>
             </div>
           </div>
@@ -384,7 +385,7 @@ const Actas = () => {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
           >
-            Pendientes ({actas.filter(a => a.estado?.toLowerCase() === 'pendiente' || a.estado?.toLowerCase() === 'pendiente de aprobación').length})
+            Pendientes ({actas.filter(a => a.estado?.toLowerCase() === 'pendiente' || a.estado?.toLowerCase() === 'pendiente de aprobación' || a.estado?.toLowerCase() === 'pendiente_de_aprobacion').length})
           </button>
           <button
             onClick={() => setActiveTab('firmadas')}
@@ -446,9 +447,7 @@ const Actas = () => {
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {acta.asignacion?.activo?.codigo} - {acta.asignacion?.activo?.categoria}
                           </p>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEstadoColor(acta.estado)}`}>
-                            {acta.estado}
-                          </span>
+                          <StatusBadge estado={acta.estado} />
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           Método: {acta.metodoFirma} • Creada: {new Date(acta.fechaCreacion).toLocaleDateString()}
