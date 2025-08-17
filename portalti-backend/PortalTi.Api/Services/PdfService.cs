@@ -26,12 +26,12 @@ namespace PortalTi.Api.Services
                 headerTable.WidthPercentage = 100;
                 headerTable.SetWidths(new float[] { 1f, 1f });
 
-                // Logo
-                string logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "logo-vicsa.png");
-                if (File.Exists(logoPath))
+                // Logo (preferir logo nuevo; fallback a anteriores)
+                string? resolvedLogoPath = ResolvePreferredLogoPath();
+                if (!string.IsNullOrEmpty(resolvedLogoPath) && File.Exists(resolvedLogoPath))
                 {
-                    iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
-                    logo.ScaleAbsolute(120, 40);
+                    var logo = iTextSharp.text.Image.GetInstance(resolvedLogoPath);
+                    logo.ScaleToFit(140, 50);
                     PdfPCell logoCell = new PdfPCell(logo);
                     logoCell.Border = Rectangle.NO_BORDER;
                     logoCell.HorizontalAlignment = Element.ALIGN_LEFT;
@@ -40,7 +40,7 @@ namespace PortalTi.Api.Services
                 }
                 else
                 {
-                    PdfPCell logoCell = new PdfPCell(new Phrase("VICSA BUNZL", FontFactory.GetFont(FontFactory.HELVETICA, 14, Font.BOLD)));
+                    PdfPCell logoCell = new PdfPCell(new Phrase("Portal TI", FontFactory.GetFont(FontFactory.HELVETICA, 14, Font.BOLD)));
                     logoCell.Border = Rectangle.NO_BORDER;
                     headerTable.AddCell(logoCell);
                 }
@@ -248,6 +248,29 @@ namespace PortalTi.Api.Services
                 default:
                     return "Acta de entrega de Equipo";
             }
+        }
+
+        private string? ResolvePreferredLogoPath()
+        {
+            var baseDir = Directory.GetCurrentDirectory();
+            string[] candidates = new string[]
+            {
+                // Preferir explícitamente el logo de la carpeta public del proyecto
+                Path.GetFullPath(Path.Combine(baseDir, "..", "..", "public", "logo.png")),
+                Path.Combine(baseDir, "public", "logo.png"),
+                // Luego intentar logos genéricos en wwwroot
+                Path.Combine(baseDir, "wwwroot", "logo.png"),
+                // Como último recurso, permitir los logos antiguos
+                Path.GetFullPath(Path.Combine(baseDir, "..", "..", "public", "logo-vicsa.png")),
+                Path.Combine(baseDir, "public", "logo-vicsa.png"),
+                Path.Combine(baseDir, "wwwroot", "logo-vicsa.png")
+            };
+
+            foreach (var path in candidates)
+            {
+                try { if (File.Exists(path)) return path; } catch { }
+            }
+            return null;
         }
 
         private PdfPTable CreateEquipmentTable(Activo activo)
