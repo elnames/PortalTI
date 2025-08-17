@@ -12,6 +12,7 @@
 9. [Integración RustDesk](#integración-rustdesk)
 10. [Sistema de Chat en Tiempo Real](#sistema-de-chat-en-tiempo-real)
 11. [Sistema de Paz y Salvo](#sistema-de-paz-y-salvo)
+12. [Calendario de TI](#calendario-de-ti)
 
 ---
 
@@ -232,6 +233,25 @@ PUT  /api/auth/profile        // Actualizar perfil
 POST /api/auth/upload-signature // Subir firma
 ```
 
+#### **CalendarEvents** - Eventos de Calendario (NUEVO)
+```sql
+- Id (PK)
+- Title
+- Description
+- Start (datetimeoffset)
+- End (datetimeoffset)
+- AllDay (bit)
+- Color (nvarchar)
+- CreatedById (FK -> AuthUsers)
+- CreatedAt (datetimeoffset)
+```
+
+#### **CalendarEventAssignees** - Relación Evento-Asignados (NUEVO)
+```sql
+- EventId (PK, FK -> CalendarEvents)
+- UserId (PK, FK -> AuthUsers)
+```
+
 #### **UsuariosController** - Gestión de Usuarios
 ```csharp
 GET    /api/usuarios          // Listar usuarios
@@ -317,6 +337,7 @@ GET    /api/actas/{id}/preview-auto            // Previsualización inteligente
 - Persistentes en BD (`Notificaciones`) y SignalR para push en tiempo real.
 - Grupos: `user_{userId}` y `role_{role}`.
 - Eventos: firma usuario, subida PDF, aprobación, rechazo, marcado pendiente, subida TI, asignación/devolución de activo (mapeo Nómina→AuthUser), asignación y cambio de estado de ticket (mapeo Email→AuthUser), nuevo comentario en ticket.
+  - (Nuevo) Asignación/actualización de evento de calendario → destinatarios: cada `AuthUser` en `CalendarEventAssignees`
 - Endpoints: `GET /notifications`, `POST /notifications/read`, `DELETE /notifications/{id}`, `DELETE /notifications` (borrar todas), `GET /notifications/unread-count` (opcional).
 
 #### **DashboardController** - Dashboard y Reportes
@@ -433,6 +454,13 @@ pazYSalvoAPI.update(id, data)                   // Actualizar documento
 pazYSalvoAPI.delete(id)                         // Eliminar documento
 pazYSalvoAPI.download(id)                       // Descargar archivo
 pazYSalvoAPI.getActivosPendientes(usuarioId)    // Activos pendientes
+
+// Calendario API (NUEVO)
+calendarioAPI.getEvents()                       // Listar eventos (incluye asignados)
+calendarioAPI.create(data)                      // Crear evento (assigneeAuthIds)
+calendarioAPI.getById(id)                       // Obtener detalle
+calendarioAPI.update(id, data)                  // Actualizar evento
+calendarioAPI.remove(id)                        // Eliminar evento
 ```
 
 ---
@@ -762,6 +790,90 @@ public async Task<IActionResult> GetActivosPendientes(int usuarioId)
     return Ok(activosPendientes);
 }
 ```
+
+---
+
+## 🗓️ Calendario de TI
+
+### **Modelos y Relaciones (Backend)**
+```csharp
+public class CalendarEvent
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DateTimeOffset Start { get; set; }
+    public DateTimeOffset End { get; set; }
+    public bool AllDay { get; set; }
+    public string? Color { get; set; }
+    public int CreatedById { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public ICollection<CalendarEventAssignee> Assignees { get; set; } = new List<CalendarEventAssignee>();
+}
+
+public class CalendarEventAssignee
+{
+    public int EventId { get; set; }
+    public int UserId { get; set; } // AuthUser.Id
+    public CalendarEvent Event { get; set; } = null!;
+    public AuthUser User { get; set; } = null!;
+}
+```
+
+### **DbContext y Configuración**
+```csharp
+// PortalTiContext.cs (OnModelCreating)
+modelBuilder.Entity<CalendarEventAssignee>()
+    .HasKey(ea => new { ea.EventId, ea.UserId });
+modelBuilder.Entity<CalendarEventAssignee>()
+    .HasOne(ea => ea.Event)
+    .WithMany(e => e.Assignees)
+    .HasForeignKey(ea => ea.EventId);
+modelBuilder.Entity<CalendarEventAssignee>()
+    .HasOne(ea => ea.User)
+    .WithMany()
+    .HasForeignKey(ea => ea.UserId);
+```
+
+### **Endpoints (Backend)**
+```http
+GET    /api/calendario/events                   // Listar (admin/soporte). Incluye Assignees
+GET    /api/calendario/events/{id}              // Detalle
+POST   /api/calendario/events                   // Crear { title, description, start, end, allDay, color, assigneeAuthIds[] }
+PUT    /api/calendario/events/{id}              // Actualizar (mismo DTO)
+DELETE /api/calendario/events/{id}              // Eliminar
+```
+
+Notas:
+- Autorización: `[Authorize(Roles = "admin,soporte")]`
+- Notificaciones: en Create/Update se notifica a `assigneeAuthIds` usando `INotificationsService`
+
+### **Frontend (Calendario.jsx)**
+```jsx
+// FullCalendar: dayGrid, timeGrid, interaction, locale ES
+// Modal de creación/edición: título, descripción, color, fechas auto 09:00–18:00
+// Asignados: UserAutoComplete con lista de AuthUsers (roles admin/soporte)
+// Detalle: ver información, botones Editar y Eliminar (confirmación)
+// Tema: estilos adaptativos a dark/light con Tailwind sobre clases de FullCalendar
+// CSS: se carga vía CDN en public/index.html debido a exports de CSS en v6
+```
+
+### **Selección de Usuarios Asignables**
+- Backend `AuthController.GetUsuarios`: devuelve solo `admin/soporte` activos con `authId` (AuthUser.Id), nombre, email, departamento
+- Frontend: usa `UserAutoComplete` para búsqueda y selección múltiple; envía `assigneeAuthIds`
+
+### **Reglas UX de Fechas**
+- Selección de un día: 09:00–18:00 del mismo día
+- Selección de varios días: inicio 09:00 del primer día, fin 18:00 del último día
+
+### **Notificaciones de Calendario**
+- Mensajes: "Nuevo evento asignado" (create), "Evento actualizado" (update)
+- Receptor: cada usuario en `assigneeAuthIds`
+- UI: aparece en campana y persiste en BD
+
+### **Sidebar**
+- Nueva entrada `Calendario` visible para `admin/soporte` con icono `Calendar`
+- Cambio de icono de "Paz y Salvo" a `BadgeCheck` para evitar duplicidad
 
 ---
 

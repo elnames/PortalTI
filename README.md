@@ -78,9 +78,20 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 
 ### 🔔 Sistema de Notificaciones
 - **Notificaciones en tiempo real (SignalR)** y persistentes en BD
-- **Eventos clave**: firma de usuario, subida de PDF, aprobación, rechazo, marcado como pendiente, subida TI, asignación/devolución de activo, asignación y cambio de estado de ticket, nuevo comentario
+- **Eventos clave**: firma de usuario, subida de PDF, aprobación, rechazo, marcado como pendiente, subida TI, asignación/devolución de activo, asignación y cambio de estado de ticket, nuevo comentario, **asignación/actualización de evento de calendario**
 - **Estado de lectura** y agrupación por usuario/rol
 - **Front**: campana moderna (auto-marcar leídas al abrir sin desaparecer, scroll de 3–4, borrar una/todas, limpieza progresiva, dark/light)
+
+### 🗓️ Calendario de TI (Nuevo)
+- **Solo admin/soporte**: Acceso desde `Sidebar > Calendario`
+- **Vistas**: Mes, Semana, Día (FullCalendar v6) con indicadores de “hoy”, números de semana y encabezados pegajosos
+- **Creación rápida**: Selecciona rango de días para abrir un modal moderno; fechas se autocompletan (09:00–18:00). En multi-día, el fin se fija al último día 18:00
+- **Asignados**: Autocompletado multi de usuarios con rol `admin/soporte` (IDs de `AuthUser`), con búsqueda por nombre/departamento/email
+- **Edición**: Desde el detalle puedes “Editar” (abre el mismo formulario precargado)
+- **Eliminar**: Confirmación visual y refresco inmediato del calendario
+- **Notificaciones**: Al crear/actualizar se notifica a cada asignado (campana + persistencia)
+- **Tema**: Estilos adaptados a dark/light y diseño consistente con el resto de la app
+- **Instalación**: CSS de FullCalendar cargado por CDN en `public/index.html` (no importar `main.css`/`index.css` en componentes)
 
 ## 🛠️ Stack Tecnológico
 
