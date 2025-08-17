@@ -61,7 +61,7 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 
 ### 📄 Gestión de Actas y Documentación
 - **Actas de entrega**: Generación automática de PDFs y previsualización en navegador
-- **Logo PDF**: usa `public/logo.png` por defecto (post cierre comercial); fallback a `wwwroot/logo.png`; se eliminó uso de logos antiguos
+- **Logo PDF**: usa `public/logo.png` por defecto; fallback a `wwwroot/logo.png`; se eliminó uso de logos antiguos
 - **Métodos de firma**: `Digital`, `PDF_Subido`, `Admin_Subida`
 - **Estados**: `Pendiente`, `Pendiente de aprobación`, `Firmada`, `Aprobada`, `Rechazada`, `Anulada`
 - **Almacenamiento por categoría**: PDFs en `wwwroot/actas/<Categoria>` (Equipos, Móviles, Monitores, Periféricos, Accesorios, Red)
