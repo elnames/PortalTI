@@ -19,6 +19,17 @@ export default function useNotifications() {
     }
   }, []);
 
+  const refreshUnreadCount = useCallback(async () => {
+    try {
+      const { data } = await api.get("/notifications/unread-count");
+      if (typeof data === 'number') {
+        setUnread(data);
+      }
+    } catch (error) {
+      // Silencioso; fallback ya existe
+    }
+  }, []);
+
   const markAllRead = async () => {
     try {
       const ids = items.map(x => x.id);
@@ -46,24 +57,20 @@ export default function useNotifications() {
   useEffect(() => {
     load();
 
-    // Configurar SignalR
+    // Configurar SignalR (idéntico al patrón de chat): conexión global + reconexión
     const token = localStorage.getItem("token");
     if (!token) return;
 
     const conn = new HubConnectionBuilder()
       .withUrl(`${process.env.REACT_APP_API_URL || 'http://localhost:5266'}/hubs/notifications?access_token=${token}`, {
         skipNegotiation: false,
-        transport: 1 // WebSockets
+        transport: 1
       })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: retryContext => {
-          if (retryContext.previousRetryCount === 0) {
-            return 0;
-          }
-          if (retryContext.previousRetryCount < 3) {
-            return 2000; // 2 segundos
-          }
-          return 10000; // 10 segundos
+          if (retryContext.previousRetryCount === 0) return 0;
+          if (retryContext.previousRetryCount < 3) return 2000;
+          return 10000;
         }
       })
       .configureLogging("warn")
@@ -71,62 +78,51 @@ export default function useNotifications() {
 
     const startConnection = async () => {
       try {
-        console.log("DEBUG: Intentando conectar SignalR...");
-        console.log("DEBUG: URL:", `${process.env.REACT_APP_API_URL || 'http://localhost:5266'}/hubs/notifications?access_token=${token}`);
-        console.log("DEBUG: Token presente:", !!token);
-
+        console.log("DEBUG: Intentando conectar NotificationsHub...");
         await conn.start();
-        console.log("SignalR conectado para notificaciones");
+        console.log("NotificationsHub conectado");
         setConnection(conn);
+        // Exponer global para depuración y listeners externos (mismo patrón que chat)
+        window.notificationsHubConnection = conn;
+        // Refrescar recuento al conectar
+        refreshUnreadCount();
       } catch (err) {
-        console.error("Error conectando SignalR:", err);
-        console.error("DEBUG: Estado de conexión:", conn.state);
-        console.error("DEBUG: Detalles del error:", {
-          name: err.name,
-          message: err.message,
-          stack: err.stack
-        });
-
-        // Reintentar después de 3 segundos
+        console.error("Error conectando NotificationsHub:", err);
         setTimeout(() => {
-          if (conn.state === "Disconnected") {
-            console.log("DEBUG: Reintentando conexión SignalR...");
-            startConnection();
-          }
+          if (conn.state === "Disconnected") startConnection();
         }, 3000);
       }
     };
 
     startConnection();
 
-    conn.on("ReceiveNotification", (notification) => {
+    const handleReceive = (notification) => {
       console.log("DEBUG: Notificación recibida en frontend:", notification);
-      console.log("DEBUG: Estado actual de items:", items);
-      setItems(prev => {
-        console.log("DEBUG: Actualizando items, prev length:", prev.length);
-        const newItems = [notification, ...prev];
-        console.log("DEBUG: Nuevos items length:", newItems.length);
-        return newItems;
-      });
-      setUnread(prev => {
-        console.log("DEBUG: Actualizando unread, prev:", prev);
-        const newUnread = prev + 1;
-        console.log("DEBUG: Nuevo unread:", newUnread);
-        return newUnread;
-      });
-    });
+      setItems(prev => [notification, ...prev]);
+      setUnread(prev => prev + 1);
+    };
+
+    conn.on("ReceiveNotification", handleReceive);
 
     conn.onclose(() => {
-      console.log("SignalR desconectado");
+      console.log("NotificationsHub desconectado");
       setConnection(null);
+      window.notificationsHubConnection = null;
     });
 
     return () => {
-      if (conn) {
-        conn.stop();
-      }
+      try { conn.off("ReceiveNotification", handleReceive); } catch {}
+      try { conn.stop(); } catch {}
     };
-  }, [load]);
+  }, [load, refreshUnreadCount]);
+
+  // Polling de respaldo (como en chat): mantener unread actualizado
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshUnreadCount();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [refreshUnreadCount]);
 
   return {
     items,
