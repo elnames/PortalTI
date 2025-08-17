@@ -60,11 +60,13 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Activos relacionados**: Vinculación directa con activos específicos
 
 ### 📄 Gestión de Actas y Documentación
-- **Actas de entrega**: Generación automática de PDFs
-- **Múltiples métodos de firma**: Digital, PDF subido, Admin subida
-- **Estados de aprobación**: Pendiente, Firmada, Aprobada, Rechazada
-- **Previsualización**: Visualización de actas antes de la firma
-- **Historial completo**: Seguimiento de cambios y aprobaciones
+- **Actas de entrega**: Generación automática de PDFs y previsualización en navegador
+- **Métodos de firma**: `Digital`, `PDF_Subido`, `Admin_Subida`
+- **Estados**: `Pendiente`, `Pendiente de aprobación`, `Firmada`, `Aprobada`, `Rechazada`, `Anulada`
+- **Almacenamiento por categoría**: PDFs en `wwwroot/actas/<Categoria>` (Equipos, Móviles, Monitores, Periféricos, Accesorios, Red)
+- **Nombres legibles y versionado**: "Acta de entrega - Nombre Apellido dd de mes de yyyy vN.pdf"
+- **Integridad**: cálculo y registro de hash SHA256 del PDF
+- **Historial completo**: Seguimiento de cambios, aprobaciones y observaciones
 
 ### 📊 Dashboard y Reportes Avanzados
 - **Métricas en tiempo real**: Estadísticas de uso y rendimiento
@@ -74,10 +76,9 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **KPI personalizables**: Indicadores clave de rendimiento
 
 ### 🔔 Sistema de Notificaciones
-- **Notificaciones en tiempo real**: Alertas instantáneas
-- **Tipos múltiples**: Info, Warning, Error, Success
-- **Persistencia**: Notificaciones guardadas en base de datos
-- **Estado de lectura**: Control de notificaciones leídas/no leídas
+- **Notificaciones en tiempo real (SignalR)** y persistentes en BD
+- **Eventos clave**: firma de usuario, subida de PDF, aprobación, rechazo, marcado como pendiente, subida TI
+- **Estado de lectura** y agrupación por usuario/rol
 
 ## 🛠️ Stack Tecnológico
 
@@ -104,6 +105,7 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **FluentValidation**: Validación de datos
 - **Serilog**: Logging estructurado
 - **Swagger/OpenAPI**: Documentación automática de API
+- **Migraciones automáticas**: `Database.Migrate()` al iniciar la API
 
 ### Base de Datos
 - **SQL Server**: Motor de base de datos principal
@@ -178,7 +180,7 @@ dotnet restore
 # Configurar base de datos
 # Editar appsettings.json con connection string
 
-# Ejecutar migraciones
+# (Opcional) Ejecutar migraciones manualmente
 dotnet ef database update
 
 # Ejecutar en modo desarrollo
@@ -190,7 +192,7 @@ dotnet watch run
 
 ### Base de Datos
 ```bash
-# Ejecutar migraciones iniciales
+# Ejecutar migraciones iniciales (si no se usa Migrate en arranque)
 dotnet ef database update
 
 # Poblar con datos de prueba (opcional)
@@ -477,10 +479,28 @@ La documentación de la API está disponible en:
 - **Swagger UI**: `http://localhost:5266/swagger`
 - **OpenAPI JSON**: `http://localhost:5266/swagger/v1/swagger.json`
 
+#### Endpoints destacados de Actas
+
+- `POST /api/actas/generar` (admin/soporte): genera acta desde cualquier estado, con opción de incluir firma TI y fecha de entrega
+- `POST /api/actas/firmar-digital` (usuario): firma digital y genera PDF final
+- `POST /api/actas/subir-pdf` (usuario): sube PDF y pasa a "Pendiente de aprobación"
+- `POST /api/actas/subir-admin` (admin/soporte): sube PDF en nombre de TI
+- `POST /api/actas/{id}/aprobar` (admin/soporte): aprueba acta (comentario opcional)
+- `POST /api/actas/{id}/rechazar` (admin/soporte): rechaza acta (motivo opcional)
+- `POST /api/actas/{id}/pendiente` (admin/soporte): marca acta como pendiente
+- `POST /api/actas/{id}/upload-pdf-ti` (admin/soporte): adjunta PDF TI
+- `POST /api/actas/{id}/anular` (admin/soporte): anula acta
+- `GET  /api/actas/{id}/preview-auto`: previsualización inteligente (PDF_Usuario > PDF_Admin > Digital_Signed > Plantilla)
+
 ### **Documentación RustDesk**
 Para información sobre la integración con RustDesk:
 - **[📖 Guía RustDesk](./public/README_RUSTDESK.md)**
 - **[🔧 API RustDesk](./public/GUIA_RUSTDESK_API.md)**
+
+## 👮‍♂️ UX por Roles (Actas)
+
+- **Admin/Soporte**: Generar Acta, Aprobar, Rechazar, Marcar Pendiente, Anular, Subir PDF (TI). No ven "Firmar Digital".
+- **Usuario**: Firmar Digital (se ofrece crear firma si no existe), Subir PDF (el estado cambia a "Pendiente de aprobación").
 
 ## 🤝 Contribución
 

@@ -165,15 +165,20 @@
 - CreadoPorId (FK -> AuthUsers)
 ```
 
-#### **Actas** - Documentos de Entrega
+#### **Actas** - Documentos de Entrega (Actualizado)
 ```sql
 - Id (PK)
 - AsignacionId (FK -> AsignacionesActivos)
-- Estado (Pendiente, Firmada, Aprobada, Rechazada)
-- MetodoFirma (Digital, PDF_Subido, Admin_Subida)
+- Estado (Pendiente, Pendiente_de_aprobacion, Firmada, Aprobada, Rechazada, Anulada)
+- MetodoFirma (Pendiente, Digital, PDF_Subido, Admin_Subida)
+- NombreArchivo
+- RutaArchivo
+- Observaciones (incluye hash SHA256)
 - FechaCreacion
 - FechaSubida
 - AprobadoPorId (FK -> AuthUsers)
+ - FechaFirma
+ - FechaAprobacion
 ```
 
 #### **ChatConversaciones** - Conversaciones de Chat (NUEVO)
@@ -285,16 +290,33 @@ GET    /api/pazysalvo/{id}/download      // Descargar archivo
 GET    /api/pazysalvo/activos-pendientes/{usuarioId} // Activos pendientes
 ```
 
-#### **ActasController** - Gestión de Actas
+#### **ActasController** - Gestión de Actas (Actualizado)
 ```csharp
-GET    /api/actas              // Listar actas
-GET    /api/actas/{id}         // Obtener acta
-POST   /api/actas              // Crear acta
-PUT    /api/actas/{id}         // Actualizar acta
-DELETE /api/actas/{id}         // Eliminar acta
-POST   /api/actas/{id}/firmar  // Firmar acta
-GET    /api/actas/{id}/pdf     // Descargar PDF
+POST   /api/actas/generar                      // Generar acta (admin/soporte)
+POST   /api/actas/firmar-digital               // Firma digital (usuario)
+POST   /api/actas/subir-pdf                    // Subir PDF (usuario)
+POST   /api/actas/subir-admin                  // Subir PDF (admin/soporte)
+POST   /api/actas/{id}/aprobar                 // Aprobar (admin/soporte)
+POST   /api/actas/{id}/rechazar                // Rechazar (admin/soporte)
+POST   /api/actas/{id}/pendiente               // Marcar pendiente (admin/soporte)
+POST   /api/actas/{id}/upload-pdf-ti           // Subir PDF TI (admin/soporte)
+POST   /api/actas/{id}/anular                  // Anular (admin/soporte)
+GET    /api/actas/{id}/preview-auto            // Previsualización inteligente
 ```
+### 📄 PDF, Almacenamiento y Versionado (Actas)
+
+1) Carpeta de destino: `wwwroot/actas/<Categoria>`.
+2) Nombre legible: `Acta de entrega - Nombre Apellido dd de mes de yyyy`.
+3) Versionado: si existe el archivo, se generan `v1`, `v2`, ... (`GetNextVersionedFileName`).
+4) Hash: se calcula SHA256 del PDF y se registra en `Observaciones`.
+5) Previsualización: endpoint `preview-auto` prioriza `PDF_Usuario > PDF_Admin > Digital_Signed > Plantilla`.
+
+### 🔔 Notificaciones (Resumen técnico)
+
+- Persistentes en BD (`Notificaciones`) y SignalR para push en tiempo real.
+- Grupos: `user_{userId}` y `role_{role}`.
+- Eventos principales: firma usuario, subida PDF, aprobación, rechazo, marcado pendiente, subida TI.
+- Endpoints auxiliares: `/notifications`, `/notifications/read`, etc.
 
 #### **DashboardController** - Dashboard y Reportes
 ```csharp
