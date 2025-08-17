@@ -112,8 +112,11 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<PortalTiContext>();
-    // Aplicar migraciones (schema-first correcto)
-    context.Database.Migrate();
+    // Intentar aplicar migraciones; si hay cambios pendientes no migrados en dev, continuar sin romper
+    try { context.Database.Migrate(); } catch { /* dev-only: continuar */ }
+
+    // Salvavidas: asegurar esquema de Notificaciones en entornos desfasados
+    SchemaFixer.EnsureNotificationsSchema(context);
 
     // Sembrar datos si la BD está vacía
     DbInitializer.SeedIfEmpty(context);

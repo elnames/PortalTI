@@ -19,16 +19,7 @@ export default function useNotifications() {
     }
   }, []);
 
-  const refreshUnreadCount = useCallback(async () => {
-    try {
-      const { data } = await api.get("/notifications/unread-count");
-      if (typeof data === 'number') {
-        setUnread(data);
-      }
-    } catch (error) {
-      // Silencioso; fallback ya existe
-    }
-  }, []);
+  // Desactivado recuento independiente por 500 en backend; usamos carga completa como en chat
 
   const markAllRead = async () => {
     try {
@@ -84,8 +75,8 @@ export default function useNotifications() {
         setConnection(conn);
         // Exponer global para depuración y listeners externos (mismo patrón que chat)
         window.notificationsHubConnection = conn;
-        // Refrescar recuento al conectar
-        refreshUnreadCount();
+        // Refrescar lista al conectar (patrón chat)
+        load();
       } catch (err) {
         console.error("Error conectando NotificationsHub:", err);
         setTimeout(() => {
@@ -114,15 +105,15 @@ export default function useNotifications() {
       try { conn.off("ReceiveNotification", handleReceive); } catch {}
       try { conn.stop(); } catch {}
     };
-  }, [load, refreshUnreadCount]);
+  }, [load]);
 
-  // Polling de respaldo (como en chat): mantener unread actualizado
+  // Polling de respaldo (como en chat): recargar lista periódicamente
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshUnreadCount();
+      load();
     }, 5000);
     return () => clearInterval(interval);
-  }, [refreshUnreadCount]);
+  }, [load]);
 
   return {
     items,

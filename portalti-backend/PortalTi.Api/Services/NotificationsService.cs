@@ -48,7 +48,7 @@ namespace PortalTi.Api.Services
             _context.Notificaciones.Add(entity);
             await _context.SaveChangesAsync();
 
-            // Enviar notificación en tiempo real
+            // Enviar notificación en tiempo real solo si se persistió correctamente
             var dto = MapToDto(entity);
             await SendToUserAsync(notification.UserId, dto);
 
