@@ -21,6 +21,8 @@ const FloatingChatIcon = ({ onChatSelect }) => {
     const [nuevoMensaje, setNuevoMensaje] = useState('');
     const [cargandoMensajes, setCargandoMensajes] = useState(false);
     const mensajesRef = useRef(null);
+    const bottomRef = useRef(null);
+    const isNearBottomRef = useRef(true);
 
     // Cargar conversaciones al montar el componente y mantener actualizado
     useEffect(() => {
@@ -50,10 +52,25 @@ const FloatingChatIcon = ({ onChatSelect }) => {
         }
     }, [isChatPage]);
 
-    // Scroll automático al último mensaje
+    // Mantener auto-stick al fondo
     useEffect(() => {
-        if (mensajesRef.current && mensajes.length > 0) {
-            mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+        const el = mensajesRef.current;
+        if (!el) return;
+        const onScroll = () => {
+            const distance = el.scrollHeight - el.clientHeight - el.scrollTop;
+            isNearBottomRef.current = distance < 120;
+        };
+        el.addEventListener('scroll', onScroll);
+        onScroll();
+        return () => el.removeEventListener('scroll', onScroll);
+    }, []);
+
+    useEffect(() => {
+        const el = mensajesRef.current;
+        if (!el) return;
+        if (isNearBottomRef.current) {
+            if (bottomRef.current) bottomRef.current.scrollIntoView({ block: 'end' });
+            else el.scrollTop = el.scrollHeight;
         }
     }, [mensajes]);
 
@@ -197,7 +214,7 @@ const FloatingChatIcon = ({ onChatSelect }) => {
                 esInterno: false
             });
 
-            setMensajes(prev => [...prev, response.data]);
+            // El mensaje será agregado vía SignalR; evitamos duplicados por carrera
             setNuevoMensaje('');
 
             // Recargar conversaciones para actualizar el último mensaje
@@ -328,29 +345,32 @@ const FloatingChatIcon = ({ onChatSelect }) => {
                                 <p className="text-sm">No hay mensajes</p>
                             </div>
                         ) : (
-                            mensajes.map((mensaje) => (
-                                <div
-                                    key={mensaje.id}
-                                    className={`flex ${mensaje.creadoPor.id === user?.id ? 'justify-end' : 'justify-start'}`}
-                                >
+                            <>
+                                {mensajes.map((mensaje) => (
                                     <div
-                                        className={`max-w-[280px] px-3 py-2 rounded-lg text-sm ${mensaje.creadoPor.id === user?.id
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                            }`}
+                                        key={mensaje.id}
+                                        className={`flex ${mensaje.creadoPor.id === user?.id ? 'justify-end' : 'justify-start'}`}
                                     >
-                                        <div className="flex items-center space-x-2 mb-1">
-                                            <span className="text-xs font-medium opacity-75">
-                                                {mensaje.creadoPor?.username || 'Usuario'}
-                                            </span>
-                                            <span className="text-xs opacity-75">
-                                                {formatearFechaMensaje(mensaje.fechaCreacion)}
-                                            </span>
+                                        <div
+                                            className={`max-w-[280px] px-3 py-2 rounded-lg text-sm ${mensaje.creadoPor.id === user?.id
+                                                ? 'bg-blue-600 text-white'
+                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                                }`}
+                                        >
+                                            <div className="flex items-center space-x-2 mb-1">
+                                                <span className="text-xs font-medium opacity-75">
+                                                    {mensaje.creadoPor?.username || 'Usuario'}
+                                                </span>
+                                                <span className="text-xs opacity-75">
+                                                    {formatearFechaMensaje(mensaje.fechaCreacion)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm break-words">{mensaje.contenido}</p>
                                         </div>
-                                        <p className="text-sm break-words">{mensaje.contenido}</p>
                                     </div>
-                                </div>
-                            ))
+                                ))}
+                                <div ref={bottomRef} />
+                            </>
                         )}
                     </div>
 

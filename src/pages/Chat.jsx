@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Plus, Users, Ticket, Send, X, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { chatAPI } from '../services/api';
@@ -30,6 +30,11 @@ const Chat = () => {
     });
     const [soporteDisponible, setSoporteDisponible] = useState([]);
     const [activosAsignados, setActivosAsignados] = useState([]);
+    const mensajesRef = useRef(null);
+    const inputRef = useRef(null);
+    const bottomRef = useRef(null);
+    const isNearBottomRef = useRef(true);
+    const forceScrollRef = useRef(false);
 
     const isAdminOrSoporte = user?.role === 'admin' || user?.role === 'soporte';
 
@@ -70,6 +75,30 @@ const Chat = () => {
             marcarMensajesComoLeidos(conversacionSeleccionada.id);
         }
     }, [conversacionSeleccionada]);
+
+    // Detectar si el usuario está cerca del final del contenedor de mensajes
+    useEffect(() => {
+        const el = mensajesRef.current;
+        if (!el) return;
+        const handleScroll = () => {
+            const distanceToBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+            isNearBottomRef.current = distanceToBottom < 120; // px
+        };
+        el.addEventListener('scroll', handleScroll);
+        // Inicializar estado
+        handleScroll();
+        return () => el.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Mantener scroll al final cuando llegan mensajes nuevos si el usuario está abajo
+    useEffect(() => {
+        const el = mensajesRef.current;
+        if (!el) return;
+        if (forceScrollRef.current || isNearBottomRef.current) {
+            el.scrollTop = el.scrollHeight;
+            forceScrollRef.current = false;
+        }
+    }, [mensajes, conversacionSeleccionada]);
 
     // Configurar SignalR para mensajes en tiempo real
     useEffect(() => {
@@ -160,6 +189,12 @@ const Chat = () => {
         try {
             const response = await chatAPI.getMensajes(conversacionId);
             setMensajes(response.data);
+            // asegurar que tras cargar se ancle al final
+            requestAnimationFrame(() => {
+                if (mensajesRef.current) {
+                    mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+                }
+            });
         } catch (error) {
             console.error('Error al cargar mensajes:', error);
             showToast('Error al cargar los mensajes', 'error');
@@ -168,9 +203,12 @@ const Chat = () => {
 
     const enviarMensaje = async (e) => {
         e.preventDefault();
+        e.stopPropagation();
         if (!nuevoMensaje.trim() || !conversacionSeleccionada) return;
 
         try {
+            // Forzar anclaje al final durante el envío
+            forceScrollRef.current = true;
             await chatAPI.enviarMensaje(conversacionSeleccionada.id, {
                 contenido: nuevoMensaje,
                 esInterno: false
@@ -178,9 +216,14 @@ const Chat = () => {
 
             // El mensaje se agregará automáticamente a través de SignalR
             setNuevoMensaje('');
+            // y anclamos inmediatamente el scroll al final para evitar saltos
+            if (mensajesRef.current) {
+                mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+            }
+            // mantener el foco para evitar reubicaciones por pérdida de foco
+            inputRef.current?.focus();
 
-            // Recargar conversaciones para actualizar el último mensaje
-            cargarConversaciones();
+            // Evitar recarga completa de conversaciones aquí para no provocar re-layouts
         } catch (error) {
             console.error('Error al enviar mensaje:', error);
             showToast('Error al enviar el mensaje', 'error');
@@ -241,9 +284,11 @@ const Chat = () => {
             showToast('Conversación archivada exitosamente', 'success');
             cargarConversaciones();
             cargarConversacionesArchivadas();
-            // Cerrar la conversación automáticamente
-            setConversacionSeleccionada(null);
-            setMensajes([]);
+            // Mantener la conversación visible; no cambiar selección para evitar saltos de scroll
+            // Si quieres ocultarla automáticamente cuando estás en pestaña 'activas', cambiamos a 'archivadas'
+            if (activeTab === 'activas') {
+                setActiveTab('archivadas');
+            }
         } catch (error) {
             console.error('Error al archivar conversación:', error);
             showToast('Error al archivar la conversación', 'error');
@@ -315,6 +360,8 @@ const Chat = () => {
     };
 
     const handleChatSelect = (conversacion) => {
+        // Forzar que, al cambiar de conversación, el scroll arranque anclado abajo
+        forceScrollRef.current = true;
         setConversacionSeleccionada(conversacion);
     };
 
@@ -369,7 +416,7 @@ const Chat = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[80vh]">
                 {/* Lista de conversaciones */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
                     {/* Pestañas */}
@@ -394,7 +441,7 @@ const Chat = () => {
                         </button>
                     </div>
 
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    <div className="space-y-2 h-full overflow-y-auto">
                         {activeTab === 'activas' ? (
                             // Conversaciones activas
                             conversaciones.length === 0 ? (
@@ -489,11 +536,11 @@ const Chat = () => {
                 </div>
 
                 {/* Chat */}
-                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col">
+                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex flex-col min-h-0">
                     {conversacionSeleccionada ? (
                         <>
                             {/* Header del chat */}
-                            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur z-10">
                                 <div className="flex items-center justify-between flex-wrap gap-4">
                                     <div>
                                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -585,67 +632,71 @@ const Chat = () => {
                             </div>
 
                             {/* Mensajes */}
-                            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                            <div className="flex-1 p-4 overflow-y-auto space-y-4" ref={mensajesRef}>
                                 {mensajes.length === 0 ? (
                                     <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                                         <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                                         <p>No hay mensajes en esta conversación</p>
                                     </div>
                                 ) : (
-                                    mensajes.map((mensaje) => (
-                                        <div
-                                            key={mensaje.id}
-                                            className={`flex ${mensaje.creadoPor.id === user?.id ? 'justify-end' : 'justify-start'}`}
-                                        >
+                                    <>
+                                        {mensajes.map((mensaje) => (
                                             <div
-                                                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg relative group ${mensaje.creadoPor.id === user?.id
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                                    }`}
+                                                key={mensaje.id}
+                                                className={`flex ${mensaje.creadoPor.id === user?.id ? 'justify-end' : 'justify-start'}`}
                                             >
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="text-xs font-medium">
-                                                            {mensaje.creadoPor?.username || 'Usuario'}
-                                                        </span>
-                                                        <span className="text-xs opacity-75">
-                                                            {formatearFecha(mensaje.fechaCreacion)}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Botón eliminar mensaje - solo visible para admin/soporte */}
-                                                    {isAdminOrSoporte && (
-                                                        <button
-                                                            onClick={() => eliminarMensaje(mensaje.id)}
-                                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-xs p-1 rounded hover:bg-red-500 hover:text-white"
-                                                            title="Eliminar mensaje"
-                                                        >
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <div className="text-sm">
-                                                    {mensaje.contenido.includes('[CONFIGURAR_RUSTDESK_MODAL]') ? (
-                                                        <div>
-                                                            <p className="mb-3">
-                                                                {mensaje.contenido.replace('[CONFIGURAR_RUSTDESK_MODAL]', '')}
-                                                            </p>
-                                                            <button
-                                                                onClick={() => setShowRustDeskModal(true)}
-                                                                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                                                            >
-                                                                🔧 Ver Instrucciones de Configuración
-                                                            </button>
+                                                <div
+                                                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg relative group ${mensaje.creadoPor.id === user?.id
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className="text-xs font-medium">
+                                                                {mensaje.creadoPor?.username || 'Usuario'}
+                                                            </span>
+                                                            <span className="text-xs opacity-75">
+                                                                {formatearFecha(mensaje.fechaCreacion)}
+                                                            </span>
                                                         </div>
-                                                    ) : (
-                                                        <p>{mensaje.contenido}</p>
-                                                    )}
+
+                                                        {/* Botón eliminar mensaje - solo visible para admin/soporte */}
+                                                        {isAdminOrSoporte && (
+                                                            <button
+                                                                onClick={() => eliminarMensaje(mensaje.id)}
+                                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-xs p-1 rounded hover:bg-red-500 hover:text-white"
+                                                                title="Eliminar mensaje"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-sm">
+                                                        {mensaje.contenido.includes('[CONFIGURAR_RUSTDESK_MODAL]') ? (
+                                                            <div>
+                                                                <p className="mb-3">
+                                                                    {mensaje.contenido.replace('[CONFIGURAR_RUSTDESK_MODAL]', '')}
+                                                                </p>
+                                                                <button
+                                                                    onClick={() => setShowRustDeskModal(true)}
+                                                                    className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                                                                >
+                                                                    🔧 Ver Instrucciones de Configuración
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <p>{mensaje.contenido}</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        ))}
+                                        {/* Sentinel para anclar el scroll al final */}
+                                        <div ref={bottomRef} />
+                                    </>
                                 )}
                             </div>
 
@@ -658,6 +709,7 @@ const Chat = () => {
                                         onChange={(e) => setNuevoMensaje(e.target.value)}
                                         placeholder="Escribe un mensaje..."
                                         className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        ref={inputRef}
                                     />
                                     <button
                                         type="submit"
