@@ -186,6 +186,7 @@ export const reportesAPI = {
     getActivosReport: (filters = {}) => api.get('/reportes/activos', { params: filters }),
     getAsignacionesReport: (filters = {}) => api.get('/reportes/asignaciones', { params: filters }),
     getTicketsReport: (filters = {}) => api.get('/reportes/tickets', { params: filters }),
+    getTiPerformance: (params = {}) => api.get('/reportes/ti-performance', { params }),
     exportToExcel: (reportType, filters = {}) => api.get(`/reportes/${reportType}/excel`, {
         params: filters,
         responseType: 'blob'

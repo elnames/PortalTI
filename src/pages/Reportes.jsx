@@ -24,7 +24,7 @@ import {
     Wifi,
     FileText
 } from 'lucide-react';
-import api from '../services/api';
+import api, { reportesAPI } from '../services/api';
 
 export default function Reportes() {
     const navigate = useNavigate();
@@ -47,6 +47,7 @@ export default function Reportes() {
         tickets: []
     });
     const [selectedReport, setSelectedReport] = useState('general');
+    const [tiPerf, setTiPerf] = useState(null);
     const [dateRange, setDateRange] = useState({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
@@ -87,6 +88,20 @@ export default function Reportes() {
     useEffect(() => {
         fetchReportData();
     }, []);
+
+    // Cargar rendimiento TI cuando se seleccione el reporte correspondiente o cambie rango
+    useEffect(() => {
+        const loadTi = async () => {
+            if (selectedReport !== 'ti') return;
+            try {
+                const { data } = await reportesAPI.getTiPerformance({ from: dateRange.start, to: dateRange.end });
+                setTiPerf(data);
+            } catch (e) {
+                console.error('Error TI performance:', e);
+            }
+        };
+        loadTi();
+    }, [selectedReport, dateRange]);
 
     // Estadísticas generales
     const generalStats = useMemo(() => {
@@ -527,6 +542,18 @@ export default function Reportes() {
                     <h3 className="font-medium">Tendencias</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Análisis temporal</p>
                 </button>
+                <button
+                    onClick={() => setSelectedReport('ti')}
+                    className={`p-4 rounded-lg border transition-all ${
+                        selectedReport === 'ti'
+                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                    }`}
+                >
+                    <Activity className="w-8 h-8 mb-2" />
+                    <h3 className="font-medium">Rendimiento Equipo TI</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">KPIs por agente y tendencias</p>
+                </button>
             </div>
 
             {/* Contenido del reporte seleccionado */}
@@ -608,6 +635,82 @@ export default function Reportes() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {selectedReport === 'ti' && (
+                    <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Rendimiento del Equipo TI</h3>
+                        {!tiPerf ? (
+                            <div className="text-gray-500">Cargando KPIs...</div>
+                        ) : (
+                            <>
+                                {/* Tendencia de creados vs cerrados */}
+                                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">Tendencia (creados vs cerrados)</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                        {tiPerf.trend.slice(-10).map((d,i) => (
+                                            <div key={i} className="flex justify-between bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                                <span className="text-gray-600 dark:text-gray-400">{d.fecha || d.Fecha}</span>
+                                                <span>
+                                                    <span className="mr-3 text-blue-600">C:{d.creados || d.Creados}</span>
+                                                    <span className="text-green-600">Cer:{d.cerrados || d.Cerrados}</span>
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Aging buckets */}
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                    {[
+                                        {label:'0-2 días', v: tiPerf.aging.d0_2},
+                                        {label:'3-7 días', v: tiPerf.aging.d3_7},
+                                        {label:'8-14 días', v: tiPerf.aging.d8_14},
+                                        {label:'15-30 días', v: tiPerf.aging.d15_30},
+                                        {label:'30+ días', v: tiPerf.aging.d30p},
+                                    ].map((b,i)=> (
+                                        <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
+                                            <p className="text-xs text-gray-500">{b.label}</p>
+                                            <p className="text-2xl font-bold text-primary">{b.v}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* KPIs por agente */}
+                                <div>
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">KPIs por Agente</h4>
+                                    <div className="overflow-auto">
+                                        <table className="min-w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left">Agente</th>
+                                                    <th className="px-3 py-2 text-right">Abiertos Asignados</th>
+                                                    <th className="px-3 py-2 text-right">Resueltos (período)</th>
+                                                    <th className="px-3 py-2 text-right">1ra Resp. (min)</th>
+                                                    <th className="px-3 py-2 text-right">Resolución (h)</th>
+                                                    <th className="px-3 py-2 text-right">SLA Resp. %</th>
+                                                    <th className="px-3 py-2 text-right">SLA Resol. %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {tiPerf.perAgent.map((a, idx) => (
+                                                    <tr key={idx} className="border-t border-gray-200 dark:border-gray-700">
+                                                        <td className="px-3 py-2">{a.nombre || a.Nombre}</td>
+                                                        <td className="px-3 py-2 text-right">{a.abiertosAsignados ?? a.AbiertosAsignados}</td>
+                                                        <td className="px-3 py-2 text-right">{a.resueltosPeriodo ?? a.ResueltosPeriodo}</td>
+                                                        <td className="px-3 py-2 text-right">{a.tiempoPrimeraRespuestaMin ?? a.TiempoPrimeraRespuestaMin}</td>
+                                                        <td className="px-3 py-2 text-right">{a.tiempoResolucionHoras ?? a.TiempoResolucionHoras}</td>
+                                                        <td className="px-3 py-2 text-right">{a.slaPrimeraRespuestaPct ?? a.SlaPrimeraRespuestaPct}%</td>
+                                                        <td className="px-3 py-2 text-right">{a.slaResolucionPct ?? a.SlaResolucionPct}%</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 
