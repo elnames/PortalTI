@@ -446,7 +446,7 @@ namespace PortalTi.Api.Controllers
         // GET: api/auth/activity-log - Obtener log de actividades (solo admin)
         [HttpGet("activity-log")]
         [Authorize(Roles = "admin")]
-        public async Task<ActionResult<IEnumerable<object>>> GetActivityLog(
+        public async Task<IActionResult> GetActivityLog(
             [FromQuery] int? userId = null,
             [FromQuery] string? action = null,
             [FromQuery] DateTime? fromDate = null,
@@ -459,6 +459,16 @@ namespace PortalTi.Api.Controllers
                 var query = _db.UserActivityLogs
                     .Include(log => log.User)
                     .AsQueryable();
+
+                // Excluir completamente los logs de chat para evitar llenar la tabla
+                query = query.Where(log => 
+                    !log.Description.Contains("Mensaje enviado en conversación") &&
+                    !log.Description.Contains("chat") &&
+                    !log.Description.Contains("Chat") &&
+                    log.Action != "Enviar mensaje de chat" &&
+                    log.Action != "chat_message" &&
+                    !log.Description.ToLower().Contains("conversación")
+                );
 
                 if (userId.HasValue)
                     query = query.Where(log => log.UserId == userId.Value);
@@ -542,6 +552,38 @@ namespace PortalTi.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al activar usuarios");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // POST: api/auth/clean-chat-logs - Endpoint temporal para limpiar logs de chat
+        [HttpPost("clean-chat-logs")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> CleanChatLogs()
+        {
+            try
+            {
+                // Eliminar logs de chat existentes
+                var chatLogs = await _db.UserActivityLogs
+                    .Where(log => 
+                        log.Description.Contains("Mensaje enviado en conversación") ||
+                        log.Description.Contains("chat") ||
+                        log.Description.Contains("Chat") ||
+                        log.Action == "Enviar mensaje de chat" ||
+                        log.Action == "chat_message" ||
+                        log.Description.ToLower().Contains("conversación")
+                    )
+                    .ToListAsync();
+
+                var deletedCount = chatLogs.Count;
+                _db.UserActivityLogs.RemoveRange(chatLogs);
+                await _db.SaveChangesAsync();
+
+                return Ok($"Se eliminaron {deletedCount} logs de chat del historial.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al limpiar logs de chat");
                 return StatusCode(500, "Error interno del servidor");
             }
         }
@@ -634,10 +676,29 @@ namespace PortalTi.Api.Controllers
 
         private string GetClientIpAddress()
         {
-            return Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
-                   Request.Headers["X-Real-IP"].FirstOrDefault() ??
-                   Request.HttpContext.Connection.RemoteIpAddress?.ToString() ??
-                   "Unknown";
+            // Intentar obtener la IP real del cliente, considerando proxies y load balancers
+            var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
+                           Request.Headers["X-Real-IP"].FirstOrDefault() ??
+                           Request.Headers["CF-Connecting-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Client-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Originating-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Remote-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Remote-Addr"].FirstOrDefault() ??
+                           Request.HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            // Si hay múltiples IPs en X-Forwarded-For, tomar la primera (la del cliente original)
+            if (!string.IsNullOrEmpty(ipAddress) && ipAddress.Contains(","))
+            {
+                ipAddress = ipAddress.Split(',')[0].Trim();
+            }
+
+            // Validar que sea una IP válida
+            if (string.IsNullOrEmpty(ipAddress) || ipAddress == "::1" || ipAddress == "127.0.0.1")
+            {
+                ipAddress = "Local";
+            }
+
+            return ipAddress ?? "Unknown";
         }
 
         public class RegisterRequest

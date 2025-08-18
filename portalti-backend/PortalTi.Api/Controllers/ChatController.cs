@@ -281,21 +281,20 @@ namespace PortalTi.Api.Controllers
             _context.ChatConversaciones.Add(conversacion);
             await _context.SaveChangesAsync();
 
-            // Crear mensaje inicial si se proporciona
-            if (!string.IsNullOrEmpty(request.MensajeInicial))
+            // Comentado para evitar llenar el log de actividades
+            // await LogActivity("Crear conversación de chat", $"Conversación con {tituloSoporte} creada");
+
+            // Enviar mensaje inicial
+            var mensajeInicial = new ChatMensaje
             {
-                var mensaje = new ChatMensaje
-                {
-                    Contenido = request.MensajeInicial,
-                    ConversacionId = conversacion.Id,
-                    CreadoPorId = userId.Value
-                };
+                Contenido = request.MensajeInicial,
+                ConversacionId = conversacion.Id,
+                CreadoPorId = userId.Value,
+                EsInterno = false
+            };
 
-                _context.ChatMensajes.Add(mensaje);
-                await _context.SaveChangesAsync();
-            }
-
-            await LogActivity("Crear conversación de chat", $"Conversación con {tituloSoporte} creada");
+            _context.ChatMensajes.Add(mensajeInicial);
+            await _context.SaveChangesAsync();
 
             // Enviar notificación de nueva conversación a través de SignalR
             var conversacionResponse = new
@@ -460,7 +459,8 @@ namespace PortalTi.Api.Controllers
                 await _chatHub.Clients.Group($"user_{participanteId}").SendAsync("ReceiveChatMessage", mensajeResponse);
             }
 
-            await LogActivity("Enviar mensaje de chat", $"Mensaje enviado en conversación #{id}");
+            // Comentado para evitar llenar el log de actividades con mensajes de chat
+            // await LogActivity("Enviar mensaje de chat", $"Mensaje enviado en conversación #{id}");
 
             return Ok(mensajeResponse);
         }
@@ -520,11 +520,22 @@ namespace PortalTi.Api.Controllers
                 return Forbid();
 
             conversacion.Estado = "Cerrada";
-            conversacion.FechaCierre = DateTime.Now;
-
             await _context.SaveChangesAsync();
 
-            await LogActivity("Cerrar conversación de chat", $"Conversación #{id} cerrada");
+            // Comentado para evitar llenar el log de actividades
+            // await LogActivity("Cerrar conversación de chat", $"Conversación #{id} cerrada");
+
+            // Enviar notificación a través de SignalR
+            var participantes = new List<int> { conversacion.UsuarioId };
+            if (conversacion.SoporteId.HasValue)
+            {
+                participantes.Add(conversacion.SoporteId.Value);
+            }
+
+            foreach (var participanteId in participantes)
+            {
+                await _chatHub.Clients.Group($"user_{participanteId}").SendAsync("ReceiveChatMessage", new { message = "Conversación cerrada" });
+            }
 
             return Ok();
         }
@@ -657,7 +668,20 @@ namespace PortalTi.Api.Controllers
             conversacion.TicketId = ticket.Id;
             await _context.SaveChangesAsync();
 
-            await LogActivity("Generar ticket desde chat", $"Ticket #{ticket.Id} generado desde conversación #{id}");
+            // Comentado para evitar llenar el log de actividades
+            // await LogActivity("Generar ticket desde chat", $"Ticket #{ticket.Id} generado desde conversación #{id}");
+
+            // Enviar notificación a través de SignalR
+            var participantes = new List<int> { conversacion.UsuarioId };
+            if (conversacion.SoporteId.HasValue)
+            {
+                participantes.Add(conversacion.SoporteId.Value);
+            }
+
+            foreach (var participanteId in participantes)
+            {
+                await _chatHub.Clients.Group($"user_{participanteId}").SendAsync("ReceiveChatMessage", new { message = "Ticket generado" });
+            }
 
             return Ok(new
             {

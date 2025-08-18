@@ -448,8 +448,7 @@ export default function Reportes() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
                     onClick={() => setSelectedReport('general')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'general'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'general'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -460,8 +459,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('activos')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'activos'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'activos'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -472,8 +470,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('usuarios')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'usuarios'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'usuarios'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -484,8 +481,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('tickets')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'tickets'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'tickets'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -496,8 +492,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('asignaciones')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'asignaciones'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'asignaciones'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -508,8 +503,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('mantenimiento')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'mantenimiento'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'mantenimiento'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -520,8 +514,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('inventario')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'inventario'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'inventario'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -532,8 +525,7 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('tendencias')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'tendencias'
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'tendencias'
                             ? 'border-primary bg-primary bg-opacity-10 text-primary'
                             : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
                     }`}
@@ -544,11 +536,10 @@ export default function Reportes() {
                 </button>
                 <button
                     onClick={() => setSelectedReport('ti')}
-                    className={`p-4 rounded-lg border transition-all ${
-                        selectedReport === 'ti'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'ti'
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <Activity className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Rendimiento Equipo TI</h3>
@@ -649,7 +640,7 @@ export default function Reportes() {
                                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                     <h4 className="font-medium text-gray-900 dark:text-white mb-2">Tendencia (creados vs cerrados)</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                                        {tiPerf.trend.slice(-10).map((d,i) => (
+                                        {(tiPerf.trend || tiPerf.Trend || []).slice(-10).map((d, i) => (
                                             <div key={i} className="flex justify-between bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
                                                 <span className="text-gray-600 dark:text-gray-400">{d.fecha || d.Fecha}</span>
                                                 <span>
@@ -663,13 +654,16 @@ export default function Reportes() {
 
                                 {/* Aging buckets */}
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                    {[
-                                        {label:'0-2 días', v: tiPerf.aging.d0_2},
-                                        {label:'3-7 días', v: tiPerf.aging.d3_7},
-                                        {label:'8-14 días', v: tiPerf.aging.d8_14},
-                                        {label:'15-30 días', v: tiPerf.aging.d15_30},
-                                        {label:'30+ días', v: tiPerf.aging.d30p},
-                                    ].map((b,i)=> (
+                                    {(() => {
+                                        const aging = tiPerf.aging || tiPerf.Aging || {};
+                                        return [
+                                            { label: '0-2 días', v: aging.d0_2 },
+                                            { label: '3-7 días', v: aging.d3_7 },
+                                            { label: '8-14 días', v: aging.d8_14 },
+                                            { label: '15-30 días', v: aging.d15_30 },
+                                            { label: '30+ días', v: aging.d30p },
+                                        ];
+                                    })().map((b, i) => (
                                         <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600 text-center">
                                             <p className="text-xs text-gray-500">{b.label}</p>
                                             <p className="text-2xl font-bold text-primary">{b.v}</p>
@@ -694,7 +688,7 @@ export default function Reportes() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {tiPerf.perAgent.map((a, idx) => (
+                                                {(tiPerf.perAgent || tiPerf.PerAgent || []).map((a, idx) => (
                                                     <tr key={idx} className="border-t border-gray-200 dark:border-gray-700">
                                                         <td className="px-3 py-2">{a.nombre || a.Nombre}</td>
                                                         <td className="px-3 py-2 text-right">{a.abiertosAsignados ?? a.AbiertosAsignados}</td>

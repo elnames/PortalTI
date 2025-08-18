@@ -973,10 +973,29 @@ namespace PortalTi.Api.Controllers
 
         private string GetClientIpAddress()
         {
-            return Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
-                   Request.Headers["X-Real-IP"].FirstOrDefault() ??
-                   Request.HttpContext.Connection.RemoteIpAddress?.ToString() ??
-                   "Unknown";
+            // Intentar obtener la IP real del cliente, considerando proxies y load balancers
+            var ipAddress = Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
+                           Request.Headers["X-Real-IP"].FirstOrDefault() ??
+                           Request.Headers["CF-Connecting-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Client-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Originating-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Remote-IP"].FirstOrDefault() ??
+                           Request.Headers["X-Remote-Addr"].FirstOrDefault() ??
+                           Request.HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            // Si hay múltiples IPs en X-Forwarded-For, tomar la primera (la del cliente original)
+            if (!string.IsNullOrEmpty(ipAddress) && ipAddress.Contains(","))
+            {
+                ipAddress = ipAddress.Split(',')[0].Trim();
+            }
+
+            // Validar que sea una IP válida
+            if (string.IsNullOrEmpty(ipAddress) || ipAddress == "::1" || ipAddress == "127.0.0.1")
+            {
+                ipAddress = "Local";
+            }
+
+            return ipAddress ?? "Unknown";
         }
 
         public class CreateAsignacionRequest

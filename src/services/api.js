@@ -273,4 +273,12 @@ export const pazYSalvoAPI = {
     marcarActivoDevuelto: (data) => api.post('/pazysalvo/marcar-activo-devuelto', data)
 };
 
+export const systemConfigAPI = {
+    getConfig: () => api.get('/systemconfig'),
+    updateConfig: (config) => api.put('/systemconfig', config),
+    createBackup: () => api.post('/systemconfig/backup'),
+    toggleMaintenance: (enabled, message) => api.post('/systemconfig/maintenance', { enabled, message }),
+    getStats: () => api.get('/systemconfig/stats'),
+};
+
 export default api;
