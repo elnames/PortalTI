@@ -294,7 +294,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost("seed-data")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanManageAssets")]
         public IActionResult SeedData()
         {
             try

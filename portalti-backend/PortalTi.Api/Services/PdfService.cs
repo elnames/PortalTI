@@ -149,7 +149,9 @@ namespace PortalTi.Api.Services
                 {
                     try
                     {
-                        string signaturePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", userSignaturePath.TrimStart('/'));
+                        string signaturePath = userSignaturePath.StartsWith("/storage/")
+                            ? Path.Combine(Directory.GetCurrentDirectory(), "Storage", userSignaturePath.Replace("/storage/", string.Empty))
+                            : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", userSignaturePath.TrimStart('/'));
                         if (System.IO.File.Exists(signaturePath))
                         {
                             iTextSharp.text.Image signature = iTextSharp.text.Image.GetInstance(signaturePath);
@@ -185,7 +187,9 @@ namespace PortalTi.Api.Services
                 {
                     try
                     {
-                        string signaturePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", adminSignaturePath.TrimStart('/'));
+                        string signaturePath = adminSignaturePath.StartsWith("/storage/")
+                            ? Path.Combine(Directory.GetCurrentDirectory(), "Storage", adminSignaturePath.Replace("/storage/", string.Empty))
+                            : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", adminSignaturePath.TrimStart('/'));
                         if (System.IO.File.Exists(signaturePath))
                         {
                             iTextSharp.text.Image signature = iTextSharp.text.Image.GetInstance(signaturePath);

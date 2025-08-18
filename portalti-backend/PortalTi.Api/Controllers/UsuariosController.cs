@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
@@ -119,6 +120,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost]
+        [AuditAction("crear_usuario_nomina", "NominaUsuario", true, true)]
         public async Task<ActionResult<NominaUsuario>> Create(NominaUsuario usuario)
         {
             try
@@ -192,6 +194,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [AuditAction("actualizar_usuario_nomina", "NominaUsuario", true, true)]
         public async Task<IActionResult> Update(int id, NominaUsuario usuario)
         {
             try

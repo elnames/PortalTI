@@ -25,6 +25,8 @@ namespace PortalTi.Api.Models
 		public int CreatedById { get; set; }
 		public AuthUser? CreatedBy { get; set; }
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+		public ICollection<CalendarEventAssignee> Assignees { get; set; } = new List<CalendarEventAssignee>();
 	}
 }
 

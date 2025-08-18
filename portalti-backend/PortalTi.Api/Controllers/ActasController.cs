@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 using System.Text.Json;
 using System.Globalization;
 using System.Text;
@@ -18,12 +19,26 @@ namespace PortalTi.Api.Controllers
         private readonly PortalTiContext _db;
         private readonly ILogger<ActasController> _logger;
         private readonly PdfService _pdfService;
+        private readonly IConfiguration _configuration;
 
-        public ActasController(PortalTiContext db, ILogger<ActasController> logger, PdfService pdfService)
+        public ActasController(PortalTiContext db, ILogger<ActasController> logger, PdfService pdfService, IConfiguration configuration)
         {
             _db = db;
             _logger = logger;
             _pdfService = pdfService;
+            _configuration = configuration;
+        }
+
+        // Health check para compatibilidad con el frontend
+        [HttpGet("test")]
+        [AllowAnonymous]
+        public ActionResult<object> HealthTest()
+        {
+            return Ok(new {
+                status = "healthy",
+                timestamp = DateTime.UtcNow,
+                service = "Actas API"
+            });
         }
 
         #region CONSULTAS
@@ -94,7 +109,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpGet("pendientes-aprobacion")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageActas")]
         public async Task<ActionResult<IEnumerable<object>>> GetActasPendientesAprobacion()
         {
             try
@@ -146,7 +161,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpGet("todas")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageActas")]
         public async Task<ActionResult<IEnumerable<object>>> GetTodasActas()
         {
             try
@@ -275,7 +290,8 @@ namespace PortalTi.Api.Controllers
         #region ACCIONES DE ACTA
 
         [HttpPost("generar")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageActas")]
+        [AuditAction("generar_acta", "Acta", true, true)]
         public async Task<IActionResult> GenerarActa([FromBody] GenerarActaRequest request)
         {
             try
@@ -315,9 +331,10 @@ namespace PortalTi.Api.Controllers
                     fechaEntrega
                 );
 
-                // Guardar PDF en wwwroot/actas/<categoria>
+                // Guardar PDF en Storage/actas/<categoria>
+                var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
                 string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
-                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                string uploadsDir = Path.Combine(storageRoot, "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
 
                 string fileName = GenerateHumanReadableActaFileName(asignacion.Usuario, fechaEntrega);
@@ -341,7 +358,7 @@ namespace PortalTi.Api.Controllers
                         Estado = request.IncluirFirmaTI == true ? "Firmada" : "Pendiente",
                         MetodoFirma = "Admin_Subida",
                         NombreArchivo = fileName,
-                        RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
+                        RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}",
                         FechaFirma = DateTime.Now,
                         FechaSubida = DateTime.Now,
                         AprobadoPorId = null,
@@ -355,7 +372,7 @@ namespace PortalTi.Api.Controllers
                     acta.Estado = request.IncluirFirmaTI == true ? "Firmada" : "Pendiente";
                     acta.MetodoFirma = "Admin_Subida";
                     acta.NombreArchivo = fileName;
-                    acta.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                    acta.RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}";
                     acta.FechaFirma = DateTime.Now;
                     acta.FechaSubida = DateTime.Now;
                     acta.AprobadoPorId = null;
@@ -379,7 +396,8 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost("{actaId}/rechazar")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanRejectActa")]
+        [AuditAction("rechazar_acta", "Acta", true, true)]
         public async Task<IActionResult> RechazarActa(int actaId, [FromBody] MotivoRequest req)
         {
             try
@@ -450,7 +468,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost("{actaId}/pendiente")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageActas")]
         public async Task<IActionResult> MarcarPendiente(int actaId)
         {
             try
@@ -472,7 +490,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost("{actaId}/upload-pdf-ti")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageActas")]
         public async Task<IActionResult> UploadPdfTI(int actaId, IFormFile pdf, [FromForm] string observaciones = "")
         {
             try
@@ -496,7 +514,8 @@ namespace PortalTi.Api.Controllers
                     return NotFound("Acta no encontrada");
 
                 string categoriaFolder = GetCategoriaFolder(acta.Asignacion.Activo.Categoria);
-                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                var storageRoot2 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                string uploadsDir = Path.Combine(storageRoot2, "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
 
                 string fileName = GenerateHumanReadableActaFileName(acta.Asignacion.Usuario, DateTime.Now);
@@ -510,7 +529,7 @@ namespace PortalTi.Api.Controllers
                 acta.Estado = "Firmada";
                 acta.MetodoFirma = "Admin_Subida";
                 acta.NombreArchivo = fileName;
-                acta.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                acta.RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}";
                 acta.FechaFirma = DateTime.Now;
                 acta.FechaSubida = DateTime.Now;
                 acta.Observaciones = observaciones;
@@ -709,15 +728,18 @@ namespace PortalTi.Api.Controllers
                 if (currentUser == null || string.IsNullOrEmpty(currentUser.SignaturePath))
                 {
                     return BadRequest(new { 
-                        message = "No tienes una firma digital configurada. Sube una firma en tu perfil.",
+                        message = "No tienes una firma digital configurada.",
                         options = new {
+                            createSignature = "¿No tienes firma? Créala ahora",
                             uploadSignature = "Ve a 'Mi Perfil' para subir tu firma digital",
                             uploadPdf = "O puedes descargar el acta y subirlo firmado manualmente"
                         }
                     });
                 }
 
-                string signatureFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", currentUser.SignaturePath.TrimStart('/'));
+                string signatureFilePath = currentUser.SignaturePath.StartsWith("/storage/")
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "Storage", currentUser.SignaturePath.Replace("/storage/", string.Empty))
+                    : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", currentUser.SignaturePath.TrimStart('/'));
                 if (!System.IO.File.Exists(signatureFilePath))
                 {
                     return BadRequest(new { 
@@ -745,9 +767,10 @@ namespace PortalTi.Api.Controllers
                     asignacion.FechaAsignacion
                 );
 
-                // Guardar PDF en wwwroot/actas/<categoria>
+                // Guardar PDF en Storage/actas/<categoria>
+                var storageRootSig = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
                 string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
-                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                string uploadsDir = Path.Combine(storageRootSig, "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
 
                 // Versionado y hash
@@ -767,7 +790,7 @@ namespace PortalTi.Api.Controllers
                         Estado = "Firmada",
                         MetodoFirma = "Digital",
                         NombreArchivo = fileName,
-                        RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
+                        RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}",
                         FechaFirma = DateTime.Now,
                         FechaSubida = DateTime.Now,
                         Observaciones = string.IsNullOrEmpty(observaciones) ? $"Firma digital aplicada [SHA256:{sha256}]" : $"{observaciones} [SHA256:{sha256}]"
@@ -779,7 +802,7 @@ namespace PortalTi.Api.Controllers
                     acta.Estado = "Firmada";
                     acta.MetodoFirma = "Digital";
                     acta.NombreArchivo = fileName;
-                    acta.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                    acta.RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}";
                     acta.FechaFirma = DateTime.Now;
                     acta.FechaSubida = DateTime.Now;
                     acta.Observaciones = string.IsNullOrEmpty(observaciones) ? $"Firma digital aplicada [SHA256:{sha256}]" : $"{observaciones} [SHA256:{sha256}]";
@@ -853,9 +876,10 @@ namespace PortalTi.Api.Controllers
                 if (!isPdfByMimeUser && !isPdfByExtUser)
                     return BadRequest("Solo se permiten archivos PDF");
 
-                // Crear estructura de carpetas
+                // Crear estructura de carpetas en almacenamiento privado
+                var storageRootUpload = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
                 string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
-                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                string uploadsDir = Path.Combine(storageRootUpload, "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
 
                 // Generar nombre de archivo legible
@@ -879,7 +903,7 @@ namespace PortalTi.Api.Controllers
                         Estado = "Pendiente_de_aprobacion",
                         MetodoFirma = "PDF_Subido",
                         NombreArchivo = fileName,
-                        RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
+                        RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}",
                         FechaFirma = DateTime.Now,
                         FechaSubida = DateTime.Now,
                         Observaciones = string.IsNullOrEmpty(observaciones) ? "PDF firmado subido por el usuario" : observaciones
@@ -892,7 +916,7 @@ namespace PortalTi.Api.Controllers
                     actaDb.Estado = "Pendiente_de_aprobacion";
                     actaDb.MetodoFirma = "PDF_Subido";
                     actaDb.NombreArchivo = fileName;
-                    actaDb.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                    actaDb.RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}";
                     actaDb.FechaFirma = DateTime.Now;
                     actaDb.FechaSubida = DateTime.Now;
                     actaDb.Observaciones = string.IsNullOrEmpty(observaciones) ? "PDF firmado actualizado por el usuario" : observaciones;
@@ -957,9 +981,10 @@ namespace PortalTi.Api.Controllers
                 if (asignacion == null)
                     return NotFound("Asignación no encontrada");
 
-                // Crear estructura de carpetas
+                // Crear estructura de carpetas en almacenamiento privado
+                var storageRootAdmin = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
                 string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
-                string uploadsDir = Path.Combine("wwwroot", "actas", categoriaFolder);
+                string uploadsDir = Path.Combine(storageRootAdmin, "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
 
                 // Generar nombre de archivo
@@ -991,7 +1016,7 @@ namespace PortalTi.Api.Controllers
                         Estado = "Firmada",
                         MetodoFirma = "Admin_Subida",
                         NombreArchivo = fileName,
-                        RutaArchivo = $"actas/{categoriaFolder}/{fileName}",
+                        RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}",
                         FechaFirma = DateTime.Now,
                         FechaSubida = DateTime.Now,
                         AprobadoPorId = aprobadoPorId,
@@ -1005,7 +1030,7 @@ namespace PortalTi.Api.Controllers
                     actaDb.Estado = "Firmada";
                     actaDb.MetodoFirma = "Admin_Subida";
                     actaDb.NombreArchivo = fileName;
-                    actaDb.RutaArchivo = $"actas/{categoriaFolder}/{fileName}";
+                    actaDb.RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}";
                     actaDb.FechaFirma = DateTime.Now;
                     actaDb.FechaSubida = DateTime.Now;
                     actaDb.AprobadoPorId = aprobadoPorId;
@@ -1052,7 +1077,8 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost("{actaId}/aprobar")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanApproveActa")]
+        [AuditAction("aprobar_acta", "Acta", true, true)]
         public async Task<IActionResult> AprobarActa(int actaId, [FromBody] AprobarActaRequest request)
         {
             try
@@ -1369,7 +1395,8 @@ namespace PortalTi.Api.Controllers
                 if (string.IsNullOrEmpty(acta.RutaArchivo))
                     return NotFound("Archivo no encontrado");
 
-                string filePath = Path.Combine("wwwroot", acta.RutaArchivo);
+                var storageRoot4 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                string filePath = Path.Combine(storageRoot4, acta.RutaArchivo.Replace("storage/", string.Empty));
                 if (!System.IO.File.Exists(filePath))
                     return NotFound("Archivo no encontrado en el servidor");
 
@@ -1410,8 +1437,9 @@ namespace PortalTi.Api.Controllers
                 if (currentUser == null)
                     return NotFound("Usuario no encontrado");
 
-                // Crear directorio de firmas si no existe
-                string uploadsDir = Path.Combine("wwwroot", "signatures");
+                // Directorio de almacenamiento privado
+                var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                string uploadsDir = Path.Combine(storageRoot, "signatures");
                 Directory.CreateDirectory(uploadsDir);
 
                 // Generar nombre de archivo único
@@ -1424,8 +1452,8 @@ namespace PortalTi.Api.Controllers
                     await firma.CopyToAsync(stream);
                 }
 
-                // Actualizar firma del usuario
-                currentUser.SignaturePath = $"signatures/{fileName}";
+                // Actualizar firma del usuario con ruta lógica segura
+                currentUser.SignaturePath = $"/storage/signatures/{fileName}";
                 await _db.SaveChangesAsync();
 
                 return Ok(new { 

@@ -5,12 +5,13 @@ using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using System.Linq;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 
 namespace PortalTi.Api.Controllers
 {
 	[ApiController]
 	[Route("api/[controller]")]
-	[Authorize(Roles = "admin,soporte")]
+	[Authorize(Policy = "CanViewReports")]
 	public class CalendarioController : ControllerBase
 	{
 		private readonly PortalTiContext _context;
@@ -71,6 +72,7 @@ namespace PortalTi.Api.Controllers
 		}
 
 		[HttpPost]
+		[AuditAction("crear_evento_calendario", "CalendarEvent", true, true)]
 		public async Task<ActionResult<object>> Create([FromBody] CalendarEventRequest dto)
 		{
 			if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -144,6 +146,7 @@ namespace PortalTi.Api.Controllers
 
 		// PUT: api/Calendario/{id}
 		[HttpPut("{id}")]
+		[AuditAction("actualizar_evento_calendario", "CalendarEvent", true, true)]
 		public async Task<ActionResult> Update([FromRoute] int id, [FromBody] CalendarEventRequest dto)
 		{
 			var existing = await _context.CalendarEvents
@@ -189,6 +192,7 @@ namespace PortalTi.Api.Controllers
 
 		// DELETE: api/Calendario/{id}
 		[HttpDelete("{id}")]
+		[AuditAction("eliminar_evento_calendario", "CalendarEvent", true, true)]
 		public async Task<ActionResult> Delete([FromRoute] int id)
 		{
 			var existing = await _context.CalendarEvents.FindAsync(id);

@@ -4,7 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using PortalTi.Api.Hubs;
 
 namespace PortalTi.Api.Controllers
 {
@@ -13,10 +16,16 @@ namespace PortalTi.Api.Controllers
     public class TicketsController : ControllerBase
     {
         private readonly PortalTiContext _context;
+        private readonly ILogger<TicketsController> _logger;
+        private readonly IHubContext<NotificationsHub> _hubContext;
+        private readonly IConfiguration _configuration;
 
-        public TicketsController(PortalTiContext context)
+        public TicketsController(PortalTiContext context, ILogger<TicketsController> logger, IHubContext<NotificationsHub> hubContext, IConfiguration configuration)
         {
             _context = context;
+            _logger = logger;
+            _hubContext = hubContext;
+            _configuration = configuration;
         }
 
         private async Task<int?> ResolveAuthUserIdByEmail(string? email)
@@ -230,6 +239,7 @@ namespace PortalTi.Api.Controllers
         // POST: api/tickets - Crear nuevo ticket (público)
         [HttpPost]
         [AllowAnonymous]
+        [AuditAction("crear_ticket", "Ticket", true, true)]
         public async Task<ActionResult<object>> CreateTicket([FromBody] CreateTicketDto ticketDto)
         {
             if (!ModelState.IsValid)
@@ -298,7 +308,8 @@ namespace PortalTi.Api.Controllers
 
         // PUT: api/tickets/{id}/asignar - Asignar ticket a soporte o autoasignar
         [HttpPut("{id}/asignar")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanAssignTickets")]
+        [AuditAction("asignar_ticket", "Ticket", true, true)]
         public async Task<IActionResult> AsignarTicket(int id, [FromBody] AsignarTicketDto asignacionDto)
         {
             var userRoleClaim = User.FindFirst(ClaimTypes.Role);
@@ -480,7 +491,8 @@ namespace PortalTi.Api.Controllers
 
         // PUT: api/tickets/{id}/estado - Cambiar estado del ticket
         [HttpPut("{id}/estado")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageTickets")]
+        [AuditAction("cambiar_estado_ticket", "Ticket", true, true)]
         public async Task<IActionResult> CambiarEstado(int id, [FromBody] CambiarEstadoDto estadoDto)
         {
             var userRoleClaim = User.FindFirst(ClaimTypes.Role);
@@ -610,7 +622,8 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/tickets/{id}/comentarios - Agregar comentario (solo para actualizaciones del timeline)
         [HttpPost("{id}/comentarios")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageTickets")]
+        [AuditAction("agregar_comentario_ticket", "ComentarioTicket", true, true)]
         public async Task<ActionResult<object>> AgregarComentario(int id, [FromBody] AgregarComentarioDto comentarioDto)
         {
             var userRoleClaim = User.FindFirst(ClaimTypes.Role);
@@ -699,6 +712,7 @@ namespace PortalTi.Api.Controllers
         // POST: api/tickets/{id}/mensajes - Agregar mensaje de chat
         [HttpPost("{id}/mensajes")]
         [Authorize]
+        [AuditAction("agregar_mensaje_ticket", "ComentarioTicket", true, true)]
         public async Task<ActionResult<object>> AgregarMensaje(int id, [FromBody] AgregarMensajeDto mensajeDto)
         {
             var userRoleClaim = User.FindFirst(ClaimTypes.Role);
@@ -780,7 +794,8 @@ namespace PortalTi.Api.Controllers
 
         // DELETE: api/tickets/{id}/comentarios/{comentarioId} - Eliminar comentario
         [HttpDelete("{id}/comentarios/{comentarioId}")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageTickets")]
+        [AuditAction("eliminar_comentario_ticket", "ComentarioTicket", true, true)]
         public async Task<IActionResult> EliminarComentario(int id, int comentarioId)
         {
             var ticket = await _context.Tickets.FindAsync(id);
@@ -808,7 +823,8 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/tickets/upload-evidence - Subir evidencia para comentarios
         [HttpPost("upload-evidence")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageTickets")]
+        [AuditAction("subir_evidencia_ticket", "ArchivoTicket", true, true)]
         public async Task<ActionResult<object>> UploadEvidence(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -825,25 +841,23 @@ namespace PortalTi.Api.Controllers
 
             try
             {
-                // Generar nombre único para el archivo
+                // Generar nombre único para el archivo en almacenamiento privado
                 var fileName = $"{Guid.NewGuid()}_{file.FileName}";
-                var uploadPath = Path.Combine("wwwroot", "uploads", "evidence");
-                
-                // Crear directorio si no existe
-                if (!Directory.Exists(uploadPath))
-                    Directory.CreateDirectory(uploadPath);
+                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Storage");
+                var uploadPath = Path.Combine(storageRoot, "evidence");
 
+                Directory.CreateDirectory(uploadPath);
                 var filePath = Path.Combine(uploadPath, fileName);
 
-                // Guardar archivo
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
                 }
 
-                var fileUrl = $"/uploads/evidence/{fileName}";
+                // URL segura para previsualización autenticada
+                var previewUrl = $"/api/securefile/preview/evidence/{fileName}";
 
-                return Ok(new { url = fileUrl, message = "Archivo subido exitosamente" });
+                return Ok(new { url = previewUrl, message = "Archivo subido exitosamente" });
             }
             catch (Exception)
             {
@@ -853,7 +867,8 @@ namespace PortalTi.Api.Controllers
 
         // GET: api/tickets/estadisticas - Obtener estadísticas
         [HttpGet("estadisticas")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanViewReports")]
+        [AuditAction("ver_estadisticas_tickets", "Ticket", false, false)]
         public async Task<ActionResult<object>> GetEstadisticas()
         {
             var estadisticas = await _context.Tickets
@@ -899,7 +914,8 @@ namespace PortalTi.Api.Controllers
 
         // GET: api/tickets/soporte/usuarios - Obtener usuarios de soporte
         [HttpGet("soporte/usuarios")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanManageTickets")]
+        [AuditAction("ver_usuarios_soporte", "AuthUser", false, false)]
         public async Task<ActionResult<IEnumerable<object>>> GetUsuariosSoporte()
         {
             var usuariosSoporte = await _context.AuthUsers
@@ -916,7 +932,8 @@ namespace PortalTi.Api.Controllers
 
         // GET: api/tickets/mis-tickets - Obtener tickets activos asignados al usuario de soporte actual
         [HttpGet("mis-tickets")]
-        [Authorize(Roles = "soporte")]
+        [Authorize(Policy = "CanAssignTickets")]
+        [AuditAction("ver_mis_tickets", "Ticket", false, false)]
         public async Task<ActionResult<object>> GetMisTickets(
             [FromQuery] string? estado = null,
             [FromQuery] string? prioridad = null,
@@ -998,7 +1015,8 @@ namespace PortalTi.Api.Controllers
 
         // GET: api/tickets/mis-tickets-historial - Obtener historial de tickets del soporte
         [HttpGet("mis-tickets-historial")]
-        [Authorize(Roles = "soporte")]
+        [Authorize(Policy = "CanAssignTickets")]
+        [AuditAction("ver_historial_tickets", "Ticket", false, false)]
         public async Task<ActionResult<object>> GetMisTicketsHistorial(
             [FromQuery] string? estado = null,
             [FromQuery] string? prioridad = null,
@@ -1081,6 +1099,7 @@ namespace PortalTi.Api.Controllers
         // GET: api/tickets/mis-tickets-usuario - Obtener tickets creados por el usuario actual
         [HttpGet("mis-tickets-usuario")]
         [Authorize]
+        [AuditAction("ver_mis_tickets_usuario", "Ticket", false, false)]
         public async Task<ActionResult<IEnumerable<object>>> GetMisTicketsUsuario(
             [FromQuery] string? estado = null,
             [FromQuery] string? prioridad = null)
@@ -1179,7 +1198,8 @@ namespace PortalTi.Api.Controllers
 
         // GET: api/tickets/usuario/{email} - Obtener tickets de un usuario específico
         [HttpGet("usuario/{email}")]
-        [Authorize(Roles = "admin,soporte")]
+        [Authorize(Policy = "CanManageTickets")]
+        [AuditAction("ver_tickets_usuario_email", "Ticket", false, false)]
         public async Task<ActionResult<IEnumerable<object>>> GetTicketsUsuario(string email)
         {
             try

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 using System.IO;
 using System.Text.Json;
 
@@ -11,18 +12,20 @@ namespace PortalTi.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Policy = "CanAssignAssets")]
     public class AsignacionesController : ControllerBase
     {
         private readonly PortalTiContext _db;
         private readonly ILogger<AsignacionesController> _logger;
         private readonly PdfService _pdfService;
+        private readonly IConfiguration _configuration;
 
-        public AsignacionesController(PortalTiContext db, ILogger<AsignacionesController> logger, PdfService pdfService)
+        public AsignacionesController(PortalTiContext db, ILogger<AsignacionesController> logger, PdfService pdfService, IConfiguration configuration)
         {
             _db = db;
             _logger = logger;
             _pdfService = pdfService;
+            _configuration = configuration;
         }
 
         private async Task<int?> ResolveAuthUserIdByNominaId(int nominaUsuarioId)
@@ -339,6 +342,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/asignaciones
         [HttpPost]
+        [AuditAction("crear_asignacion", "AsignacionActivo", true, true)]
         public async Task<ActionResult<object>> Create(CreateAsignacionRequest request)
         {
             try
@@ -505,6 +509,7 @@ namespace PortalTi.Api.Controllers
 
         // PUT: api/asignaciones/{id}/devolver
         [HttpPut("{id}/devolver")]
+        [AuditAction("devolver_activo", "AsignacionActivo", true, true)]
         public async Task<IActionResult> Devolver(int id, DevolverRequest request)
         {
             try
@@ -599,6 +604,7 @@ namespace PortalTi.Api.Controllers
 
         // DELETE: api/asignaciones/{id}
         [HttpDelete("{id}")]
+        [AuditAction("eliminar_asignacion", "AsignacionActivo", true, true)]
         public async Task<IActionResult> Delete(int id)
         {
             try
@@ -639,7 +645,8 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/asignaciones/crear-actas-pendientes
         [HttpPost("crear-actas-pendientes")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanManageActas")]
+        [AuditAction("crear_actas_pendientes", "Acta", true, true)]
         public async Task<ActionResult<object>> CrearActasPendientesParaAsignacionesExistentes()
         {
             try
@@ -701,7 +708,8 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/asignaciones/generar-datos-prueba
         [HttpPost("generar-datos-prueba")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanManageAssets")]
+        [AuditAction("generar_datos_prueba", "Sistema", true, true)]
         public async Task<ActionResult<object>> GenerarDatosPrueba()
         {
             try
@@ -922,8 +930,9 @@ namespace PortalTi.Api.Controllers
                 if (archivo.ContentType != "application/pdf")
                     return BadRequest("Solo se permiten archivos PDF");
 
-                // Crear directorio si no existe
-                string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "actas-firmadas");
+                // Crear directorio seguro si no existe
+                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Storage");
+                string uploadsDir = Path.Combine(storageRoot, "actas-firmadas");
                 Directory.CreateDirectory(uploadsDir);
 
                 // Generar nombre único para el archivo

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PortalTi.Api.Data;
 
@@ -11,9 +12,11 @@ using PortalTi.Api.Data;
 namespace PortalTi.Api.Migrations
 {
     [DbContext(typeof(PortalTiContext))]
-    partial class PortalTiContextModelSnapshot : ModelSnapshot
+    [Migration("20250817164839_AddCalendarEvents")]
+    partial class AddCalendarEvents
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,9 +42,6 @@ namespace PortalTi.Api.Migrations
                     b.Property<string>("ComentariosAprobacion")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ComentariosRechazo")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Estado")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -53,9 +53,6 @@ namespace PortalTi.Api.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaFirma")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaRechazo")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaSubida")
@@ -71,18 +68,6 @@ namespace PortalTi.Api.Migrations
                     b.Property<string>("Observaciones")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PdfHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("RechazadoPorId")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("RutaArchivo")
                         .HasColumnType("nvarchar(max)");
 
@@ -97,8 +82,6 @@ namespace PortalTi.Api.Migrations
                     b.HasIndex("FechaCreacion");
 
                     b.HasIndex("MetodoFirma");
-
-                    b.HasIndex("RechazadoPorId");
 
                     b.ToTable("Actas");
                 });
@@ -279,58 +262,6 @@ namespace PortalTi.Api.Migrations
                     b.ToTable("AsignacionesActivos");
                 });
 
-            modelBuilder.Entity("PortalTi.Api.Models.AuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("DataJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("nvarchar(45)");
-
-                    b.Property<int?>("ResourceId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ResourceType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Timestamp");
-
-                    b.HasIndex("Action", "ResourceType");
-
-                    b.HasIndex("ResourceType", "ResourceId");
-
-                    b.HasIndex("UserId", "Timestamp");
-
-                    b.ToTable("AuditLogs");
-                });
-
             modelBuilder.Entity("PortalTi.Api.Models.AuthUser", b =>
                 {
                     b.Property<int>("Id")
@@ -420,21 +351,6 @@ namespace PortalTi.Api.Migrations
                     b.HasIndex("Start");
 
                     b.ToTable("CalendarEvents");
-                });
-
-            modelBuilder.Entity("PortalTi.Api.Models.CalendarEventAssignee", b =>
-                {
-                    b.Property<int>("EventId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("EventId", "UserId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("CalendarEventAssignees");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatArchivo", b =>
@@ -1044,15 +960,9 @@ namespace PortalTi.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PortalTi.Api.Models.AuthUser", "RechazadoPor")
-                        .WithMany()
-                        .HasForeignKey("RechazadoPorId");
-
                     b.Navigation("AprobadoPor");
 
                     b.Navigation("Asignacion");
-
-                    b.Navigation("RechazadoPor");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ArchivoTicket", b =>
@@ -1092,17 +1002,6 @@ namespace PortalTi.Api.Migrations
                     b.Navigation("Usuario");
                 });
 
-            modelBuilder.Entity("PortalTi.Api.Models.AuditLog", b =>
-                {
-                    b.HasOne("PortalTi.Api.Models.AuthUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("PortalTi.Api.Models.CalendarEvent", b =>
                 {
                     b.HasOne("PortalTi.Api.Models.AuthUser", "CreatedBy")
@@ -1112,25 +1011,6 @@ namespace PortalTi.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("CreatedBy");
-                });
-
-            modelBuilder.Entity("PortalTi.Api.Models.CalendarEventAssignee", b =>
-                {
-                    b.HasOne("PortalTi.Api.Models.CalendarEvent", "Event")
-                        .WithMany("Assignees")
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PortalTi.Api.Models.AuthUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatArchivo", b =>
@@ -1316,11 +1196,6 @@ namespace PortalTi.Api.Migrations
             modelBuilder.Entity("PortalTi.Api.Models.AuthUser", b =>
                 {
                     b.Navigation("ActivityLogs");
-                });
-
-            modelBuilder.Entity("PortalTi.Api.Models.CalendarEvent", b =>
-                {
-                    b.Navigation("Assignees");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatConversacion", b =>

@@ -175,6 +175,7 @@ export const authAPI = {
     refresh: () => api.post('/auth/refresh'),
     logout: () => api.post('/auth/logout'),
     getProfile: () => api.get('/auth/profile'),
+    getUsuarios: () => api.get('/auth/usuarios'),
     updateProfile: (data) => api.put('/auth/profile', data),
     changePassword: (data) => api.put('/auth/change-password', data),
     uploadSignature: (formData) => api.post('/auth/upload-signature', formData, { headers: { 'Content-Type': 'multipart/form-data' } })

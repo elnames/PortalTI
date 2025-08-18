@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PortalTi.Api.Data;
 
@@ -11,9 +12,11 @@ using PortalTi.Api.Data;
 namespace PortalTi.Api.Migrations
 {
     [DbContext(typeof(PortalTiContext))]
-    partial class PortalTiContextModelSnapshot : ModelSnapshot
+    [Migration("20250817201252_AddAuditLogTable")]
+    partial class AddAuditLogTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,9 +42,6 @@ namespace PortalTi.Api.Migrations
                     b.Property<string>("ComentariosAprobacion")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ComentariosRechazo")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Estado")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -53,9 +53,6 @@ namespace PortalTi.Api.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaFirma")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaRechazo")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaSubida")
@@ -71,18 +68,6 @@ namespace PortalTi.Api.Migrations
                     b.Property<string>("Observaciones")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PdfHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("RechazadoPorId")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("RutaArchivo")
                         .HasColumnType("nvarchar(max)");
 
@@ -97,8 +82,6 @@ namespace PortalTi.Api.Migrations
                     b.HasIndex("FechaCreacion");
 
                     b.HasIndex("MetodoFirma");
-
-                    b.HasIndex("RechazadoPorId");
 
                     b.ToTable("Actas");
                 });
@@ -1044,15 +1027,9 @@ namespace PortalTi.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PortalTi.Api.Models.AuthUser", "RechazadoPor")
-                        .WithMany()
-                        .HasForeignKey("RechazadoPorId");
-
                     b.Navigation("AprobadoPor");
 
                     b.Navigation("Asignacion");
-
-                    b.Navigation("RechazadoPor");
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ArchivoTicket", b =>

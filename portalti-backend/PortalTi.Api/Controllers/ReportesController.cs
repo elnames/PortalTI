@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
@@ -7,6 +8,7 @@ namespace PortalTi.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Policy = "CanViewReports")]
     public class ReportesController : ControllerBase
     {
         private readonly PortalTiContext _context;

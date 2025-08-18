@@ -28,6 +28,8 @@ namespace PortalTi.Api.Data
         public DbSet<Licencia> Licencias { get; set; }
         public DbSet<PazYSalvo> PazYSalvos { get; set; }
         public DbSet<CalendarEvent> CalendarEvents { get; set; }
+        public DbSet<CalendarEventAssignee> CalendarEventAssignees { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -256,6 +258,41 @@ namespace PortalTi.Api.Data
 
             modelBuilder.Entity<CalendarEvent>()
                 .HasIndex(e => e.CreatedAt);
+
+            modelBuilder.Entity<CalendarEventAssignee>()
+                .HasKey(a => new { a.EventId, a.UserId });
+
+            modelBuilder.Entity<CalendarEventAssignee>()
+                .HasOne(a => a.Event)
+                .WithMany(e => e.Assignees)
+                .HasForeignKey(a => a.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CalendarEventAssignee>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configurar relaciones para AuditLog
+            modelBuilder.Entity<AuditLog>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Configurar índices para AuditLog
+            modelBuilder.Entity<AuditLog>()
+                .HasIndex(a => new { a.UserId, a.Timestamp });
+
+            modelBuilder.Entity<AuditLog>()
+                .HasIndex(a => new { a.Action, a.ResourceType });
+
+            modelBuilder.Entity<AuditLog>()
+                .HasIndex(a => a.Timestamp);
+
+            modelBuilder.Entity<AuditLog>()
+                .HasIndex(a => new { a.ResourceType, a.ResourceId });
         }
     }
 }

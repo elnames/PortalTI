@@ -44,10 +44,10 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 
 ### 📄 Sistema de Paz y Salvo
 - **Gestión documental**: Subida y gestión de documentos de paz y salvo
-- **Almacenamiento seguro**: Archivos guardados en wwwroot/pazysalvo
+- **Almacenamiento seguro**: Archivos guardados en `Storage/pazysalvo` (fuera de `wwwroot`)
+- **Acceso protegido**: Descarga/preview vía endpoints autenticados (SecureFileController), sin acceso directo a disco
 - **Validación de activos**: Verificación de activos pendientes por usuario
 - **Estados de aprobación**: Pendiente, Aprobado, Rechazado
-- **Descarga de archivos**: Acceso directo a documentos subidos
 - **Historial completo**: Seguimiento de todos los documentos por usuario
 
 ### 🎫 Sistema de Tickets de Soporte
@@ -61,12 +61,12 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 
 ### 📄 Gestión de Actas y Documentación
 - **Actas de entrega**: Generación automática de PDFs y previsualización en navegador
-- **Logo PDF**: usa `public/logo.png` por defecto; fallback a `wwwroot/logo.png`; se eliminó uso de logos antiguos
+- **Logo PDF**: usa `public/logo.png` por defecto (fallback interno si aplica)
 - **Métodos de firma**: `Digital`, `PDF_Subido`, `Admin_Subida`
 - **Estados**: `Pendiente`, `Pendiente de aprobación`, `Firmada`, `Aprobada`, `Rechazada`, `Anulada`
-- **Almacenamiento por categoría**: PDFs en `wwwroot/actas/<Categoria>` (Equipos, Móviles, Monitores, Periféricos, Accesorios, Red)
+- **Almacenamiento por categoría**: PDFs en `Storage/actas/<Categoria>` (fuera de `wwwroot`), servidos por endpoints autenticados
 - **Nombres legibles y versionado**: "Acta de entrega - Nombre Apellido dd de mes de yyyy vN.pdf"
-- **Integridad**: cálculo y registro de hash SHA256 del PDF
+- **Integridad**: cálculo y verificación de hash SHA256 del PDF
 - **Historial completo**: Seguimiento de cambios, aprobaciones y observaciones
 
 ### 📊 Dashboard y Reportes Avanzados
@@ -231,7 +231,14 @@ REACT_APP_ENVIRONMENT=development
     "SecretKey": "tu_clave_terriblesecreta_ymuy_larga_lolxd_342f2322w212CE",
     "Issuer": "PortalTI",
     "Audience": "PortalTIUsers",
-    "ExpirationHours": 24
+    "ExpirationMinutes": 1440
+  },
+  "Storage": {
+    "Root": "C:/PortalTI/Storage",
+    "MaxFileSizeMB": 10,
+    "AllowedExtensions": [".pdf", ".png", ".jpg"],
+    "RetentionDays": 180,
+    "EnableHashVerification": true
   }
 }
 ```
@@ -504,6 +511,12 @@ La documentación de la API está disponible en:
 - `POST /api/actas/{id}/upload-pdf-ti` (admin/soporte): adjunta PDF TI
 - `POST /api/actas/{id}/anular` (admin/soporte): anula acta
 - `GET  /api/actas/{id}/preview-auto`: previsualización inteligente (PDF_Usuario > PDF_Admin > Digital_Signed > Plantilla)
+ - `GET  /api/actas/test` (anónimo): healthcheck usado por el front para verificar disponibilidad
+
+#### Endpoints de archivos seguros
+- `GET /api/securefile/preview/{tipo}/{archivo}`
+- `GET /api/securefile/download/{tipo}/{archivo}`
+- `POST /api/securefile/verify` (hash)
 
 ### **Documentación RustDesk**
 Para información sobre la integración con RustDesk:

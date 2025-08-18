@@ -22,12 +22,14 @@ namespace PortalTi.Api.Controllers
         private readonly PortalTiContext _db;
         private readonly IConfiguration _config;
         private readonly ILogger<AuthController> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthController(PortalTiContext db, IConfiguration config, ILogger<AuthController> logger)
+        public AuthController(PortalTiContext db, IConfiguration config, ILogger<AuthController> logger, IWebHostEnvironment env)
         {
             _db = db;
             _config = config;
             _logger = logger;
+            _env = env;
         }
 
         [AllowAnonymous]
@@ -187,7 +189,7 @@ namespace PortalTi.Api.Controllers
             }
         }
 
-        // GET: api/auth/usuarios - Listar usuarios para admin y soporte
+        // GET: api/auth/usuarios - Listar usuarios asignables (solo admin/soporte)
         [HttpGet("usuarios")]
         [Authorize(Roles = "admin,soporte")]
         public async Task<ActionResult<IEnumerable<object>>> GetUsuarios()
@@ -198,35 +200,64 @@ namespace PortalTi.Api.Controllers
                     .Where(u => u.IsActive)
                     .Select(u => new
                     {
-                        u.Id,
-                        u.Username,
-                        u.Role,
-                        // Obtener datos de la nómina
+                        // Campos esperados por el frontend
+                        id = u.Id,
+                        userId = u.Id,
+                        authId = u.Id,
+                        username = u.Username,
+                        role = u.Role,
+                        isActive = u.IsActive,
+
+                        // Datos de nómina con valores por defecto seguros
+                        nominaId = _db.NominaUsuarios
+                            .Where(n => n.Email == u.Username)
+                            .Select(n => (int?)n.Id)
+                            .FirstOrDefault() ?? u.Id,
                         empresa = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Empresa)
-                            .FirstOrDefault() ?? "Empresa A",
+                            .FirstOrDefault(),
                         ubicacion = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Ubicacion)
-                            .FirstOrDefault() ?? "",
+                            .FirstOrDefault(),
                         departamento = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Departamento)
-                            .FirstOrDefault() ?? "",
+                            .FirstOrDefault(),
                         nombre = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Nombre)
-                            .FirstOrDefault() ?? "",
+                            .FirstOrDefault(),
                         apellido = _db.NominaUsuarios
                             .Where(n => n.Email == u.Username)
                             .Select(n => n.Apellido)
-                            .FirstOrDefault() ?? ""
+                            .FirstOrDefault()
                     })
-                    .OrderBy(u => u.Username)
+                    .AsNoTracking()
                     .ToListAsync();
 
-                return Ok(users);
+                // Aplicar fallbacks para evitar strings vacíos/null en campos críticos
+                var usersWithDefaults = users
+                    .Select(u => new
+                    {
+                        u.id,
+                        u.userId,
+                        u.authId,
+                        u.username,
+                        u.role,
+                        u.isActive,
+                        nominaId = u.nominaId,
+                        empresa = !string.IsNullOrWhiteSpace(u.empresa) ? u.empresa : "Vicsa",
+                        ubicacion = !string.IsNullOrWhiteSpace(u.ubicacion) ? u.ubicacion : "No especificada",
+                        departamento = !string.IsNullOrWhiteSpace(u.departamento) ? u.departamento : "No especificado",
+                        nombre = !string.IsNullOrWhiteSpace(u.nombre) ? u.nombre : u.username,
+                        apellido = !string.IsNullOrWhiteSpace(u.apellido) ? u.apellido : string.Empty
+                    })
+                    .OrderBy(u => u.username)
+                    .ToList();
+
+                return Ok(usersWithDefaults);
             }
             catch (Exception ex)
             {
@@ -555,20 +586,20 @@ namespace PortalTi.Api.Controllers
                 new Claim(ClaimTypes.Role, user.Role)
             };
 
-            var jwtKey = _config["Jwt:Key"];
+            var jwtKey = _config["JwtSettings:SecretKey"];
             if (string.IsNullOrEmpty(jwtKey))
                 throw new InvalidOperationException("JWT Key no está configurada");
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var durationMinutesStr = _config["Jwt:DurationMinutes"];
+            var durationMinutesStr = _config["JwtSettings:ExpirationMinutes"];
             if (string.IsNullOrEmpty(durationMinutesStr) || !int.TryParse(durationMinutesStr, out int durationMinutes))
                 durationMinutes = 60; // Default a 60 minutos
 
             var jwt = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: _config["JwtSettings:Issuer"],
+                audience: _config["JwtSettings:Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(durationMinutes),
                 signingCredentials: creds
@@ -641,32 +672,37 @@ namespace PortalTi.Api.Controllers
                 if (!signature.ContentType.StartsWith("image/"))
                     return BadRequest("Solo se permiten archivos de imagen");
 
-                // Crear directorio si no existe
-                string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "signatures");
-                Directory.CreateDirectory(uploadsDir);
+                // Ruta raíz de almacenamiento privado
+                var storageRoot = _config["Storage:Root"] ?? Path.Combine(_env.ContentRootPath, "Storage");
+                var signaturesDir = Path.Combine(storageRoot, "signatures");
+                Directory.CreateDirectory(signaturesDir);
 
-                // Eliminar firma anterior si existe
+                // Eliminar firma anterior si existe (soporta rutas en wwwroot o en storage)
                 if (!string.IsNullOrEmpty(user.SignaturePath))
                 {
-                    string oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.SignaturePath.TrimStart('/'));
-                    if (System.IO.File.Exists(oldPath))
-                    {
-                        System.IO.File.Delete(oldPath);
-                    }
+                    var oldRel = user.SignaturePath.TrimStart('/');
+                    var oldStorage = oldRel.StartsWith("storage/")
+                        ? Path.Combine(storageRoot, oldRel.Substring("storage/".Length))
+                        : Path.Combine(storageRoot, oldRel);
+                    var oldWwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", oldRel);
+                    if (System.IO.File.Exists(oldStorage)) System.IO.File.Delete(oldStorage);
+                    else if (System.IO.File.Exists(oldWwwroot)) System.IO.File.Delete(oldWwwroot);
                 }
 
-                // Generar nombre único para el archivo
-                string fileName = $"signature_{userId}_{DateTime.Now:yyyyMMddHHmmss}.png";
-                string filePath = Path.Combine(uploadsDir, fileName);
+                // Generar nombre único para el archivo conservando extensión
+                var ext = Path.GetExtension(signature.FileName);
+                if (string.IsNullOrEmpty(ext)) ext = ".png";
+                var fileName = $"signature_{userId}_{DateTime.Now:yyyyMMddHHmmss}{ext}";
+                var filePath = Path.Combine(signaturesDir, fileName);
 
-                // Guardar archivo
+                // Guardar archivo de forma segura en almacenamiento privado
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await signature.CopyToAsync(stream);
                 }
 
-                // Actualizar usuario con la ruta de la firma
-                user.SignaturePath = $"/signatures/{fileName}";
+                // Guardar ruta lógica segura
+                user.SignaturePath = $"/storage/signatures/{fileName}";
                 await _db.SaveChangesAsync();
 
                 // Log de actividad
@@ -694,14 +730,16 @@ namespace PortalTi.Api.Controllers
                 if (user == null)
                     return NotFound("Usuario no encontrado");
 
-                // Eliminar archivo si existe
+                // Eliminar archivo si existe (soporta rutas en storage o wwwroot)
                 if (!string.IsNullOrEmpty(user.SignaturePath))
                 {
-                    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.SignaturePath.TrimStart('/'));
-                    if (System.IO.File.Exists(filePath))
-                    {
-                        System.IO.File.Delete(filePath);
-                    }
+                    var storageRoot = _config["Storage:Root"] ?? Path.Combine(_env.ContentRootPath, "Storage");
+                    string filePathStorage = user.SignaturePath.StartsWith("/storage/")
+                        ? Path.Combine(storageRoot, user.SignaturePath.Replace("/storage/", string.Empty))
+                        : Path.Combine(storageRoot, user.SignaturePath.TrimStart('/'));
+                    string filePathWwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.SignaturePath.TrimStart('/'));
+                    if (System.IO.File.Exists(filePathStorage)) System.IO.File.Delete(filePathStorage);
+                    else if (System.IO.File.Exists(filePathWwwroot)) System.IO.File.Delete(filePathWwwroot);
                 }
 
                 // Limpiar ruta de la firma

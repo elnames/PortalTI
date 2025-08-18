@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Filters;
 using System.Security.Claims;
 
 namespace PortalTi.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Policy = "CanManageSoftwareSecurity")]
     public class SoftwareSecurityController : ControllerBase
     {
         private readonly PortalTiContext _context;
@@ -55,6 +56,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/SoftwareSecurity/software
         [HttpPost("software")]
+        [AuditAction("crear_software", "Software", true, true)]
         public async Task<ActionResult<SoftwareDto>> CreateSoftware([FromBody] CreateSoftwareDto dto)
         {
             try
@@ -153,6 +155,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/SoftwareSecurity/seguridad
         [HttpPost("seguridad")]
+        [AuditAction("crear_programa_seguridad", "ProgramaSeguridad", true, true)]
         public async Task<ActionResult<ProgramaSeguridadDto>> CreateProgramaSeguridad([FromBody] CreateProgramaSeguridadDto dto)
         {
             try
@@ -249,6 +252,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/SoftwareSecurity/licencia
         [HttpPost("licencia")]
+        [AuditAction("crear_licencia", "Licencia", true, true)]
         public async Task<ActionResult<LicenciaDto>> CreateLicencia([FromBody] CreateLicenciaDto dto)
         {
             try

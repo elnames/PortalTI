@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Filters;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -9,15 +11,18 @@ namespace PortalTi.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Policy = "CanManagePazYSalvo")]
     public class PazYSalvoController : ControllerBase
     {
         private readonly PortalTiContext _context;
         private readonly IWebHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
 
-        public PazYSalvoController(PortalTiContext context, IWebHostEnvironment environment)
+        public PazYSalvoController(PortalTiContext context, IWebHostEnvironment environment, IConfiguration configuration)
         {
             _context = context;
             _environment = environment;
+            _configuration = configuration;
         }
 
         // GET: api/pazysalvo
@@ -72,6 +77,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/pazysalvo
         [HttpPost]
+        [AuditAction("crear_pazysalvo", "PazYSalvo", true, true)]
         public async Task<ActionResult<PazYSalvo>> CreatePazYSalvo([FromForm] PazYSalvoCreateDto dto)
         {
             try
@@ -106,8 +112,9 @@ namespace PortalTi.Api.Controllers
                     return BadRequest("Usuario no encontrado");
                 }
 
-                // Crear directorio si no existe
-                string uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "pazysalvo");
+                // Crear directorio seguro si no existe
+                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+                string uploadsDir = Path.Combine(storageRoot, "pazysalvo");
                 Directory.CreateDirectory(uploadsDir);
 
                 // Generar nombre único para el archivo
@@ -115,7 +122,7 @@ namespace PortalTi.Api.Controllers
                 fileName = fileName.Replace(" ", "_");
                 string filePath = Path.Combine(uploadsDir, fileName);
 
-                // Guardar archivo
+                // Guardar archivo en almacenamiento privado
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await dto.Archivo.CopyToAsync(stream);
@@ -141,7 +148,7 @@ namespace PortalTi.Api.Controllers
                     UsuarioId = dto.UsuarioId,
                     UsuarioNombre = dto.UsuarioNombre ?? $"{usuario.Nombre} {usuario.Apellido}",
                     FechaSubida = DateTime.Now,
-                    ArchivoPath = $"/pazysalvo/{fileName}",
+                    ArchivoPath = $"/storage/pazysalvo/{fileName}",
                     Estado = "Pendiente",
                     ActivosPendientes = dto.ActivosPendientes,
                     Notas = dto.Notas ?? ""
@@ -190,7 +197,8 @@ namespace PortalTi.Api.Controllers
             }
 
             // Eliminar archivo físico
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", pazYSalvo.ArchivoPath.TrimStart('/'));
+            var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+            var filePath = Path.Combine(storageRoot, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
             if (System.IO.File.Exists(filePath))
             {
                 System.IO.File.Delete(filePath);
@@ -215,7 +223,8 @@ namespace PortalTi.Api.Controllers
                 }
 
                 // Eliminar archivo físico
-                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", pazYSalvo.ArchivoPath.TrimStart('/'));
+                var storageRoot4 = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+                var filePath = Path.Combine(storageRoot4, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
                 if (System.IO.File.Exists(filePath))
                 {
                     System.IO.File.Delete(filePath);
@@ -242,7 +251,8 @@ namespace PortalTi.Api.Controllers
                 return NotFound();
             }
 
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", pazYSalvo.ArchivoPath.TrimStart('/'));
+            var storageRoot2 = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+            var filePath = Path.Combine(storageRoot2, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
             if (!System.IO.File.Exists(filePath))
             {
                 return NotFound("Archivo no encontrado");
@@ -264,7 +274,8 @@ namespace PortalTi.Api.Controllers
                 return NotFound();
             }
 
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", pazYSalvo.ArchivoPath.TrimStart('/'));
+            var storageRoot3 = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+            var filePath = Path.Combine(storageRoot3, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
             if (!System.IO.File.Exists(filePath))
             {
                 return NotFound("Archivo no encontrado");

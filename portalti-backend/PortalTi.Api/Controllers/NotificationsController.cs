@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using PortalTi.Api.Hubs;
@@ -38,6 +39,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/notifications
         [HttpPost]
+        [AuditAction("crear_notificacion", "Notificacion", true, true)]
         public async Task<ActionResult<NotificationDto>> CreateNotification(CreateNotificationDto dto)
         {
             var notificationId = await _notificationsService.CreateAsync(dto);
@@ -46,7 +48,8 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/notifications/role/{role}
         [HttpPost("role/{role}")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanDeleteNotifications")]
+        [AuditAction("crear_notificacion_rol", "Notificacion", true, true)]
         public async Task<ActionResult<object>> CreateNotificationForRole(string role, CreateNotificationDto dto)
         {
             var count = await _notificationsService.CreateForRoleAsync(role, dto);
@@ -58,7 +61,8 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/notifications/admins
         [HttpPost("admins")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanDeleteNotifications")]
+        [AuditAction("crear_notificacion_admins", "Notificacion", true, true)]
         public async Task<ActionResult<object>> CreateNotificationForAdmins(CreateNotificationDto dto)
         {
             var count = await _notificationsService.CreateForAdminsAsync(dto);
@@ -70,6 +74,7 @@ namespace PortalTi.Api.Controllers
 
         // POST: api/notifications/read
         [HttpPost("read")]
+        [AuditAction("marcar_notificacion_leida", "Notificacion", true, true)]
         public async Task<IActionResult> MarkAsRead(MarkReadDto dto)
         {
             var userId = GetCurrentUserId();
@@ -85,6 +90,7 @@ namespace PortalTi.Api.Controllers
 
         // DELETE: api/notifications/{id}
         [HttpDelete("{id}")]
+        [AuditAction("eliminar_notificacion", "Notificacion", true, true)]
         public async Task<IActionResult> DeleteNotification(int id)
         {
             var userId = GetCurrentUserId();
@@ -100,6 +106,7 @@ namespace PortalTi.Api.Controllers
 
         // DELETE: api/notifications (borrar todas)
         [HttpDelete]
+        [AuditAction("eliminar_todas_notificaciones", "Notificacion", true, true)]
         public async Task<IActionResult> DeleteAll()
         {
             var userId = GetCurrentUserId();
@@ -125,6 +132,7 @@ namespace PortalTi.Api.Controllers
         // POST: api/notifications/test
         [HttpPost("test")]
         [Authorize]
+        [AuditAction("test_notificacion", "Notificacion", true, true)]
         public async Task<ActionResult<object>> TestNotification([FromBody] TestNotificationRequest request)
         {
             try
@@ -237,7 +245,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpGet("debug-connections")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanDeleteNotifications")]
         public async Task<IActionResult> DebugConnections()
         {
             try
@@ -262,7 +270,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost("test-usuario-especifico")]
-        [Authorize(Roles = "admin")]
+        [Authorize(Policy = "CanDeleteNotifications")]
         public async Task<IActionResult> TestUsuarioEspecifico([FromBody] TestUsuarioEspecificoRequest request)
         {
             try

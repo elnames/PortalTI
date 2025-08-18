@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using PortalTi.Api.Services;
+using PortalTi.Api.Filters;
 using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
@@ -207,6 +208,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPost]
+        [AuditAction("crear_activo", "Activo", true, true)]
         public async Task<ActionResult<Activo>> Create(Activo activo)
         {
             try
@@ -287,6 +289,7 @@ namespace PortalTi.Api.Controllers
         }
 
         [HttpPut("{codigo}")]
+        [AuditAction("actualizar_activo", "Activo", true, true)]
         public async Task<IActionResult> Update(string codigo, Activo activo)
         {
             try

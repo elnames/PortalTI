@@ -50,5 +50,22 @@ namespace PortalTi.Api.Models
         public bool PuedeSerRechazada => EsFirmada;
         public bool PuedeSerPrevisualizada => true; // Siempre se puede previsualizar
         public bool PuedeSerDescargada => !string.IsNullOrEmpty(RutaArchivo);
+        
+        // Control de concurrencia para evitar doble aprobación/rechazo
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+        
+        // Hash del PDF para verificar integridad
+        public string? PdfHash { get; set; }
+        
+        // Información de auditoría adicional
+        public DateTime? FechaRechazo { get; set; }
+        public int? RechazadoPorId { get; set; }
+        public AuthUser? RechazadoPor { get; set; }
+        public string? ComentariosRechazo { get; set; }
+        
+        // Propiedades para validación de estado
+        public bool EsEstadoFinal => Estado == "Anulada";
+        public bool PuedeSerModificada => !EsEstadoFinal;
     }
 } 

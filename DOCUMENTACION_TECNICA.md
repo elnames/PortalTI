@@ -31,7 +31,7 @@
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   RustDesk      │    │   SignalR Hub   │    │   Archivos      │
-│   Integration   │    │   (Chat)        │    │   (wwwroot)     │
+│   Integration   │    │   (Chat)        │    │   (Storage)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -42,7 +42,7 @@
 - **Autenticación**: JWT Bearer Tokens
 - **Comunicación**: REST API + SignalR (para chat en tiempo real)
 - **Control Remoto**: RustDesk Integration
-- **Archivos**: Sistema de archivos en wwwroot
+- **Archivos**: Sistema de archivos privado en `Storage` + endpoints seguros
 
 ---
 
@@ -325,8 +325,8 @@ GET    /api/actas/{id}/preview-auto            // Previsualización inteligente
 ```
 ### 📄 PDF, Almacenamiento y Versionado (Actas)
 
-1) Carpeta de destino: `wwwroot/actas/<Categoria>`.
-2) Logo en encabezado: el servicio intenta en este orden: `public/logo.png` → `wwwroot/logo.png` → `public/logo-vicsa.png` → `wwwroot/logo-vicsa.png`; si ninguno existe, muestra “Portal TI”.
+1) Carpeta de destino: `Storage/actas/<Categoria>` (fuera de `wwwroot`).
+2) Logo en encabezado: el servicio intenta `public/logo.png` (fallback interno si aplica).
 3) Nombre legible: `Acta de entrega - Nombre Apellido dd de mes de yyyy`.
 4) Versionado: si existe el archivo, se generan `v1`, `v2`, ... (`GetNextVersionedFileName`).
 5) Hash: se calcula SHA256 del PDF y se registra en `Observaciones`.
@@ -707,7 +707,7 @@ const UserStatus = ({ userId }) => {
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │   Backend       │    │   Sistema de    │
 │   React         │◄──►│   API           │    │   Archivos      │
-│                 │    │                 │    │   (wwwroot)     │
+│                 │    │                 │    │   (Storage)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -736,7 +736,7 @@ public class PazYSalvo
 public async Task<IActionResult> Create([FromForm] PazYSalvoCreateDto dto)
 {
     var fileName = $"{Guid.NewGuid()}_{dto.Archivo.FileName}";
-    var filePath = Path.Combine(_webHostEnvironment.WebRootPath, "pazysalvo", fileName);
+    var filePath = Path.Combine(_storageRoot, "pazysalvo", fileName);
     
     using (var stream = new FileStream(filePath, FileMode.Create))
     {
@@ -756,7 +756,7 @@ public async Task<IActionResult> Create([FromForm] PazYSalvoCreateDto dto)
 public async Task<IActionResult> Download(int id)
 {
     var pazYSalvo = await _db.PazYSalvos.FindAsync(id);
-    var filePath = Path.Combine(_webHostEnvironment.WebRootPath, "pazysalvo", pazYSalvo.ArchivoPath);
+    var filePath = Path.Combine(_storageRoot, "pazysalvo", pazYSalvo.ArchivoPath);
     
     var memory = new MemoryStream();
     using (var stream = new FileStream(filePath, FileMode.Open))
