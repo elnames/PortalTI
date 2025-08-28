@@ -172,10 +172,13 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // 5) Services
+// Registrar servicios
+builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<FileSecurityService>();
+builder.Services.AddScoped<NotificationsService>();
 builder.Services.AddScoped<PdfService>();
-builder.Services.AddScoped<INotificationsService, NotificationsService>();
-builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddScoped<AuditActionFilter>();
+builder.Services.AddScoped<ActaValidationService>();
+builder.Services.AddScoped<ISystemConfigurationService, SystemConfigurationService>();
 
 // Servicios de integridad de datos
 builder.Services.AddScoped<IActaValidationService, ActaValidationService>();

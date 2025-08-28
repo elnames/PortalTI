@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
+using PortalTi.Api.Services;
 using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
@@ -14,13 +15,16 @@ namespace PortalTi.Api.Controllers
     {
         private readonly PortalTiContext _db;
         private readonly ILogger<SystemConfigController> _logger;
-        private readonly IConfiguration _config;
+        private readonly ISystemConfigurationService _configService;
 
-        public SystemConfigController(PortalTiContext db, ILogger<SystemConfigController> logger, IConfiguration config)
+        public SystemConfigController(
+            PortalTiContext db, 
+            ILogger<SystemConfigController> logger, 
+            ISystemConfigurationService configService)
         {
             _db = db;
             _logger = logger;
-            _config = config;
+            _configService = configService;
         }
 
         // GET: api/systemconfig
@@ -29,56 +33,7 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
-                var config = new
-                {
-                    // Configuración de Apariencia
-                    Appearance = new
-                    {
-                        SystemName = _config["System:Name"] ?? "Portal IT",
-                        LogoPath = _config["System:LogoPath"] ?? "/logo.png",
-                        PrimaryColor = _config["System:PrimaryColor"] ?? "#3B82F6",
-                        Theme = _config["System:Theme"] ?? "light"
-                    },
-
-                    // Configuración de Notificaciones
-                    Notifications = new
-                    {
-                        EmailEnabled = _config.GetValue<bool>("Notifications:Email:Enabled", true),
-                        PushEnabled = _config.GetValue<bool>("Notifications:Push:Enabled", true),
-                        SlackWebhook = _config["Notifications:Slack:Webhook"] ?? "",
-                        TeamsWebhook = _config["Notifications:Teams:Webhook"] ?? ""
-                    },
-
-                    // Configuración de Seguridad
-                    Security = new
-                    {
-                        SessionTimeoutMinutes = _config.GetValue<int>("Security:SessionTimeoutMinutes", 60),
-                        ForcePasswordChange = _config.GetValue<bool>("Security:ForcePasswordChange", false),
-                        PasswordMinLength = _config.GetValue<int>("Security:PasswordMinLength", 8),
-                        RequireSpecialChars = _config.GetValue<bool>("Security:RequireSpecialChars", true),
-                        MaxLoginAttempts = _config.GetValue<int>("Security:MaxLoginAttempts", 5),
-                        LockoutDurationMinutes = _config.GetValue<int>("Security:LockoutDurationMinutes", 15)
-                    },
-
-                    // Configuración de Backup
-                    Backup = new
-                    {
-                        AutoBackupEnabled = _config.GetValue<bool>("Backup:AutoBackupEnabled", false),
-                        BackupFrequency = _config["Backup:Frequency"] ?? "daily",
-                        BackupRetentionDays = _config.GetValue<int>("Backup:RetentionDays", 30),
-                        BackupPath = _config["Backup:Path"] ?? "./backups"
-                    },
-
-                    // Configuración de Sistema
-                    System = new
-                    {
-                        MaintenanceMode = _config.GetValue<bool>("System:MaintenanceMode", false),
-                        MaintenanceMessage = _config["System:MaintenanceMessage"] ?? "Sistema en mantenimiento",
-                        MaxFileSizeMB = _config.GetValue<int>("System:MaxFileSizeMB", 10),
-                        AllowedFileTypes = _config["System:AllowedFileTypes"] ?? "jpg,jpeg,png,pdf,doc,docx"
-                    }
-                };
-
+                var config = await _configService.GetConfigurationAsync();
                 return Ok(config);
             }
             catch (Exception ex)
@@ -94,15 +49,53 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
-                // Aquí implementarías la lógica para actualizar la configuración
-                // Por ahora, solo registramos la actividad
                 var userId = GetCurrentUserId();
-                if (userId.HasValue)
+                if (!userId.HasValue)
                 {
-                    await LogActivity(userId.Value, "update_system_config", "Configuración del sistema actualizada", request);
+                    return Unauthorized("Usuario no autenticado");
                 }
 
-                return Ok(new { message = "Configuración actualizada correctamente" });
+                var success = true;
+
+                // Actualizar configuración de apariencia
+                if (request.Appearance != null)
+                {
+                    success &= await _configService.UpdateConfigurationAsync("Appearance", request.Appearance, userId.Value);
+                }
+
+                // Actualizar configuración de notificaciones
+                if (request.Notifications != null)
+                {
+                    success &= await _configService.UpdateConfigurationAsync("Notifications", request.Notifications, userId.Value);
+                }
+
+                // Actualizar configuración de seguridad
+                if (request.Security != null)
+                {
+                    success &= await _configService.UpdateConfigurationAsync("Security", request.Security, userId.Value);
+                }
+
+                // Actualizar configuración de backup
+                if (request.Backup != null)
+                {
+                    success &= await _configService.UpdateConfigurationAsync("Backup", request.Backup, userId.Value);
+                }
+
+                // Actualizar configuración del sistema
+                if (request.System != null)
+                {
+                    success &= await _configService.UpdateConfigurationAsync("System", request.System, userId.Value);
+                }
+
+                if (success)
+                {
+                    await LogActivity(userId.Value, "update_system_config", "Configuración del sistema actualizada", request);
+                    return Ok(new { message = "Configuración actualizada correctamente" });
+                }
+                else
+                {
+                    return StatusCode(500, "Error al actualizar algunas configuraciones");
+                }
             }
             catch (Exception ex)
             {
@@ -117,7 +110,7 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
-                var backupPath = _config["Backup:Path"] ?? "./backups";
+                var backupPath = await _configService.GetValueAsync("Backup", "BackupPath", "./backups");
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var fileName = $"backup_{timestamp}.sql";
 
@@ -151,16 +144,33 @@ namespace PortalTi.Api.Controllers
             try
             {
                 var userId = GetCurrentUserId();
-                if (userId.HasValue)
+                if (!userId.HasValue)
+                {
+                    return Unauthorized("Usuario no autenticado");
+                }
+
+                // Actualizar modo mantenimiento
+                var success = await _configService.SetValueAsync("System", "MaintenanceMode", request.Enabled.ToString(), userId.Value);
+                
+                if (request.Enabled && !string.IsNullOrEmpty(request.Message))
+                {
+                    success &= await _configService.SetValueAsync("System", "MaintenanceMessage", request.Message, userId.Value);
+                }
+
+                if (success)
                 {
                     var action = request.Enabled ? "activado" : "desactivado";
                     await LogActivity(userId.Value, "toggle_maintenance", $"Modo mantenimiento {action}");
+                    
+                    return Ok(new { 
+                        message = $"Modo mantenimiento {action} correctamente",
+                        maintenanceMode = request.Enabled
+                    });
                 }
-
-                return Ok(new { 
-                    message = $"Modo mantenimiento {(request.Enabled ? "activado" : "desactivado")} correctamente",
-                    maintenanceMode = request.Enabled
-                });
+                else
+                {
+                    return StatusCode(500, "Error al cambiar modo mantenimiento");
+                }
             }
             catch (Exception ex)
             {
@@ -207,6 +217,30 @@ namespace PortalTi.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al obtener estadísticas del sistema");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // POST: api/systemconfig/initialize
+        [HttpPost("initialize")]
+        public async Task<IActionResult> InitializeConfiguration()
+        {
+            try
+            {
+                var success = await _configService.InitializeDefaultConfigurationAsync();
+                
+                if (success)
+                {
+                    return Ok(new { message = "Configuración inicializada correctamente" });
+                }
+                else
+                {
+                    return StatusCode(500, "Error al inicializar configuración");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al inicializar configuración");
                 return StatusCode(500, "Error interno del servidor");
             }
         }
@@ -272,14 +306,11 @@ namespace PortalTi.Api.Controllers
 
     public class UpdateSystemConfigRequest
     {
-        public string? SystemName { get; set; }
-        public string? PrimaryColor { get; set; }
-        public string? Theme { get; set; }
-        public bool? EmailEnabled { get; set; }
-        public bool? PushEnabled { get; set; }
-        public int? SessionTimeoutMinutes { get; set; }
-        public bool? ForcePasswordChange { get; set; }
-        public bool? AutoBackupEnabled { get; set; }
+        public Dictionary<string, object>? Appearance { get; set; }
+        public Dictionary<string, object>? Notifications { get; set; }
+        public Dictionary<string, object>? Security { get; set; }
+        public Dictionary<string, object>? Backup { get; set; }
+        public Dictionary<string, object>? System { get; set; }
     }
 
     public class MaintenanceModeRequest

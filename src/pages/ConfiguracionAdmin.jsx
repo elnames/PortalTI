@@ -19,10 +19,8 @@ import {
     Bell,
     Database,
     Download,
-    Upload,
     Save,
     AlertTriangle,
-    HardDrive,
     BarChart3,
     RefreshCw
 } from 'lucide-react';
@@ -172,15 +170,27 @@ export default function ConfiguracionAdmin() {
     const handleSaveConfig = useCallback(async () => {
         setSaving(true);
         try {
-            await systemConfigAPI.updateConfig(systemConfig);
+            // Preparar datos para enviar al backend
+            const configToSend = {
+                Appearance: systemConfig?.Appearance || {},
+                Notifications: systemConfig?.Notifications || {},
+                Security: systemConfig?.Security || {},
+                Backup: systemConfig?.Backup || {},
+                System: systemConfig?.System || {}
+            };
+
+            await systemConfigAPI.updateConfig(configToSend);
             alert('Configuración guardada correctamente');
+            
+            // Recargar configuración para confirmar cambios
+            await fetchSystemConfig();
         } catch (err) {
             console.error('Error al guardar configuración:', err);
-            alert('Error al guardar la configuración');
+            alert('Error al guardar la configuración: ' + (err.response?.data?.message || err.message));
         } finally {
             setSaving(false);
         }
-    }, [systemConfig]);
+    }, [systemConfig, fetchSystemConfig]);
 
     const handleCreateBackup = useCallback(async () => {
         if (!window.confirm('¿Estás seguro de que quieres crear un backup del sistema?')) {
@@ -189,11 +199,11 @@ export default function ConfiguracionAdmin() {
 
         try {
             const { data } = await systemConfigAPI.createBackup();
-            alert(`Backup creado correctamente: ${data.fileName}`);
+            alert(`Backup creado correctamente: ${data.fileName}\nRuta: ${data.path}`);
             fetchSystemStats(); // Actualizar estadísticas
         } catch (err) {
             console.error('Error al crear backup:', err);
-            alert('Error al crear el backup');
+            alert('Error al crear el backup: ' + (err.response?.data?.message || err.message));
         }
     }, [fetchSystemStats]);
 
@@ -201,11 +211,31 @@ export default function ConfiguracionAdmin() {
         try {
             await systemConfigAPI.toggleMaintenance(maintenanceMode, maintenanceMessage);
             alert(`Modo mantenimiento ${maintenanceMode ? 'activado' : 'desactivado'} correctamente`);
+            
+            // Recargar configuración para confirmar cambios
+            await fetchSystemConfig();
         } catch (err) {
             console.error('Error al cambiar modo mantenimiento:', err);
-            alert('Error al cambiar el modo mantenimiento');
+            alert('Error al cambiar el modo mantenimiento: ' + (err.response?.data?.message || err.message));
         }
-    }, [maintenanceMode, maintenanceMessage]);
+    }, [maintenanceMode, maintenanceMessage, fetchSystemConfig]);
+
+    const handleInitializeConfig = useCallback(async () => {
+        if (!window.confirm('¿Estás seguro de que quieres inicializar la configuración por defecto? Esto sobrescribirá cualquier configuración existente.')) {
+            return;
+        }
+
+        try {
+            await systemConfigAPI.initializeConfig();
+            alert('Configuración inicializada correctamente');
+            
+            // Recargar configuración
+            await fetchSystemConfig();
+        } catch (err) {
+            console.error('Error al inicializar configuración:', err);
+            alert('Error al inicializar configuración: ' + (err.response?.data?.message || err.message));
+        }
+    }, [fetchSystemConfig]);
 
     const handleConfigChange = useCallback((section, key, value) => {
         setSystemConfig(prev => ({
@@ -516,6 +546,13 @@ export default function ConfiguracionAdmin() {
                             Configuración del Sistema
                         </h2>
                         <div className="flex space-x-2">
+                            <button
+                                onClick={handleInitializeConfig}
+                                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center space-x-2"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                <span>Inicializar Config</span>
+                            </button>
                             <button
                                 onClick={fetchSystemStats}
                                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"

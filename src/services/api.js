@@ -279,6 +279,7 @@ export const systemConfigAPI = {
     createBackup: () => api.post('/systemconfig/backup'),
     toggleMaintenance: (enabled, message) => api.post('/systemconfig/maintenance', { enabled, message }),
     getStats: () => api.get('/systemconfig/stats'),
+    initializeConfig: () => api.post('/systemconfig/initialize'),
 };
 
 export default api;
