@@ -8,11 +8,19 @@ const STEPS = [
   { id: 3, title: 'Revisión y envío', icon: CheckCircle, description: 'Confirmar y guardar' },
 ];
 
-export default function StepWizard({ current }) {
+const USER_STEPS = [
+  { id: 1, title: 'Datos básicos', icon: Settings, description: 'Información del usuario' },
+  { id: 2, title: 'Detalles específicos', icon: FileText, description: 'Configuración de acceso' },
+  { id: 3, title: 'Revisión y envío', icon: CheckCircle, description: 'Confirmar y guardar' },
+];
+
+export default function StepWizard({ current, type = 'activo' }) {
+  const steps = type === 'usuario' ? USER_STEPS : STEPS;
+  
   return (
     <div className="mb-8 pt-6">
       <div className="flex items-start justify-between relative">
-        {STEPS.map((step, index) => (
+        {steps.map((step, index) => (
           <div key={step.id} className="flex flex-col items-center flex-1 relative">
             {/* Step Circle */}
             <div className={`
