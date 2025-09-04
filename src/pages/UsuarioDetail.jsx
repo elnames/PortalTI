@@ -146,31 +146,34 @@ export default function UsuarioDetail() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
-          {[
-            { id: 'info', label: 'Información', icon: User },
-            { id: 'activos', label: 'Activos', icon: HardDrive, count: activosAsignados.length },
-            { id: 'tickets', label: 'Tickets', icon: Ticket, count: ticketsUsuario.length },
-            { id: 'actas', label: 'Actas', icon: FileText, count: actasUsuario.length }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full text-xs">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+        <div className="overflow-x-auto scrollbar-hide">
+          <nav className="-mb-px flex space-x-8 min-w-max px-4">
+            {[
+              { id: 'info', label: 'Información', icon: User },
+              { id: 'activos', label: 'Activos', icon: HardDrive, count: activosAsignados.length },
+              { id: 'tickets', label: 'Tickets', icon: Ticket, count: ticketsUsuario.length },
+              { id: 'actas', label: 'Actas', icon: FileText, count: actasUsuario.length }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+              >
+                <tab.icon className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                {tab.count !== undefined && (
+                  <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full text-xs">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {/* Tab Content */}

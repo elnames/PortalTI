@@ -376,7 +376,7 @@ export default function UsuariosForm({ edit = false }) {
                 >
                   {step > 1 ? 'Anterior' : 'Cancelar'}
                 </button>
-                
+
                 <button
                   type="submit"
                   disabled={isSubmitting}
