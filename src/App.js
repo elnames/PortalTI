@@ -34,6 +34,9 @@ import Chat from './pages/Chat';
 import PrevisualizarActa from './pages/PrevisualizarActa';
 import PazYSalvo from './pages/PazYSalvo';
 import Calendario from './pages/Calendario';
+import Documentacion from './pages/Documentacion';
+import Contacto from './pages/Contacto';
+import Privacidad from './pages/Privacidad';
 
 export default function App() {
   const { isSidebarOpen, toggleSidebar } = useResponsiveSidebar();
@@ -44,6 +47,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/access-denied" element={<AccessDenied />} />
       <Route path="/crear-ticket" element={<CrearTicket />} />
+      <Route path="/docs" element={<Documentacion />} />
+      <Route path="/contact" element={<Contacto />} />
+      <Route path="/privacy" element={<Privacidad />} />
 
       {/* Redirección de la ruta raíz al dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -1,5 +1,6 @@
 // src/components/Footer.jsx
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
@@ -7,9 +8,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <span>© {new Date().getFullYear()} Portal TI. Todos los derechos reservados.</span>
         <div className="space-x-4">
-          <a href="/docs" className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Documentación</a>
-          <a href="/contact" className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Contacto</a>
-          <a href="/privacy" className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Política de privacidad</a>
+          <Link to="/docs" className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Documentación</Link>
+          <Link to="/contact" className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Contacto</Link>
+          <Link to="/privacy" className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Política de privacidad</Link>
         </div>
       </div>
     </footer>
