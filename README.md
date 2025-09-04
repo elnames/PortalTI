@@ -511,12 +511,15 @@ dotnet test --filter Category=Integration
 - **`POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
 
 ### **Screenshots y Demostraciones**
-- **[📸 Screenshots del Sistema](./screenshots/README.md)**: Capturas de pantalla de todas las funcionalidades
+- **[📸 Galería de Screenshots](./docs/screenshots.md)**: Galería completa con capturas de pantalla organizadas
+- **[📸 Screenshots del Sistema](./screenshots/README.md)**: Estructura de archivos de screenshots
 - **Dashboard**: Vista principal con estadísticas y métricas
 - **Gestión de Activos**: Inventario, asignaciones y control remoto
 - **Chat en Tiempo Real**: Comunicación instantánea con SignalR
 - **Sistema de Tickets**: Soporte técnico completo
 - **Gestión de Actas**: Documentos de entrega con firma digital
+- **Calendario de TI**: Gestión de eventos y tareas
+- **Notificaciones**: Sistema de alertas en tiempo real
 
 ### **Documentación Técnica Completa**
 Para una documentación detallada de arquitectura, API, base de datos y guías de desarrollo, consulta:
