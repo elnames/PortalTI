@@ -510,6 +510,14 @@ dotnet test --filter Category=Integration
 - **`CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial (admin/admin)
 - **`POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
 
+### **Screenshots y Demostraciones**
+- **[📸 Screenshots del Sistema](./screenshots/README.md)**: Capturas de pantalla de todas las funcionalidades
+- **Dashboard**: Vista principal con estadísticas y métricas
+- **Gestión de Activos**: Inventario, asignaciones y control remoto
+- **Chat en Tiempo Real**: Comunicación instantánea con SignalR
+- **Sistema de Tickets**: Soporte técnico completo
+- **Gestión de Actas**: Documentos de entrega con firma digital
+
 ### **Documentación Técnica Completa**
 Para una documentación detallada de arquitectura, API, base de datos y guías de desarrollo, consulta:
 - **[📚 Documentación Técnica Completa](./DOCUMENTACION_TECNICA.md)**

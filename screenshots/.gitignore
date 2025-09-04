@@ -1,0 +1,12 @@
+# Screenshots temporales o de desarrollo
+temp/
+*.tmp
+*.temp
+
+# Screenshots muy grandes (>5MB)
+*.large.png
+*.large.jpg
+
+# Screenshots de prueba
+test-*
+debug-*
