@@ -1,4 +1,14 @@
+---
+layout: default
+title: Galería de Screenshots
+nav_order: 4
+description: "Capturas de pantalla del sistema PortalTI organizadas por funcionalidades"
+permalink: /docs/screenshots/
+---
+
 # 📸 Screenshots - PortalTI
+
+[← Documentación Técnica](./DOCUMENTACION_TECNICA.md) | [Seguridad →](./SECURITY.md)
 
 Esta página contiene todas las capturas de pantalla del sistema PortalTI organizadas por funcionalidades.
 

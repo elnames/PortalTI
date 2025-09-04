@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'es' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if page.title %}{{ page.title }} - {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="{{ '/favicon.ico' | relative_url }}">
+</head>
+<body>
+  <div class="site-container">
+    <!-- Navigation -->
+    {% include nav.html %}
+    
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="content-wrapper">
+        <!-- Breadcrumbs -->
+        <nav class="nav-breadcrumbs">
+          <a href="{{ '/' | relative_url }}">🏠 Inicio</a>
+          {% if page.url != '/' %}
+            <span> / </span>
+            <span>{{ page.title }}</span>
+          {% endif %}
+        </nav>
+        
+        <!-- Page Content -->
+        <article class="page-content">
+          {{ content }}
+        </article>
+        
+        <!-- Navigation Footer -->
+        <footer class="page-footer">
+          <div class="footer-content">
+            <p>
+              <strong>PortalTI</strong> - Sistema Integral de Gestión de Activos<br>
+              <small>Desarrollado con ❤️ en nombre de mi homero QEPD🐶🕊️ (02/08/25)</small>
+            </p>
+            
+            <div class="footer-links">
+              <a href="https://github.com/elnames/PortalTI" target="_blank">GitHub</a>
+              <a href="mailto:javier.rjorquera@gmail.com">Contacto</a>
+              <a href="{{ '/docs/SECURITY/' | relative_url }}">Seguridad</a>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </main>
+  </div>
+  
+  <!-- JavaScript -->
+  <script>
+    // Simple navigation highlighting
+    document.addEventListener('DOMContentLoaded', function() {
+      const currentPath = window.location.pathname;
+      const navLinks = document.querySelectorAll('.nav-link');
+      
+      navLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

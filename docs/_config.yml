@@ -1,0 +1,34 @@
+# GitHub Pages Configuration
+title: PortalTI Documentation
+description: Sistema Integral de Gestión de Activos y Necesidades Tecnológicas
+baseurl: "/PortalTI"
+url: "https://elnames.github.io"
+
+# Navigation
+navigation:
+  - title: "🏠 Inicio"
+    url: "/"
+  - title: "📚 Documentación"
+    url: "/docs/"
+  - title: "📸 Screenshots"
+    url: "/docs/screenshots"
+  - title: "🔒 Seguridad"
+    url: "/docs/SECURITY"
+  - title: "🔌 API"
+    url: "/docs/API"
+  - title: "💾 Almacenamiento"
+    url: "/docs/STORAGE"
+  - title: "📋 TODO"
+    url: "/docs/TODO"
+
+# Theme
+theme: minima
+
+# Plugins
+plugins:
+  - jekyll-sitemap
+  - jekyll-feed
+
+# Build settings
+markdown: kramdown
+highlighter: rouge

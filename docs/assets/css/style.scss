@@ -1,0 +1,121 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+// Custom styles for PortalTI Documentation
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.card {
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.card h3 a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.card h3 a:hover {
+  text-decoration: underline;
+}
+
+.card p {
+  color: #586069;
+  margin-bottom: 0;
+}
+
+// Navigation breadcrumbs
+.nav-breadcrumbs {
+  background: #f6f8fa;
+  border-bottom: 1px solid #e1e4e8;
+  padding: 0.5rem 0;
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+}
+
+.nav-breadcrumbs a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.nav-breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+// Code blocks
+.highlight {
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+}
+
+// Tables
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+table th,
+table td {
+  border: 1px solid #e1e4e8;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+table th {
+  background: #f6f8fa;
+  font-weight: 600;
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card {
+    padding: 1rem;
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: #21262d;
+    border-color: #30363d;
+    color: #f0f6fc;
+  }
+  
+  .card h3 a {
+    color: #58a6ff;
+  }
+  
+  .card p {
+    color: #8b949e;
+  }
+  
+  .nav-breadcrumbs {
+    background: #161b22;
+    border-color: #30363d;
+  }
+}

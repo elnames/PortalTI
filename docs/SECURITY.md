@@ -1,4 +1,16 @@
-# Seguridad en PortalTI
+---
+layout: default
+title: Políticas de Seguridad
+nav_order: 5
+description: "Políticas de seguridad y medidas implementadas en PortalTI"
+permalink: /docs/SECURITY/
+---
+
+# 🔒 Security Policy - PortalTI
+
+[← Galería de Screenshots](./screenshots.md) | [API Documentation →](./API.md)
+
+## Seguridad en PortalTI
 
 ## Autenticación y Autorización
 - JWT Bearer configurado con `JwtSettings` (`SecretKey`, `Issuer`, `Audience`, `ExpirationMinutes`).
