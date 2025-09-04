@@ -1,11 +1,3 @@
----
-layout: default
-title: PortalTI Documentation
-nav_order: 1
-description: "Sistema Integral de Gestión de Activos y Necesidades Tecnológicas"
-permalink: /
----
-
 # 📚 PortalTI Documentation
 
 Bienvenido a la documentación completa del sistema PortalTI.

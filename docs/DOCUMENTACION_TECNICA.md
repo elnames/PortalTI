@@ -1,11 +1,3 @@
----
-layout: default
-title: Documentación Técnica
-nav_order: 3
-description: "Documentación técnica detallada para desarrolladores"
-permalink: /docs/DOCUMENTACION_TECNICA/
----
-
 # 📚 Documentación Técnica - PortalTI
 
 [← Documentación Principal](./README.md) | [Galería de Screenshots →](./screenshots.md)

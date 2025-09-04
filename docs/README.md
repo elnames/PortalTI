@@ -1,11 +1,3 @@
----
-layout: default
-title: Documentación Principal
-nav_order: 2
-description: "Sistema Integral de Gestión de Activos y Necesidades Tecnológicas"
-permalink: /docs/README/
----
-
 # PortalTI - Sistema Integral de Gestión de Activos y Necesidades Tecnológicas
 
 [← Volver al índice](../) | [Documentación Técnica →](./DOCUMENTACION_TECNICA.md)
