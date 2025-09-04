@@ -140,28 +140,5 @@ Esta página contiene todas las capturas de pantalla del sistema PortalTI organi
 
 ---
 
-## 📱 Cómo Tomar Screenshots
-
-### Herramientas Recomendadas
-- **Windows**: `Win + Shift + S` (Herramienta de recorte)
-- **Snipping Tool**: Para capturas más detalladas
-- **Lightshot**: Para capturas con anotaciones
-- **Greenshot**: Para capturas profesionales
-
-### Mejores Prácticas
-- **Resolución**: 1920x1080 para desktop
-- **Formato**: PNG para mejor calidad
-- **Tamaño**: Máximo 2MB por imagen
-- **Nombres**: Descriptivos y en inglés
-- **Contenido**: Mostrar funcionalidades clave
-
-### Proceso de Actualización
-1. Tomar screenshot de la funcionalidad
-2. Guardar con nombre descriptivo en `screenshots/`
-3. Actualizar este archivo con la nueva imagen
-4. Hacer commit y push al repositorio
-
----
-
 **PortalTI Screenshots Gallery**  
 *Última actualización: Septiembre 2025*
