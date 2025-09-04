@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Shield, Lock, Eye, Database, Users, FileText, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Shield, Lock, Eye, Database, Users, FileText, AlertTriangle, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Privacidad() {
