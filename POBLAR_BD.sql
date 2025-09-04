@@ -182,6 +182,27 @@ SELECT @UsuariosCreados = COUNT(*) FROM NominaUsuarios
 PRINT 'Usuarios de nómina creados: ' + CAST(@UsuariosCreados AS VARCHAR(10))
 
 -- =====================================================
+-- 5.1. CREAR USUARIOS DE AUTENTICACIÓN
+-- =====================================================
+
+PRINT 'Creando usuarios de autenticación...'
+
+-- Crear usuarios de autenticación basados en usuarios de nómina
+INSERT INTO AuthUsers (Username, PasswordHash, PasswordSalt, Role, IsActive, CreatedAt)
+SELECT 
+    LOWER(LEFT(Nombre, 1) + Apellido) + CAST(ROW_NUMBER() OVER (ORDER BY Id) AS VARCHAR(10)) as Username,
+    0x48656C6C6F576F726C64 as PasswordHash, -- "HelloWorld" hasheado
+    0x53616C74 as PasswordSalt, -- "Salt"
+    CASE WHEN ROW_NUMBER() OVER (ORDER BY Id) <= 5 THEN 'admin' ELSE 'usuario' END as Role,
+    1 as IsActive,
+    GETDATE() as CreatedAt
+FROM NominaUsuarios
+
+DECLARE @AuthUsuariosCreados INT
+SELECT @AuthUsuariosCreados = COUNT(*) FROM AuthUsers
+PRINT 'Usuarios de autenticación creados: ' + CAST(@AuthUsuariosCreados AS VARCHAR(10))
+
+-- =====================================================
 -- 6. CREAR ACTIVOS (500 activos)
 -- =====================================================
 
@@ -578,8 +599,8 @@ BEGIN
     SET @Leida = CASE WHEN @i % 3 = 0 THEN 0 ELSE 1 END
     SET @FechaNotif = DATEADD(DAY, -RAND() * 30, GETDATE())
 
-    INSERT INTO Notificaciones (UsuarioId, Tipo, Mensaje, Datos, Leida, Fecha)
-    VALUES (@UsuarioIdNotif, @TipoNotif, @MensajeNotif, @DatosNotif, @Leida, @FechaNotif)
+    INSERT INTO Notificaciones (UserId, Tipo, Mensaje, Titulo, IsRead, CreatedAt, RefTipo, RefId)
+    VALUES (@UsuarioIdNotif, @TipoNotif, @MensajeNotif, 'Notificación del Sistema', @Leida, @FechaNotif, 'sistema', @i)
 
     SET @i = @i + 1
 END
@@ -604,8 +625,8 @@ WHERE CreadoPorId IN (SELECT Id FROM AuthUsers WHERE Role = 'admin' AND Id NOT I
 UPDATE UserActivityLogs SET UserId = (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' AND Username = 'admin') 
 WHERE UserId IN (SELECT Id FROM AuthUsers WHERE Role = 'admin' AND Id NOT IN (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' GROUP BY Username))
 
-UPDATE Notificaciones SET UsuarioId = (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' AND Username = 'admin') 
-WHERE UsuarioId IN (SELECT Id FROM AuthUsers WHERE Role = 'admin' AND Id NOT IN (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' GROUP BY Username))
+UPDATE Notificaciones SET UserId = (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' AND Username = 'admin') 
+WHERE UserId IN (SELECT Id FROM AuthUsers WHERE Role = 'admin' AND Id NOT IN (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' GROUP BY Username))
 
 -- Eliminar usuarios admin duplicados
 DELETE FROM AuthUsers WHERE Role = 'admin' AND Id NOT IN (SELECT MIN(Id) FROM AuthUsers WHERE Role = 'admin' GROUP BY Username)

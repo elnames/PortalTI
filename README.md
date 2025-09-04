@@ -41,6 +41,8 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Eliminación de mensajes**: Admin/soporte pueden eliminar mensajes
 - **Estados de usuario**: Indicador online/offline en tiempo real
 - **Notificaciones push**: Alertas instantáneas de nuevos mensajes
+- **Autenticación JWT**: ChatController con autorización requerida
+- **Mensajes internos**: Comunicación privada entre admin/soporte
 
 ### 📄 Sistema de Paz y Salvo
 - **Gestión documental**: Subida y gestión de documentos de paz y salvo
@@ -161,6 +163,7 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **.NET Core 8 SDK**: Framework de desarrollo
 - **SQL Server 2019+**: Base de datos (en mi caso use 2017)
 - **Visual Studio 2022** o **VS Code**: IDE recomendado
+- **SQL Server Management Studio (SSMS)**: Para ejecutar scripts SQL
 
 ### Frontend
 ```bash
@@ -205,12 +208,22 @@ dotnet watch run
 
 ### Base de Datos
 ```bash
-# Ejecutar migraciones iniciales (si no se usa Migrate en arranque)
+# Opción 1: Migraciones automáticas (recomendado)
+# El backend aplica migraciones automáticamente al iniciar
+
+# Opción 2: Script completo de base de datos
+# Ejecutar el script SQL completo para crear toda la BD desde cero
+sqlcmd -S localhost -i CREAR_BD_COMPLETA.sql
+
+# Opción 3: Migraciones manuales
 dotnet ef database update
 
 # Poblar con datos de prueba (opcional)
 # Usar el botón "🔄 Poblar BD Genérica" en el dashboard
 # O ejecutar el script SQL: POBLAR_BD.sql
+
+# Crear usuario admin inicial
+sqlcmd -S localhost -i CREAR_ADMIN.sql
 ```
 
 ## 🔧 Configuración Avanzada
@@ -317,6 +330,8 @@ PortalTI/
 ├── public/                      # Archivos estáticos
 │   ├── rustdesk.exe            # Ejecutable RustDesk
 │   └── ...
+├── CREAR_BD_COMPLETA.sql       # Script completo para crear toda la BD
+├── CREAR_ADMIN.sql             # Script para crear usuario admin inicial
 ├── POBLAR_BD.sql               # Script de población de datos
 └── README.md                   # Este archivo
 ```
@@ -489,6 +504,11 @@ dotnet test --filter Category=Integration
 ```
 
 ## 📚 Documentación
+
+### **Scripts de Base de Datos**
+- **`CREAR_BD_COMPLETA.sql`**: Script completo para crear toda la base de datos desde cero
+- **`CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial (admin/admin)
+- **`POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
 
 ### **Documentación Técnica Completa**
 Para una documentación detallada de arquitectura, API, base de datos y guías de desarrollo, consulta:

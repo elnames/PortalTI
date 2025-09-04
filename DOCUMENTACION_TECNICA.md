@@ -287,6 +287,7 @@ POST   /api/tickets/{id}/comments // Agregar comentario
 
 #### **ChatController** - Sistema de Chat (NUEVO)
 ```csharp
+[Authorize]  // ← REQUERIDO para autenticación JWT
 GET    /api/chat/conversaciones           // Listar conversaciones
 GET    /api/chat/conversaciones/archivadas // Conversaciones archivadas
 GET    /api/chat/conversaciones/{id}      // Obtener conversación
@@ -977,14 +978,22 @@ REACT_APP_ENVIRONMENT=development
 
 ### **Migraciones de Base de Datos**
 ```bash
-# Crear migración
-dotnet ef migrations add NombreMigracion
+# Opción 1: Migraciones automáticas (recomendado)
+# El backend aplica migraciones automáticamente al iniciar
 
-# Aplicar migraciones
+# Opción 2: Script completo de base de datos
+# Ejecutar el script SQL completo para crear toda la BD desde cero
+sqlcmd -S localhost -i CREAR_BD_COMPLETA.sql
+
+# Opción 3: Migraciones manuales
+dotnet ef migrations add NombreMigracion
 dotnet ef database update
 
 # Revertir migración
 dotnet ef database update NombreMigracionAnterior
+
+# Crear usuario admin inicial
+sqlcmd -S localhost -i CREAR_ADMIN.sql
 ```
 
 ### **Despliegue en Producción**
@@ -1005,18 +1014,33 @@ dotnet publish -c Release
 
 ## 🧪 Guías de Desarrollo
 
+### **Scripts de Base de Datos Disponibles**
+- **`CREAR_BD_COMPLETA.sql`**: Script completo para crear toda la base de datos desde cero
+  - Incluye todas las tablas, relaciones, índices y constraints
+  - Resuelve problemas de foreign key constraints con `ON DELETE NO ACTION`
+  - Incluye índices optimizados para rendimiento
+- **`CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial
+  - Username: `admin`
+  - Password: `admin`
+  - Hash HMACSHA512 generado correctamente
+- **`POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
+
 ### **Agregar Nueva Funcionalidad**
 1. **Crear modelo** en `Models/`
 2. **Crear migración** con `dotnet ef migrations add`
 3. **Crear controlador** en `Controllers/`
-4. **Crear componente** en `src/components/`
-5. **Crear página** en `src/pages/`
-6. **Agregar rutas** en `App.js`
-7. **Actualizar documentación**
+4. **Agregar `[Authorize]`** si requiere autenticación
+5. **Crear componente** en `src/components/`
+6. **Crear página** en `src/pages/`
+7. **Agregar rutas** en `App.js`
+8. **Actualizar documentación**
 
 ### **Estándares de Código**
 ```csharp
 // Backend - C#
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]  // ← REQUERIDO para autenticación JWT
 public class MiController : ControllerBase
 {
     private readonly ILogger<MiController> _logger;
@@ -1136,5 +1160,31 @@ public async Task Get_ReturnsOkResult()
 
 ---
 
+## 🔧 Solución de Problemas Comunes
+
+### **Error 404 en Chat de Conversaciones**
+**Problema**: El endpoint `/api/chat/conversaciones` devuelve 404
+**Causa**: El `ChatController` no tenía el atributo `[Authorize]`
+**Solución**: Agregar `[Authorize]` al controlador y reiniciar el backend
+
+```csharp
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]  // ← AGREGAR ESTA LÍNEA
+public class ChatController : ControllerBase
+```
+
+### **Error de Foreign Key Constraints**
+**Problema**: "Introducing FOREIGN KEY constraint may cause cycles or multiple cascade paths"
+**Causa**: Múltiples rutas de cascada en las relaciones
+**Solución**: Usar `ON DELETE NO ACTION` en lugar de `ON DELETE CASCADE`
+
+### **Error de Login con Admin**
+**Problema**: No se puede hacer login con el usuario admin
+**Causa**: Hash de contraseña incorrecto en la base de datos
+**Solución**: Usar el script `CREAR_ADMIN.sql` con hash HMACSHA512 correcto
+
+---
+
 **PortalTI** - Documentación Técnica Completa
-*Última actualización: Agosto 2025*
+*Última actualización: Septiembre 2025*
