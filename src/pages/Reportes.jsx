@@ -1289,7 +1289,7 @@ export default function Reportes() {
                                     </div>
                                     <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded">
                                         <h5 className="font-medium text-red-900 dark:text-red-100 mb-2">Instalaciones:</h5>
-                                        <p className="text-red-700 dark:text-red-300">Cisco Secure Endpoint, Cisco Umbrella, Rapid7, Vicarius</p>
+                                        <p className="text-red-700 dark:text-red-300">Cisco Secure Endpoint, Cisco Umbrella, Rapid7, Vicarius, Forticlient VPN</p>
                                     </div>
                                     <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded">
                                         <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Observaciones:</h5>

@@ -8,6 +8,7 @@ VALUES
 ('Cisco Umbrella', 'Seguridad', 'Crítico', 'Filtrado DNS y seguridad web', 'Latest', 1, GETUTCDATE(), 'Sistema'),
 ('Rapid7 Insight Agent', 'Seguridad', 'Obligatorio', 'Agente de monitoreo de vulnerabilidades', 'Latest', 1, GETUTCDATE(), 'Sistema'),
 ('Vicarius', 'Seguridad', 'Obligatorio', 'Plataforma de gestión de vulnerabilidades', 'Latest', 1, GETUTCDATE(), 'Sistema'),
+('Forticlient VPN', 'Seguridad', 'Obligatorio', 'Cliente VPN de Fortinet', 'Latest', 1, GETUTCDATE(), 'Sistema'),
 ('Windows Defender', 'Seguridad', 'Obligatorio', 'Antivirus integrado de Windows', 'Latest', 1, GETUTCDATE(), 'Sistema'),
 ('Firewall Windows', 'Seguridad', 'Obligatorio', 'Firewall integrado de Windows', 'Latest', 1, GETUTCDATE(), 'Sistema');
 
