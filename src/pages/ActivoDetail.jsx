@@ -1,5 +1,5 @@
 // src/pages/ActivoDetail.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
     HardDrive,
@@ -37,7 +37,7 @@ export default function ActivoDetail() {
     const [showAsignarModal, setShowAsignarModal] = useState(false)
     const { alertSuccess, alertError } = useNotificationContext()
 
-    const fetchActivo = async () => {
+    const fetchActivo = useCallback(async () => {
         if (!codigo) {
             setError('Código de activo no válido')
             setLoading(false)
@@ -54,7 +54,7 @@ export default function ActivoDetail() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [codigo])
 
     useEffect(() => {
         fetchActivo()
