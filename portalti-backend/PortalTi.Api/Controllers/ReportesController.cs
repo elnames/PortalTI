@@ -305,7 +305,7 @@ namespace PortalTi.Api.Controllers
                             Procesador = a.Activo?.Procesador ?? "N/A",
                             OSNombre = a.Activo?.SistemaOperativo ?? "Windows 10",
                             Utilizacion = "Sí", // Basado en estado activo
-                            UsoRemoto = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("forticlient") && p.Estado == "OK") == true ? "Sí" : "No",
+                            UsoRemoto = a.Activo?.Software?.Any(p => p.Nombre.ToLower().Contains("forticlient") && p.Estado == "OK") == true ? "Sí" : "No",
                             // Verificar programas de seguridad instalados
                             CiscoSecureEndpoint = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("cisco") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
                             CiscoUmbrella = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("umbrella") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
@@ -386,14 +386,14 @@ namespace PortalTi.Api.Controllers
             worksheet.Cell("A1").Style.Font.Bold = true;
             worksheet.Cell("A1").Style.Font.FontSize = 16;
             worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range("A1:T1").Merge();
+            worksheet.Range("A1:S1").Merge();
 
             // Sub-título
             worksheet.Cell("A2").Value = $"Trimestre {trimestre} - Año {año}";
             worksheet.Cell("A2").Style.Font.Bold = true;
             worksheet.Cell("A2").Style.Font.FontSize = 12;
             worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range("A2:T2").Merge();
+            worksheet.Range("A2:S2").Merge();
 
             // Fila vacía
             worksheet.Row(3).Height = 5;
@@ -427,7 +427,7 @@ namespace PortalTi.Api.Controllers
                 ("C5", "Username"), ("D5", "Correo"), ("E5", ""),
                 ("F5", "Hostname"), ("G5", "Procesador"),
                 ("H5", "O.S Name"), ("I5", "Utilización"), ("J5", "Uso Remoto"),
-                ("K5", "Cisco Secure Endpoint"), ("L5", "Cisco Umbrella"), ("M5", "Rapid7"), ("N5", "Vicarius"), ("O5", "Forticlient VPN"),
+                ("K5", "Cisco Secure Endpoint"), ("L5", "Cisco Umbrella"), ("M5", "Rapid7"), ("N5", "Vicarius"),
                 ("P5", "Fecha de Actualización"), ("Q5", "Comentarios"), ("R5", "Validación")
             };
 
@@ -459,13 +459,12 @@ namespace PortalTi.Api.Controllers
                 worksheet.Cell($"L{row}").Value = dato.CiscoUmbrella;
                 worksheet.Cell($"M{row}").Value = dato.Rapid7;
                 worksheet.Cell($"N{row}").Value = dato.Vicarius;
-                worksheet.Cell($"O{row}").Value = dato.ForticlientVPN;
                 worksheet.Cell($"P{row}").Value = dato.FechaActualizacion;
                 worksheet.Cell($"Q{row}").Value = dato.Comentarios;
                 worksheet.Cell($"R{row}").Value = dato.Validacion;
 
                 // Aplicar bordes a toda la fila
-                for (int col = 1; col <= 18; col++)
+                for (int col = 1; col <= 17; col++)
                 {
                     worksheet.Cell(row, col).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                     worksheet.Cell(row, col).Style.Border.OutsideBorderColor = borderColor;
@@ -489,13 +488,12 @@ namespace PortalTi.Api.Controllers
             worksheet.Column("L").Width = 15; // Cisco Umbrella
             worksheet.Column("M").Width = 10; // Rapid7
             worksheet.Column("N").Width = 12; // Vicarius
-            worksheet.Column("O").Width = 15; // Forticlient VPN
             worksheet.Column("P").Width = 18; // Fecha de Actualización
             worksheet.Column("Q").Width = 20; // Comentarios
             worksheet.Column("R").Width = 12; // Validación
 
             // Aplicar filtros automáticos
-            worksheet.Range("A4:R" + (row - 1)).SetAutoFilter();
+            worksheet.Range("A4:Q" + (row - 1)).SetAutoFilter();
         }
 
         private void CrearHojaCelulares(IXLWorksheet worksheet, dynamic celulares, int trimestre, int año)
