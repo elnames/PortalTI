@@ -14,10 +14,12 @@ namespace PortalTi.Api.Controllers
     public class ReportesController : ControllerBase
     {
         private readonly PortalTiContext _context;
+        private readonly ILogger<ReportesController> _logger;
 
-        public ReportesController(PortalTiContext context)
+        public ReportesController(PortalTiContext context, ILogger<ReportesController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("{tipo}")]
@@ -271,133 +273,295 @@ namespace PortalTi.Api.Controllers
                     .Where(u => u.Asignaciones.Any())
                     .ToListAsync();
 
-                var datosReporte = usuariosConAsignaciones.Select(u => new
-                {
-                    // Localidad
-                    Region = "Chile",
-                    OpCo = "VICSA",
-                    Unidad = u.Departamento ?? "Sin departamento",
-                    
-                    // Identificación
-                    Username = u.Nombre + " " + u.Apellido,
-                    UsuarioAD = u.Email != null ? u.Email.Split('@')[0] : "N/A",
-                    Correo = u.Email ?? "N/A",
-                    
-                    // Workstation (del primer activo asignado)
-                    Hostname = u.Asignaciones.FirstOrDefault()?.Activo?.Nombre ?? "N/A",
-                    Procesador = u.Asignaciones.FirstOrDefault()?.Activo?.Procesador ?? "N/A",
-                    
-                    // Status
-                    OSName = u.Asignaciones.FirstOrDefault()?.Activo?.SistemaOperativo ?? "Windows 10",
-                    Utilizacion = "Sí",
-                    UsoRemoto = "Sí",
-                    
-                    // Instalaciones (simuladas por ahora)
-                    CiscoSecureEndpoint = "Instalado",
-                    CiscoUmbrella = "Instalado",
-                    Rapid7 = "Instalado",
-                    
-                    // Observaciones
-                    FechaActualizacion = DateTime.Now.ToString("dd-MM-yyyy"),
-                    Comentar = "",
-                    Validacion = "Confirmado"
-                }).ToList();
+                // Separar equipos por tipo
+                var workstations = usuariosConAsignaciones
+                    .Where(u => u.Asignaciones?.Any(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true) == true)
+                    .Select(u => new
+                    {
+                        Region = "Región " + (u.Id % 5 + 1), // Simulado
+                        OpCo = "OpCo " + (u.Id % 3 + 1), // Simulado
+                        Username = u.Email?.Split('@')[0] ?? "N/A",
+                        Correo = u.Email ?? "N/A",
+                        Hostname = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
+                                                                        a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
+                                                                        a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
+                                                                        a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true)?.Activo?.Nombre ?? "N/A",
+                        Procesador = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
+                                                                         a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
+                                                                         a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
+                                                                         a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true)?.Activo?.Procesador ?? "Intel Core i5-8400",
+                        OSNombre = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
+                                                                       a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
+                                                                       a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
+                                                                       a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true)?.Activo?.SistemaOperativo ?? "Windows 10",
+                        Utilizacion = (u.Id % 100) + "%", // Simulado
+                        UsoRemoto = u.Id % 2 == 0 ? "Sí" : "No", // Simulado
+                        CiscoSecureEndpoint = u.Id % 2 == 0 ? "Instalado" : "No instalado", // Simulado
+                        CiscoUmbrella = u.Id % 3 == 0 ? "Instalado" : "No instalado", // Simulado
+                        Rapid7 = u.Id % 4 == 0 ? "Instalado" : "No instalado", // Simulado
+                        FechaActualizacion = DateTime.Now.AddDays(-(u.Id % 30)).ToString("dd/MM/yyyy"),
+                        Comentarios = $"Comentario para {u.Nombre}",
+                        Validacion = u.Id % 3 == 0 ? "Validado" : "Pendiente" // Simulado
+                    })
+                    .ToList();
 
-                // Crear el archivo Excel
+                var celulares = usuariosConAsignaciones
+                    .Where(u => u.Asignaciones?.Any(a => a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true) == true)
+                    .Select(u => new
+                    {
+                        Responsable = u.Nombre + " " + u.Apellido,
+                        Empresa = "VICSA",
+                        NombreDispositivo = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
+                                                                                a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
+                                                                                a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
+                                                                                a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true)?.Activo?.Nombre ?? "N/A",
+                        Fabricante = new[] { "Samsung", "Apple", "Huawei", "Xiaomi" }[u.Id % 4], // Simulado
+                        Modelo = new[] { "Galaxy S21", "iPhone 13", "P40 Pro", "Mi 11" }[u.Id % 4], // Simulado
+                        VersionOS = new[] { "Android 12", "iOS 15", "Android 11", "MIUI 12" }[u.Id % 4], // Simulado
+                        MemoriaDisponible = (u.Id % 8 + 4) + " GB", // Simulado
+                        NumeroTelefono = "+56 9 " + (u.Id % 90000000 + 10000000), // Simulado
+                        MAC = string.Join(":", Enumerable.Range(0, 6).Select(i => (u.Id + i).ToString("X2"))) // Simulado
+                    })
+                    .ToList();
+
+                // Crear libro de Excel
                 using var workbook = new XLWorkbook();
-                var worksheet = workbook.Worksheets.Add("Registros Trimestrales");
 
-                // Configurar el estilo de la cabecera principal
-                var headerStyle = workbook.Style;
-                headerStyle.Fill.BackgroundColor = XLColor.FromHtml("#1F497D");
-                headerStyle.Font.FontColor = XLColor.White;
-                headerStyle.Font.Bold = true;
-                headerStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                headerStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                // ===== HOJA WORKSTATIONS =====
+                var wsWorkstations = workbook.Worksheets.Add("Workstations");
+                CrearHojaWorkstations(wsWorkstations, workstations, trimestreActual, añoActual);
 
-                // Configurar el estilo de la sub-cabecera
-                var subHeaderStyle = workbook.Style;
-                subHeaderStyle.Fill.BackgroundColor = XLColor.FromHtml("#DCE6F1");
-                subHeaderStyle.Font.FontColor = XLColor.Black;
-                subHeaderStyle.Font.Bold = true;
-                subHeaderStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                subHeaderStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                // ===== HOJA CELULARES =====
+                var wsCelulares = workbook.Worksheets.Add("Celulares");
+                CrearHojaCelulares(wsCelulares, celulares, trimestreActual, añoActual);
 
-                // Configurar el estilo de los datos
-                var dataStyle = workbook.Style;
-                dataStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-                dataStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-
-                // Crear la cabecera principal (fila 1)
-                worksheet.Range("A1:P1").Merge();
-                worksheet.Cell("A1").Value = "REPORTE TRIMESTRAL DE REGISTROS";
-                worksheet.Cell("A1").Style = headerStyle;
-                worksheet.Row(1).Height = 30;
-
-                // Crear la sub-cabecera con información del trimestre (fila 2)
-                worksheet.Range("A2:P2").Merge();
-                worksheet.Cell("A2").Value = $"Trimestre {trimestreActual} - {añoActual}";
-                worksheet.Cell("A2").Style = subHeaderStyle;
-                worksheet.Row(2).Height = 25;
-
-                // Crear las cabeceras de columnas (fila 3)
-                var headers = new[]
-                {
-                    "Región", "OpCo", "Unidad", "Username", "Usuario AD", "Correo",
-                    "Hostname", "Procesador", "O.S Name", "Utilizac", "Uso Remo",
-                    "Cisco Secure Endp", "Cisco Umbre", "Rapid7", "Fecha de Actualizaci", "Comentar", "Validación"
-                };
-
-                for (int i = 0; i < headers.Length; i++)
-                {
-                    var cell = worksheet.Cell(3, i + 1);
-                    cell.Value = headers[i];
-                    cell.Style = subHeaderStyle;
-                    cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                }
-                worksheet.Row(3).Height = 25;
-
-                // Llenar los datos
-                for (int i = 0; i < datosReporte.Count; i++)
-                {
-                    var dato = datosReporte[i];
-                    var row = i + 4;
-
-                    var values = new[]
-                    {
-                        dato.Region, dato.OpCo, dato.Unidad, dato.Username, dato.UsuarioAD, dato.Correo,
-                        dato.Hostname, dato.Procesador, dato.OSName, dato.Utilizacion, dato.UsoRemoto,
-                        dato.CiscoSecureEndpoint, dato.CiscoUmbrella, dato.Rapid7, dato.FechaActualizacion, dato.Comentar, dato.Validacion
-                    };
-
-                    for (int j = 0; j < values.Length; j++)
-                    {
-                        var cell = worksheet.Cell(row, j + 1);
-                        cell.Value = values[j];
-                        cell.Style = dataStyle;
-                        cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                    }
-                    worksheet.Row(row).Height = 20;
-                }
-
-                // Ajustar el ancho de las columnas
-                worksheet.Columns().AdjustToContents();
-
-                // Agregar filtros a la fila de cabecera
-                worksheet.Range(3, 1, 3, headers.Length).SetAutoFilter();
-
-                // Generar el archivo en memoria
+                // Generar archivo
                 using var stream = new MemoryStream();
                 workbook.SaveAs(stream);
-                stream.Position = 0;
+                var content = stream.ToArray();
 
-                var fileName = $"Registros_Trimestrales_Q{trimestreActual}_{añoActual}_{DateTime.Now:yyyyMMdd}.xlsx";
-                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                var fileName = $"Reporte_Trimestral_Q{trimestreActual}_{añoActual}.xlsx";
+                return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error al generar reporte trimestral: {ex.Message}");
+                _logger.LogError(ex, "Error al generar reporte trimestral Excel");
+                return StatusCode(500, "Error interno del servidor al generar el reporte");
             }
+        }
+
+        private void CrearHojaWorkstations(IXLWorksheet worksheet, dynamic workstations, int trimestre, int año)
+        {
+            // Configurar estilos
+            var headerFill = XLColor.FromArgb(68, 114, 196); // Azul oscuro
+            var subHeaderFill = XLColor.FromArgb(173, 216, 230); // Azul claro
+            var borderColor = XLColor.Black;
+
+            // Título principal
+            worksheet.Cell("A1").Value = "REPORTE TRIMESTRAL DE REGISTROS - WORKSTATIONS";
+            worksheet.Cell("A1").Style.Font.Bold = true;
+            worksheet.Cell("A1").Style.Font.FontSize = 16;
+            worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Range("A1:R1").Merge();
+
+            // Sub-título
+            worksheet.Cell("A2").Value = $"Trimestre {trimestre} - Año {año}";
+            worksheet.Cell("A2").Style.Font.Bold = true;
+            worksheet.Cell("A2").Style.Font.FontSize = 12;
+            worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Range("A2:R2").Merge();
+
+            // Fila vacía
+            worksheet.Row(3).Height = 5;
+
+            // Cabeceras principales (fila 4)
+            var mainHeaders = new[]
+            {
+                ("A4:B4", "Localidad"),
+                ("C4:E4", "Identificación"),
+                ("F4:G4", "Workstation"),
+                ("H4:J4", "Status"),
+                ("K4:M4", "Instalaciones"),
+                ("N4:P4", "Observaciones")
+            };
+
+            foreach (var (range, text) in mainHeaders)
+            {
+                worksheet.Range(range).Value = text;
+                worksheet.Range(range).Style.Font.Bold = true;
+                worksheet.Range(range).Style.Font.FontColor = XLColor.White;
+                worksheet.Range(range).Style.Fill.BackgroundColor = headerFill;
+                worksheet.Range(range).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Range(range).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                worksheet.Range(range).Style.Border.OutsideBorderColor = borderColor;
+            }
+
+            // Sub-cabeceras (fila 5)
+            var subHeaders = new[]
+            {
+                ("A5", "Región"), ("B5", "OpCo"),
+                ("C5", "Username"), ("D5", "Correo"), ("E5", ""),
+                ("F5", "Hostname"), ("G5", "Procesador"),
+                ("H5", "O.S Name"), ("I5", "Utilización"), ("J5", "Uso Remoto"),
+                ("K5", "Cisco Secure Endpoint"), ("L5", "Cisco Umbrella"), ("M5", "Rapid7"),
+                ("N5", "Fecha de Actualización"), ("O5", "Comentarios"), ("P5", "Validación")
+            };
+
+            foreach (var (cell, text) in subHeaders)
+            {
+                worksheet.Cell(cell).Value = text;
+                worksheet.Cell(cell).Style.Font.Bold = true;
+                worksheet.Cell(cell).Style.Fill.BackgroundColor = subHeaderFill;
+                worksheet.Cell(cell).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(cell).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                worksheet.Cell(cell).Style.Border.OutsideBorderColor = borderColor;
+            }
+
+            // Datos
+            int row = 6;
+            foreach (var dato in workstations)
+            {
+                worksheet.Cell($"A{row}").Value = dato.Region;
+                worksheet.Cell($"B{row}").Value = dato.OpCo;
+                worksheet.Cell($"C{row}").Value = dato.Username;
+                worksheet.Cell($"D{row}").Value = dato.Correo;
+                worksheet.Cell($"E{row}").Value = "";
+                worksheet.Cell($"F{row}").Value = dato.Hostname;
+                worksheet.Cell($"G{row}").Value = dato.Procesador;
+                worksheet.Cell($"H{row}").Value = dato.OSNombre;
+                worksheet.Cell($"I{row}").Value = dato.Utilizacion;
+                worksheet.Cell($"J{row}").Value = dato.UsoRemoto;
+                worksheet.Cell($"K{row}").Value = dato.CiscoSecureEndpoint;
+                worksheet.Cell($"L{row}").Value = dato.CiscoUmbrella;
+                worksheet.Cell($"M{row}").Value = dato.Rapid7;
+                worksheet.Cell($"N{row}").Value = dato.FechaActualizacion;
+                worksheet.Cell($"O{row}").Value = dato.Comentarios;
+                worksheet.Cell($"P{row}").Value = dato.Validacion;
+
+                // Aplicar bordes a toda la fila
+                for (int col = 1; col <= 16; col++)
+                {
+                    worksheet.Cell(row, col).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Cell(row, col).Style.Border.OutsideBorderColor = borderColor;
+                }
+
+                row++;
+            }
+
+            // Ajustar ancho de columnas
+            worksheet.Column("A").Width = 12; // Región
+            worksheet.Column("B").Width = 10; // OpCo
+            worksheet.Column("C").Width = 15; // Username
+            worksheet.Column("D").Width = 20; // Correo
+            worksheet.Column("E").Width = 5;  // Vacío
+            worksheet.Column("F").Width = 18; // Hostname
+            worksheet.Column("G").Width = 20; // Procesador
+            worksheet.Column("H").Width = 15; // O.S Name
+            worksheet.Column("I").Width = 12; // Utilización
+            worksheet.Column("J").Width = 10; // Uso Remoto
+            worksheet.Column("K").Width = 18; // Cisco Secure Endpoint
+            worksheet.Column("L").Width = 15; // Cisco Umbrella
+            worksheet.Column("M").Width = 10; // Rapid7
+            worksheet.Column("N").Width = 18; // Fecha de Actualización
+            worksheet.Column("O").Width = 20; // Comentarios
+            worksheet.Column("P").Width = 12; // Validación
+
+            // Aplicar filtros automáticos
+            worksheet.Range("A4:P" + (row - 1)).SetAutoFilter();
+        }
+
+        private void CrearHojaCelulares(IXLWorksheet worksheet, dynamic celulares, int trimestre, int año)
+        {
+            // Configurar estilos
+            var headerFill = XLColor.FromArgb(68, 114, 196); // Azul oscuro
+            var subHeaderFill = XLColor.FromArgb(173, 216, 230); // Azul claro
+            var borderColor = XLColor.Black;
+
+            // Título principal
+            worksheet.Cell("A1").Value = "REPORTE TRIMESTRAL DE REGISTROS - CELULARES";
+            worksheet.Cell("A1").Style.Font.Bold = true;
+            worksheet.Cell("A1").Style.Font.FontSize = 16;
+            worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Range("A1:I1").Merge();
+
+            // Sub-título
+            worksheet.Cell("A2").Value = $"Trimestre {trimestre} - Año {año}";
+            worksheet.Cell("A2").Style.Font.Bold = true;
+            worksheet.Cell("A2").Style.Font.FontSize = 12;
+            worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Range("A2:I2").Merge();
+
+            // Fila vacía
+            worksheet.Row(3).Height = 5;
+
+            // Cabeceras (fila 4)
+            var headers = new[]
+            {
+                ("A4", "Responsable"),
+                ("B4", "Empresa"),
+                ("C4", "Nombre del Dispositivo"),
+                ("D4", "Fabricante"),
+                ("E4", "Modelo"),
+                ("F4", "Version OS"),
+                ("G4", "Memória Disponible"),
+                ("H4", "Número de Teléfono"),
+                ("I4", "MAC")
+            };
+
+            foreach (var (cell, text) in headers)
+            {
+                worksheet.Cell(cell).Value = text;
+                worksheet.Cell(cell).Style.Font.Bold = true;
+                worksheet.Cell(cell).Style.Font.FontColor = XLColor.White;
+                worksheet.Cell(cell).Style.Fill.BackgroundColor = headerFill;
+                worksheet.Cell(cell).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(cell).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                worksheet.Cell(cell).Style.Border.OutsideBorderColor = borderColor;
+            }
+
+            // Datos
+            int row = 5;
+            foreach (var dato in celulares)
+            {
+                worksheet.Cell($"A{row}").Value = dato.Responsable;
+                worksheet.Cell($"B{row}").Value = dato.Empresa;
+                worksheet.Cell($"C{row}").Value = dato.NombreDispositivo;
+                worksheet.Cell($"D{row}").Value = dato.Fabricante;
+                worksheet.Cell($"E{row}").Value = dato.Modelo;
+                worksheet.Cell($"F{row}").Value = dato.VersionOS;
+                worksheet.Cell($"G{row}").Value = dato.MemoriaDisponible;
+                worksheet.Cell($"H{row}").Value = dato.NumeroTelefono;
+                worksheet.Cell($"I{row}").Value = dato.MAC;
+
+                // Aplicar bordes a toda la fila
+                for (int col = 1; col <= 9; col++)
+                {
+                    worksheet.Cell(row, col).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    worksheet.Cell(row, col).Style.Border.OutsideBorderColor = borderColor;
+                }
+
+                row++;
+            }
+
+            // Ajustar ancho de columnas
+            worksheet.Column("A").Width = 20; // Responsable
+            worksheet.Column("B").Width = 15; // Empresa
+            worksheet.Column("C").Width = 25; // Nombre del Dispositivo
+            worksheet.Column("D").Width = 15; // Fabricante
+            worksheet.Column("E").Width = 20; // Modelo
+            worksheet.Column("F").Width = 15; // Version OS
+            worksheet.Column("G").Width = 18; // Memória Disponible
+            worksheet.Column("H").Width = 20; // Número de Teléfono
+            worksheet.Column("I").Width = 20; // MAC
+
+            // Aplicar filtros automáticos
+            worksheet.Range("A4:I" + (row - 1)).SetAutoFilter();
         }
     }
 } 

@@ -1256,28 +1256,114 @@ export default function Reportes() {
                         {/* Información del reporte */}
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg">
                             <h4 className="font-medium text-gray-900 dark:text-white mb-4">Información del Reporte</h4>
+                            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                Este reporte genera un archivo Excel con <strong>dos hojas separadas</strong>: una para workstations (laptops, desktops, computadores)
+                                y otra para celulares (teléfonos, smartphones). Cada hoja tiene su propia estructura de columnas específica.
+                            </p>
+                        </div>
+
+                        {/* Estructura de las hojas */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Hoja Workstations */}
+                            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                                <h4 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                                    <Monitor className="w-5 h-5 mr-2 text-blue-600" />
+                                    Hoja "Workstations"
+                                </h4>
+                                <div className="space-y-3 text-sm">
+                                    <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Localidad:</h5>
+                                        <p className="text-blue-700 dark:text-blue-300">Región, OpCo</p>
+                                    </div>
+                                    <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-green-900 dark:text-green-100 mb-2">Identificación:</h5>
+                                        <p className="text-green-700 dark:text-green-300">Username, Correo</p>
+                                    </div>
+                                    <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Workstation:</h5>
+                                        <p className="text-purple-700 dark:text-purple-300">Hostname, Procesador</p>
+                                    </div>
+                                    <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-orange-900 dark:text-orange-100 mb-2">Status:</h5>
+                                        <p className="text-orange-700 dark:text-orange-300">O.S Name, Utilización, Uso Remoto</p>
+                                    </div>
+                                    <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-red-900 dark:text-red-100 mb-2">Instalaciones:</h5>
+                                        <p className="text-red-700 dark:text-red-300">Cisco Secure Endpoint, Cisco Umbrella, Rapid7</p>
+                                    </div>
+                                    <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded">
+                                        <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Observaciones:</h5>
+                                        <p className="text-gray-700 dark:text-gray-300">Fecha de Actualización, Comentarios, Validación</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Hoja Celulares */}
+                            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-600">
+                                <h4 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                                    <Smartphone className="w-5 h-5 mr-2 text-green-600" />
+                                    Hoja "Celulares"
+                                </h4>
+                                <div className="space-y-3 text-sm">
+                                    <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Responsable:</h5>
+                                        <p className="text-blue-700 dark:text-blue-300">Nombre del responsable</p>
+                                    </div>
+                                    <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-green-900 dark:text-green-100 mb-2">Empresa:</h5>
+                                        <p className="text-green-700 dark:text-green-300">Nombre de la empresa</p>
+                                    </div>
+                                    <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-purple-900 dark:text-purple-100 mb-2">Dispositivo:</h5>
+                                        <p className="text-purple-700 dark:text-purple-300">Nombre del Dispositivo, Fabricante, Modelo</p>
+                                    </div>
+                                    <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-orange-900 dark:text-orange-100 mb-2">Especificaciones:</h5>
+                                        <p className="text-orange-700 dark:text-orange-300">Version OS, Memória Disponible</p>
+                                    </div>
+                                    <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded">
+                                        <h5 className="font-medium text-red-900 dark:text-red-100 mb-2">Contacto:</h5>
+                                        <p className="text-red-700 dark:text-red-300">Número de Teléfono, MAC</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Características del reporte */}
+                        <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg">
+                            <h4 className="font-medium text-green-900 dark:text-green-100 mb-4">Características del Reporte</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                                        <strong>Formato:</strong> Excel (.xlsx)
-                                    </p>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                                        <strong>Estructura:</strong> Tabla con columnas agrupadas
-                                    </p>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                                        <strong>Datos incluidos:</strong> Usuarios con activos asignados
-                                    </p>
+                                    <ul className="space-y-2 text-green-700 dark:text-green-300">
+                                        <li className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            <strong>Dos hojas separadas:</strong> Workstations y Celulares
+                                        </li>
+                                        <li className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            <strong>Filtrado automático:</strong> Solo equipos del tipo correspondiente
+                                        </li>
+                                        <li className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            <strong>Formato profesional:</strong> Estilos y colores corporativos
+                                        </li>
+                                    </ul>
                                 </div>
                                 <div>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                                        <strong>Columnas:</strong> Localidad, Identificación, Workstation, Status, Instalaciones, Observaciones
-                                    </p>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                                        <strong>Filtros:</strong> Incluidos en el archivo Excel
-                                    </p>
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                                        <strong>Formato:</strong> Colores y estilos profesionales
-                                    </p>
+                                    <ul className="space-y-2 text-green-700 dark:text-green-300">
+                                        <li className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            <strong>Filtros automáticos:</strong> Para facilitar el análisis
+                                        </li>
+                                        <li className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            <strong>Datos actualizados:</strong> Información en tiempo real
+                                        </li>
+                                        <li className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            <strong>Estructura exacta:</strong> Como el documento "Endpoints Dispositivos"
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -1303,59 +1389,6 @@ export default function Reportes() {
                             </button>
                         </div>
 
-                        {/* Vista previa de la estructura */}
-                        <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
-                            <h4 className="font-medium text-gray-900 dark:text-white mb-4">Vista Previa de la Estructura</h4>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                                    <thead>
-                                        <tr className="bg-blue-600 text-white">
-                                            <th className="px-3 py-2 text-left">Región</th>
-                                            <th className="px-3 py-2 text-left">OpCo</th>
-                                            <th className="px-3 py-2 text-left">Unidad</th>
-                                            <th className="px-3 py-2 text-left">Username</th>
-                                            <th className="px-3 py-2 text-left">Usuario AD</th>
-                                            <th className="px-3 py-2 text-left">Correo</th>
-                                            <th className="px-3 py-2 text-left">Hostname</th>
-                                            <th className="px-3 py-2 text-left">Procesador</th>
-                                            <th className="px-3 py-2 text-left">O.S Name</th>
-                                            <th className="px-3 py-2 text-left">Utilizac</th>
-                                            <th className="px-3 py-2 text-left">Uso Remo</th>
-                                            <th className="px-3 py-2 text-left">Cisco Secure Endp</th>
-                                            <th className="px-3 py-2 text-left">Cisco Umbre</th>
-                                            <th className="px-3 py-2 text-left">Rapid7</th>
-                                            <th className="px-3 py-2 text-left">Fecha de Actualizaci</th>
-                                            <th className="px-3 py-2 text-left">Comentar</th>
-                                            <th className="px-3 py-2 text-left">Validación</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr className="bg-white dark:bg-gray-800">
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Chile</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">VICSA</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Departamento</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Nombre Usuario</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">usuario</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">usuario@vicsa.cl</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">EQUIPO-001</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Intel Core i5</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Windows 10</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Sí</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Sí</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Instalado</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Instalado</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Instalado</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">05-09-2025</td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600"></td>
-                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Confirmado</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                * Esta es una vista previa de la estructura. El archivo Excel incluirá todos los usuarios con activos asignados.
-                            </p>
-                        </div>
                     </div>
                 )}
             </div>
