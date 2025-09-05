@@ -214,8 +214,8 @@ export default function ActivoDetail() {
                     <nav className="-mb-px flex space-x-8 min-w-max px-4">
                         {[
                             { id: 'info', label: 'Información', icon: HardDrive },
-                            { id: 'software', label: 'Software & Seguridad', icon: Shield, show: true },
-                            { id: 'conexion', label: 'Conexión Remota', icon: Monitor, show: true },
+                            { id: 'software', label: 'Software & Seguridad', icon: Shield, show: activo?.tipoEquipo?.toLowerCase() === 'equipo' },
+                            { id: 'conexion', label: 'Conexión Remota', icon: Monitor, show: activo?.tipoEquipo?.toLowerCase() === 'equipo' },
                             { id: 'asignacion', label: 'Asignación', icon: User, show: true },
                             { id: 'historial', label: 'Historial', icon: History, show: true }
                         ].filter(tab => tab.show !== false).map((tab) => (
