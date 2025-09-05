@@ -1,0 +1,29 @@
+name: 📚 Deploy Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'docs/**', 'README.md' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'docs/**', 'README.md' ]
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+      
+    - name: 📚 Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: 🚀 Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '.'
+        
+    - name: 🌐 Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

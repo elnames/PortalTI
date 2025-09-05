@@ -1,0 +1,28 @@
+# PortalTI Code Owners
+# Este archivo define quién es responsable de diferentes partes del código
+
+# Propietario global del proyecto
+* @elnames
+
+# Documentación
+docs/ @elnames
+README.md @elnames
+*.md @elnames
+
+# Frontend (React)
+src/ @elnames
+public/ @elnames
+package.json @elnames
+package-lock.json @elnames
+tailwind.config.js @elnames
+postcss.config.js @elnames
+
+# Backend (ASP.NET Core)
+portalti-backend/ @elnames
+
+# Scripts de base de datos
+portalti-backend/PortalTi.Api/Scripts/ @elnames
+
+# Configuración de GitHub
+.github/ @elnames
+.gitattributes @elnames

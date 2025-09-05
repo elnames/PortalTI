@@ -1,0 +1,94 @@
+# Markdown files
+*.md linguist-language=Markdown
+*.md text eol=lf
+
+# Documentation files
+docs/*.md linguist-documentation
+docs/*.md text eol=lf
+
+# SQL files
+*.sql linguist-language=SQL
+*.sql text eol=lf
+
+# JavaScript/TypeScript files
+*.js linguist-language=JavaScript
+*.jsx linguist-language=JavaScript
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+
+# C# files
+*.cs linguist-language=C#
+
+# JSON files
+*.json linguist-language=JSON
+
+# CSS files
+*.css linguist-language=CSS
+
+# HTML files
+*.html linguist-language=HTML
+
+# PowerShell files
+*.ps1 linguist-language=PowerShell
+
+# Batch files
+*.bat linguist-language=Batchfile
+*.cmd linguist-language=Batchfile
+
+# YAML files
+*.yml linguist-language=YAML
+*.yaml linguist-language=YAML
+
+# XML files
+*.xml linguist-language=XML
+
+# Configuration files
+*.config linguist-language=XML
+*.csproj linguist-language=XML
+*.sln linguist-language=Visual Studio Solution
+
+# Image files
+*.png linguist-detectable
+*.jpg linguist-detectable
+*.jpeg linguist-detectable
+*.gif linguist-detectable
+*.svg linguist-detectable
+*.ico linguist-detectable
+
+# Binary files
+*.exe linguist-documentation
+*.dll linguist-documentation
+*.pdb linguist-documentation
+
+# Database files
+*.mdf linguist-documentation
+*.ldf linguist-documentation
+*.bak linguist-documentation
+
+# Archive files
+*.zip linguist-documentation
+*.rar linguist-documentation
+*.7z linguist-documentation
+
+# Log files
+*.log linguist-documentation
+*.txt linguist-documentation
+
+# Ensure consistent line endings
+* text=auto
+*.md text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.cs text eol=crlf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.config text eol=crlf
+*.csproj text eol=crlf
+*.sln text eol=crlf

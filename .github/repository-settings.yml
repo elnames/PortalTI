@@ -1,0 +1,70 @@
+# Configuración del repositorio PortalTI
+# Este archivo define la configuración recomendada para el repositorio
+
+repository:
+  name: PortalTI
+  description: Sistema Integral de Gestión de Activos, Tickets, Usuarios y Reportes Empresariales
+  topics:
+    - react
+    - aspnet-core
+    - sql-server
+    - asset-management
+    - ticketing-system
+    - enterprise-software
+    - csharp
+    - javascript
+    - typescript
+    - tailwindcss
+    - entity-framework
+    - jwt-authentication
+    - microsoft-teams
+    - excel-reports
+    - real-time-notifications
+
+  # Configuración de issues
+  issues:
+    enabled: true
+    templates:
+      - bug-report
+      - feature-request
+      - documentation
+
+  # Configuración de proyectos
+  projects:
+    enabled: true
+
+  # Configuración de wiki
+  wiki:
+    enabled: false
+
+  # Configuración de páginas
+  pages:
+    source: "GitHub Actions"
+    branch: "main"
+
+  # Configuración de seguridad
+  security:
+    vulnerability_alerts: true
+    secret_scanning: true
+    push_protection: true
+
+  # Configuración de merge
+  merge:
+    squash_merge: true
+    merge_commit: false
+    rebase_merge: false
+
+  # Configuración de branches
+  branches:
+    default: "main"
+    protection:
+      - name: "main"
+        required_status_checks:
+          strict: true
+          contexts: ["build", "test"]
+        enforce_admins: true
+        required_pull_request_reviews:
+          required_approving_review_count: 1
+          dismiss_stale_reviews: true
+          require_code_owner_reviews: true
+        restrictions: null
