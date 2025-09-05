@@ -280,21 +280,27 @@ namespace PortalTi.Api.Controllers
                     .Where(u => u.Asignaciones.Any(a => a.Estado == "Activa"))
                     .ToListAsync();
 
+                // Log para depuración
+                _logger.LogInformation($"Total usuarios con asignaciones: {usuariosConAsignaciones.Count}");
+                foreach (var usuario in usuariosConAsignaciones.Take(5))
+                {
+                    _logger.LogInformation($"Usuario: {usuario.Nombre} {usuario.Apellido}, Asignaciones: {usuario.Asignaciones?.Count ?? 0}");
+                    if (usuario.Asignaciones != null)
+                    {
+                        foreach (var asignacion in usuario.Asignaciones.Take(3))
+                        {
+                            _logger.LogInformation($"  - Activo: {asignacion.Activo?.Nombre}, Categoria: {asignacion.Activo?.Categoria}, Estado: {asignacion.Estado}");
+                        }
+                    }
+                }
+
                 // Separar equipos por tipo - WORKSTATIONS
                 var workstations = usuariosConAsignaciones
                     .Where(u => u.Asignaciones?.Any(a => a.Estado == "Activa" && 
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true ||
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("pc") == true) == true)
+                                                         a.Activo?.Categoria?.ToLower() == "equipos") == true)
                     .SelectMany(u => u.Asignaciones
                         .Where(a => a.Estado == "Activa" && 
-                                   (a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("pc") == true))
+                                   a.Activo?.Categoria?.ToLower() == "equipos")
                         .Select(a => new
                         {
                             Region = "Chile", // Datos reales de la base
@@ -317,23 +323,15 @@ namespace PortalTi.Api.Controllers
                         }))
                     .ToList();
 
+                _logger.LogInformation($"Workstations encontrados: {workstations.Count}");
+
                 // Separar equipos por tipo - CELULARES
                 var celulares = usuariosConAsignaciones
                     .Where(u => u.Asignaciones?.Any(a => a.Estado == "Activa" && 
-                                                         (a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
-                                                          a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
-                                                          a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
-                                                          a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true ||
-                                                          a.Activo?.TipoEquipo?.ToLower().Contains("iphone") == true ||
-                                                          a.Activo?.TipoEquipo?.ToLower().Contains("android") == true)) == true)
+                                                         a.Activo?.Categoria?.ToLower() == "móviles") == true)
                     .SelectMany(u => u.Asignaciones
                         .Where(a => a.Estado == "Activa" && 
-                                   (a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("iphone") == true ||
-                                    a.Activo?.TipoEquipo?.ToLower().Contains("android") == true))
+                                   a.Activo?.Categoria?.ToLower() == "móviles")
                         .Select(a => new
                         {
                             Responsable = u.Nombre + " " + u.Apellido,
@@ -347,6 +345,8 @@ namespace PortalTi.Api.Controllers
                             MAC = a.Activo?.Imei ?? "N/A"
                         }))
                     .ToList();
+
+                _logger.LogInformation($"Celulares encontrados: {celulares.Count}");
 
                 // Crear libro de Excel
                 using var workbook = new XLWorkbook();
@@ -527,7 +527,7 @@ namespace PortalTi.Api.Controllers
                 ("D4", "Fabricante"),
                 ("E4", "Modelo"),
                 ("F4", "Version OS"),
-                ("G4", "Memória Disponible"),
+                ("G4", "Memoria Disponible"),
                 ("H4", "Número de Teléfono"),
                 ("I4", "MAC")
             };
