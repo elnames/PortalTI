@@ -21,11 +21,23 @@ namespace PortalTi.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProgramaEstandar>>> GetProgramasEstandar()
         {
-            return await _context.ProgramasEstandar
-                .Where(p => p.Activo)
-                .OrderBy(p => p.Categoria)
-                .ThenBy(p => p.Nombre)
-                .ToListAsync();
+            try
+            {
+                Console.WriteLine("Solicitando programas estándar...");
+                var programas = await _context.ProgramasEstandar
+                    .Where(p => p.Activo)
+                    .OrderBy(p => p.Categoria)
+                    .ThenBy(p => p.Nombre)
+                    .ToListAsync();
+                
+                Console.WriteLine($"Programas encontrados: {programas.Count}");
+                return programas;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al obtener programas estándar: {ex.Message}");
+                return StatusCode(500, "Error interno del servidor");
+            }
         }
 
         // GET: api/programasestandar/5

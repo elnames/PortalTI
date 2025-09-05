@@ -64,14 +64,21 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
 
     const loadProgramasEstandar = async () => {
         try {
+            console.log('Cargando programas estándar...');
             const response = await programasEstandarAPI.getAll();
+            console.log('Respuesta de programas estándar:', response);
             const programas = response.data;
+            console.log('Programas recibidos:', programas);
             setProgramasEstandar(programas);
             setProgramasSoftware(programas.filter(p => p.categoria === 'Software'));
             setProgramasSeguridad(programas.filter(p => p.categoria === 'Seguridad'));
             setProgramasLicencias(programas.filter(p => p.categoria === 'Licencia'));
+            console.log('Programas de software:', programas.filter(p => p.categoria === 'Software'));
+            console.log('Programas de seguridad:', programas.filter(p => p.categoria === 'Seguridad'));
+            console.log('Programas de licencias:', programas.filter(p => p.categoria === 'Licencia'));
         } catch (error) {
             console.error('Error al cargar programas estándar:', error);
+            alertError('Error al cargar programas estándar: ' + error.message);
         }
     };
 
