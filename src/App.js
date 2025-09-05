@@ -34,6 +34,7 @@ import Chat from './pages/Chat';
 import PrevisualizarActa from './pages/PrevisualizarActa';
 import PazYSalvo from './pages/PazYSalvo';
 import Calendario from './pages/Calendario';
+import MicrosoftCallback from './pages/MicrosoftCallback';
 import Documentacion from './pages/Documentacion';
 import Contacto from './pages/Contacto';
 import Privacidad from './pages/Privacidad';
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/docs" element={<Documentacion />} />
       <Route path="/contact" element={<Contacto />} />
       <Route path="/privacy" element={<Privacidad />} />
+      <Route path="/auth/microsoft/callback" element={<MicrosoftCallback />} />
 
       {/* Redirección de la ruta raíz al dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
