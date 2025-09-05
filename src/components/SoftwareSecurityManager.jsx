@@ -82,6 +82,64 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
         }
     };
 
+    const handleTogglePrograma = async (programa, tipo) => {
+        try {
+            const isInstalado = tipo === 'software' 
+                ? softwareList.some(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()))
+                : tipo === 'seguridad'
+                ? programasSeguridadList.some(p => p.nombre.toLowerCase().includes(programa.nombre.toLowerCase()))
+                : licenciasList.some(l => l.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+
+            if (isInstalado) {
+                // Si está instalado, eliminarlo
+                if (tipo === 'software') {
+                    const softwareToRemove = softwareList.find(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                    if (softwareToRemove) {
+                        await softwareAPI.delete(softwareToRemove.id);
+                        loadSoftware();
+                    }
+                } else if (tipo === 'seguridad') {
+                    const programaToRemove = programasSeguridadList.find(p => p.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                    if (programaToRemove) {
+                        await programasSeguridadAPI.delete(programaToRemove.id);
+                        loadProgramasSeguridad();
+                    }
+                } else if (tipo === 'licencia') {
+                    const licenciaToRemove = licenciasList.find(l => l.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                    if (licenciaToRemove) {
+                        await licenciasAPI.delete(licenciaToRemove.id);
+                        loadLicencias();
+                    }
+                }
+                alertSuccess(`${programa.nombre} eliminado correctamente`);
+            } else {
+                // Si no está instalado, agregarlo
+                const nuevoItem = {
+                    nombre: programa.nombre,
+                    version: programa.versionRecomendada || 'Latest',
+                    estado: 'OK',
+                    fechaInstalacion: new Date().toISOString().split('T')[0],
+                    notas: `Agregado desde programas estándar - ${programa.descripcion || ''}`
+                };
+
+                if (tipo === 'software') {
+                    await softwareAPI.create(nuevoItem);
+                    loadSoftware();
+                } else if (tipo === 'seguridad') {
+                    await programasSeguridadAPI.create(nuevoItem);
+                    loadProgramasSeguridad();
+                } else if (tipo === 'licencia') {
+                    await licenciasAPI.create(nuevoItem);
+                    loadLicencias();
+                }
+                alertSuccess(`${programa.nombre} agregado correctamente`);
+            }
+        } catch (error) {
+            console.error('Error al toggle programa:', error);
+            alertError('Error al actualizar programa: ' + error.message);
+        }
+    };
+
     const getUserNameById = (userId) => {
         if (!userId || !usuarios.length) return 'No asignado';
         const usuario = usuarios.find(u => u.id === userId);
@@ -253,10 +311,11 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     return (
                                         <div 
                                             key={programa.id} 
-                                            className={`p-2 rounded border text-xs ${
+                                            onClick={() => handleTogglePrograma(programa, 'software')}
+                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
                                                 isInstalado 
                                                     ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
-                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
                                             }`}
                                         >
                                             <div className="flex items-center justify-between">
@@ -342,10 +401,11 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     return (
                                         <div 
                                             key={programa.id} 
-                                            className={`p-2 rounded border text-xs ${
+                                            onClick={() => handleTogglePrograma(programa, 'seguridad')}
+                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
                                                 isInstalado 
                                                     ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
-                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
                                             }`}
                                         >
                                             <div className="flex items-center justify-between">
@@ -429,10 +489,11 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     return (
                                         <div 
                                             key={programa.id} 
-                                            className={`p-2 rounded border text-xs ${
+                                            onClick={() => handleTogglePrograma(programa, 'licencia')}
+                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
                                                 isAsignada 
                                                     ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
-                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
                                             }`}
                                         >
                                             <div className="flex items-center justify-between">

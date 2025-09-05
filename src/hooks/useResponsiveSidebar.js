@@ -5,11 +5,11 @@ export function useResponsiveSidebar() {
 
     useEffect(() => {
         const handleResize = () => {
-            // En pantallas pequeñas (menos de 1024px), cerrar el sidebar automáticamente
-            if (window.innerWidth < 1024) {
+            // Solo cerrar automáticamente en pantallas muy pequeñas (menos de 768px)
+            if (window.innerWidth < 768) {
                 setIsSidebarOpen(false);
             } else {
-                // En pantallas grandes, mantener el sidebar abierto por defecto
+                // En pantallas medianas y grandes, mantener el sidebar abierto
                 setIsSidebarOpen(true);
             }
         };
