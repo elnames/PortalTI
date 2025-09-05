@@ -311,7 +311,7 @@ namespace PortalTi.Api.Controllers
                             CiscoUmbrella = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("umbrella") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
                             Rapid7 = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("rapid7") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
                             Vicarius = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("vicarius") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
-                            FechaActualizacion = a.FechaAsignacion.ToString("dd/MM/yyyy"),
+                            FechaActualizacion = DateTime.Now.ToString("dd/MM/yyyy"),
                             Comentarios = a.Observaciones ?? "",
                             Validacion = "Confirmado" // Basado en asignación activa
                         }))
@@ -386,14 +386,14 @@ namespace PortalTi.Api.Controllers
             worksheet.Cell("A1").Style.Font.Bold = true;
             worksheet.Cell("A1").Style.Font.FontSize = 16;
             worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range("A1:S1").Merge();
+            worksheet.Range("A1:P1").Merge();
 
             // Sub-título
             worksheet.Cell("A2").Value = $"Trimestre {trimestre} - Año {año}";
             worksheet.Cell("A2").Style.Font.Bold = true;
             worksheet.Cell("A2").Style.Font.FontSize = 12;
             worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range("A2:S2").Merge();
+            worksheet.Range("A2:P2").Merge();
 
             // Fila vacía
             worksheet.Row(3).Height = 5;
@@ -402,11 +402,11 @@ namespace PortalTi.Api.Controllers
             var mainHeaders = new[]
             {
                 ("A4:B4", "Localidad"),
-                ("C4:E4", "Identificación"),
-                ("F4:G4", "Workstation"),
-                ("H4:J4", "Status"),
-                ("K4:O4", "Instalaciones"),
-                ("P4:R4", "Observaciones")
+                ("C4:D4", "Identificación"),
+                ("E4:F4", "Workstation"),
+                ("G4:I4", "Status"),
+                ("J4:M4", "Instalaciones"),
+                ("N4:P4", "Observaciones")
             };
 
             foreach (var (range, text) in mainHeaders)
@@ -424,11 +424,11 @@ namespace PortalTi.Api.Controllers
             var subHeaders = new[]
             {
                 ("A5", "Región"), ("B5", "OpCo"),
-                ("C5", "Username"), ("D5", "Correo"), ("E5", ""),
-                ("F5", "Hostname"), ("G5", "Procesador"),
-                ("H5", "O.S Name"), ("I5", "Utilización"), ("J5", "Uso Remoto"),
-                ("K5", "Cisco Secure Endpoint"), ("L5", "Cisco Umbrella"), ("M5", "Rapid7"), ("N5", "Vicarius"),
-                ("P5", "Fecha de Actualización"), ("Q5", "Comentarios"), ("R5", "Validación")
+                ("C5", "Username"), ("D5", "Correo"),
+                ("E5", "Hostname"), ("F5", "Procesador"),
+                ("G5", "O.S Name"), ("H5", "Utilización"), ("I5", "Uso Remoto"),
+                ("J5", "Cisco Secure Endpoint"), ("K5", "Cisco Umbrella"), ("L5", "Rapid7"), ("M5", "Vicarius"),
+                ("N5", "Fecha de Actualización"), ("O5", "Comentarios"), ("P5", "Validación")
             };
 
             foreach (var (cell, text) in subHeaders)
@@ -449,22 +449,21 @@ namespace PortalTi.Api.Controllers
                 worksheet.Cell($"B{row}").Value = dato.OpCo;
                 worksheet.Cell($"C{row}").Value = dato.Username;
                 worksheet.Cell($"D{row}").Value = dato.Correo;
-                worksheet.Cell($"E{row}").Value = "";
-                worksheet.Cell($"F{row}").Value = dato.Hostname;
-                worksheet.Cell($"G{row}").Value = dato.Procesador;
-                worksheet.Cell($"H{row}").Value = dato.OSNombre;
-                worksheet.Cell($"I{row}").Value = dato.Utilizacion;
-                worksheet.Cell($"J{row}").Value = dato.UsoRemoto;
-                worksheet.Cell($"K{row}").Value = dato.CiscoSecureEndpoint;
-                worksheet.Cell($"L{row}").Value = dato.CiscoUmbrella;
-                worksheet.Cell($"M{row}").Value = dato.Rapid7;
-                worksheet.Cell($"N{row}").Value = dato.Vicarius;
-                worksheet.Cell($"P{row}").Value = dato.FechaActualizacion;
-                worksheet.Cell($"Q{row}").Value = dato.Comentarios;
-                worksheet.Cell($"R{row}").Value = dato.Validacion;
+                worksheet.Cell($"E{row}").Value = dato.Hostname;
+                worksheet.Cell($"F{row}").Value = dato.Procesador;
+                worksheet.Cell($"G{row}").Value = dato.OSNombre;
+                worksheet.Cell($"H{row}").Value = dato.Utilizacion;
+                worksheet.Cell($"I{row}").Value = dato.UsoRemoto;
+                worksheet.Cell($"J{row}").Value = dato.CiscoSecureEndpoint;
+                worksheet.Cell($"K{row}").Value = dato.CiscoUmbrella;
+                worksheet.Cell($"L{row}").Value = dato.Rapid7;
+                worksheet.Cell($"M{row}").Value = dato.Vicarius;
+                worksheet.Cell($"N{row}").Value = dato.FechaActualizacion;
+                worksheet.Cell($"O{row}").Value = dato.Comentarios;
+                worksheet.Cell($"P{row}").Value = dato.Validacion;
 
                 // Aplicar bordes a toda la fila
-                for (int col = 1; col <= 17; col++)
+                for (int col = 1; col <= 16; col++)
                 {
                     worksheet.Cell(row, col).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                     worksheet.Cell(row, col).Style.Border.OutsideBorderColor = borderColor;
@@ -478,22 +477,21 @@ namespace PortalTi.Api.Controllers
             worksheet.Column("B").Width = 10; // OpCo
             worksheet.Column("C").Width = 15; // Username
             worksheet.Column("D").Width = 20; // Correo
-            worksheet.Column("E").Width = 5;  // Vacío
-            worksheet.Column("F").Width = 18; // Hostname
-            worksheet.Column("G").Width = 20; // Procesador
-            worksheet.Column("H").Width = 15; // O.S Name
-            worksheet.Column("I").Width = 12; // Utilización
-            worksheet.Column("J").Width = 10; // Uso Remoto
-            worksheet.Column("K").Width = 18; // Cisco Secure Endpoint
-            worksheet.Column("L").Width = 15; // Cisco Umbrella
-            worksheet.Column("M").Width = 10; // Rapid7
-            worksheet.Column("N").Width = 12; // Vicarius
-            worksheet.Column("P").Width = 18; // Fecha de Actualización
-            worksheet.Column("Q").Width = 20; // Comentarios
-            worksheet.Column("R").Width = 12; // Validación
+            worksheet.Column("E").Width = 18; // Hostname
+            worksheet.Column("F").Width = 20; // Procesador
+            worksheet.Column("G").Width = 15; // O.S Name
+            worksheet.Column("H").Width = 12; // Utilización
+            worksheet.Column("I").Width = 10; // Uso Remoto
+            worksheet.Column("J").Width = 18; // Cisco Secure Endpoint
+            worksheet.Column("K").Width = 15; // Cisco Umbrella
+            worksheet.Column("L").Width = 10; // Rapid7
+            worksheet.Column("M").Width = 12; // Vicarius
+            worksheet.Column("N").Width = 18; // Fecha de Actualización
+            worksheet.Column("O").Width = 20; // Comentarios
+            worksheet.Column("P").Width = 12; // Validación
 
             // Aplicar filtros automáticos
-            worksheet.Range("A4:Q" + (row - 1)).SetAutoFilter();
+            worksheet.Range("A4:P" + (row - 1)).SetAutoFilter();
         }
 
         private void CrearHojaCelulares(IXLWorksheet worksheet, dynamic celulares, int trimestre, int año)
