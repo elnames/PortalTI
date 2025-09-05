@@ -266,68 +266,85 @@ namespace PortalTi.Api.Controllers
                 var trimestreActual = trimestre ?? ((DateTime.Now.Month - 1) / 3) + 1;
                 var añoActual = año ?? DateTime.Now.Year;
 
-                // Obtener datos de usuarios con sus activos asignados
+                // Obtener datos reales de usuarios con sus activos asignados
                 var usuariosConAsignaciones = await _context.NominaUsuarios
                     .Include(u => u.Asignaciones)
                         .ThenInclude(a => a.Activo)
-                    .Where(u => u.Asignaciones.Any())
+                            .ThenInclude(act => act.Software)
+                    .Include(u => u.Asignaciones)
+                        .ThenInclude(a => a.Activo)
+                            .ThenInclude(act => act.ProgramasSeguridad)
+                    .Include(u => u.Asignaciones)
+                        .ThenInclude(a => a.Activo)
+                            .ThenInclude(act => act.Licencias)
+                    .Where(u => u.Asignaciones.Any(a => a.Estado == "Activa"))
                     .ToListAsync();
 
-                // Separar equipos por tipo
+                // Separar equipos por tipo - WORKSTATIONS
                 var workstations = usuariosConAsignaciones
-                    .Where(u => u.Asignaciones?.Any(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
+                    .Where(u => u.Asignaciones?.Any(a => a.Estado == "Activa" && 
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
                                                          a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
                                                          a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true) == true)
-                    .Select(u => new
-                    {
-                        Region = "Región " + (u.Id % 5 + 1), // Simulado
-                        OpCo = "OpCo " + (u.Id % 3 + 1), // Simulado
-                        Username = u.Email?.Split('@')[0] ?? "N/A",
-                        Correo = u.Email ?? "N/A",
-                        Hostname = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
-                                                                        a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
-                                                                        a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
-                                                                        a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true)?.Activo?.Nombre ?? "N/A",
-                        Procesador = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
-                                                                         a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
-                                                                         a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
-                                                                         a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true)?.Activo?.Procesador ?? "Intel Core i5-8400",
-                        OSNombre = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
-                                                                       a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
-                                                                       a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
-                                                                       a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true)?.Activo?.SistemaOperativo ?? "Windows 10",
-                        Utilizacion = (u.Id % 100) + "%", // Simulado
-                        UsoRemoto = u.Id % 2 == 0 ? "Sí" : "No", // Simulado
-                        CiscoSecureEndpoint = u.Id % 2 == 0 ? "Instalado" : "No instalado", // Simulado
-                        CiscoUmbrella = u.Id % 3 == 0 ? "Instalado" : "No instalado", // Simulado
-                        Rapid7 = u.Id % 4 == 0 ? "Instalado" : "No instalado", // Simulado
-                        FechaActualizacion = DateTime.Now.AddDays(-(u.Id % 30)).ToString("dd/MM/yyyy"),
-                        Comentarios = $"Comentario para {u.Nombre}",
-                        Validacion = u.Id % 3 == 0 ? "Validado" : "Pendiente" // Simulado
-                    })
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true ||
+                                                         a.Activo?.TipoEquipo?.ToLower().Contains("pc") == true) == true)
+                    .SelectMany(u => u.Asignaciones
+                        .Where(a => a.Estado == "Activa" && 
+                                   (a.Activo?.TipoEquipo?.ToLower().Contains("laptop") == true || 
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("desktop") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("workstation") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("computador") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("pc") == true))
+                        .Select(a => new
+                        {
+                            Region = "Chile", // Datos reales de la base
+                            OpCo = a.Activo?.Empresa ?? "VICSA",
+                            Username = u.Nombre + " " + u.Apellido,
+                            Correo = u.Email ?? "N/A",
+                            Hostname = a.Activo?.NombreEquipo ?? a.Activo?.Nombre ?? "N/A",
+                            Procesador = a.Activo?.Procesador ?? "N/A",
+                            OSNombre = a.Activo?.SistemaOperativo ?? "Windows 10",
+                            Utilizacion = "Sí", // Basado en estado activo
+                            UsoRemoto = a.Activo?.RustDeskId != null ? "Sí" : "No",
+                            // Verificar programas de seguridad instalados
+                            CiscoSecureEndpoint = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("cisco") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
+                            CiscoUmbrella = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("umbrella") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
+                            Rapid7 = a.Activo?.ProgramasSeguridad?.Any(p => p.Nombre.ToLower().Contains("rapid7") && p.Estado == "OK") == true ? "Instalado" : "No instalado",
+                            FechaActualizacion = a.FechaAsignacion.ToString("dd/MM/yyyy"),
+                            Comentarios = a.Observaciones ?? "",
+                            Validacion = "Confirmado" // Basado en asignación activa
+                        }))
                     .ToList();
 
+                // Separar equipos por tipo - CELULARES
                 var celulares = usuariosConAsignaciones
-                    .Where(u => u.Asignaciones?.Any(a => a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
-                                                         a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true) == true)
-                    .Select(u => new
-                    {
-                        Responsable = u.Nombre + " " + u.Apellido,
-                        Empresa = "VICSA",
-                        NombreDispositivo = u.Asignaciones?.FirstOrDefault(a => a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
-                                                                                a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
-                                                                                a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
-                                                                                a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true)?.Activo?.Nombre ?? "N/A",
-                        Fabricante = new[] { "Samsung", "Apple", "Huawei", "Xiaomi" }[u.Id % 4], // Simulado
-                        Modelo = new[] { "Galaxy S21", "iPhone 13", "P40 Pro", "Mi 11" }[u.Id % 4], // Simulado
-                        VersionOS = new[] { "Android 12", "iOS 15", "Android 11", "MIUI 12" }[u.Id % 4], // Simulado
-                        MemoriaDisponible = (u.Id % 8 + 4) + " GB", // Simulado
-                        NumeroTelefono = "+56 9 " + (u.Id % 90000000 + 10000000), // Simulado
-                        MAC = string.Join(":", Enumerable.Range(0, 6).Select(i => (u.Id + i).ToString("X2"))) // Simulado
-                    })
+                    .Where(u => u.Asignaciones?.Any(a => a.Estado == "Activa" && 
+                                                         (a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
+                                                          a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
+                                                          a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
+                                                          a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true ||
+                                                          a.Activo?.TipoEquipo?.ToLower().Contains("iphone") == true ||
+                                                          a.Activo?.TipoEquipo?.ToLower().Contains("android") == true)) == true)
+                    .SelectMany(u => u.Asignaciones
+                        .Where(a => a.Estado == "Activa" && 
+                                   (a.Activo?.TipoEquipo?.ToLower().Contains("celular") == true || 
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("telefono") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("mobile") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("smartphone") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("iphone") == true ||
+                                    a.Activo?.TipoEquipo?.ToLower().Contains("android") == true))
+                        .Select(a => new
+                        {
+                            Responsable = u.Nombre + " " + u.Apellido,
+                            Empresa = a.Activo?.Empresa ?? "VICSA",
+                            NombreDispositivo = a.Activo?.NombreEquipo ?? a.Activo?.Nombre ?? "N/A",
+                            Fabricante = a.Activo?.Marca ?? "N/A",
+                            Modelo = a.Activo?.Modelo ?? "N/A",
+                            VersionOS = a.Activo?.SistemaOperativo ?? "N/A",
+                            MemoriaDisponible = a.Activo?.Capacidad ?? "N/A",
+                            NumeroTelefono = a.Activo?.NumeroCelular ?? "N/A",
+                            MAC = a.Activo?.Imei ?? "N/A"
+                        }))
                     .ToList();
 
                 // Crear libro de Excel

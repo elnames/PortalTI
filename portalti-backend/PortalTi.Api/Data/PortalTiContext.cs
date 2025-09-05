@@ -31,6 +31,7 @@ namespace PortalTi.Api.Data
         public DbSet<CalendarEventAssignee> CalendarEventAssignees { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<SystemConfiguration> SystemConfigurations { get; set; }
+        public DbSet<ProgramaEstandar> ProgramasEstandar { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
