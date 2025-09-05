@@ -987,7 +987,7 @@ REACT_APP_ENVIRONMENT=development
 
 # Opción 2: Script completo de base de datos
 # Ejecutar el script SQL completo para crear toda la BD desde cero
-sqlcmd -S localhost -i CREAR_BD_COMPLETA.sql
+sqlcmd -S localhost -i portalti-backend/PortalTi.Api/Scripts/CREAR_BD_COMPLETA.sql
 
 # Opción 3: Migraciones manuales
 dotnet ef migrations add NombreMigracion
@@ -997,7 +997,7 @@ dotnet ef database update
 dotnet ef database update NombreMigracionAnterior
 
 # Crear usuario admin inicial
-sqlcmd -S localhost -i CREAR_ADMIN.sql
+sqlcmd -S localhost -i portalti-backend/PortalTi.Api/Scripts/CREAR_ADMIN.sql
 ```
 
 ### **Despliegue en Producción**
@@ -1019,15 +1019,15 @@ dotnet publish -c Release
 ## 🧪 Guías de Desarrollo
 
 ### **Scripts de Base de Datos Disponibles**
-- **`CREAR_BD_COMPLETA.sql`**: Script completo para crear toda la base de datos desde cero
+- **`portalti-backend/PortalTi.Api/Scripts/CREAR_BD_COMPLETA.sql`**: Script completo para crear toda la base de datos desde cero
   - Incluye todas las tablas, relaciones, índices y constraints
   - Resuelve problemas de foreign key constraints con `ON DELETE NO ACTION`
   - Incluye índices optimizados para rendimiento
-- **`CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial
+- **`portalti-backend/PortalTi.Api/Scripts/CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial
   - Username: `admin`
   - Password: `admin`
   - Hash HMACSHA512 generado correctamente
-- **`POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
+- **`portalti-backend/PortalTi.Api/Scripts/POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
 
 ### **Agregar Nueva Funcionalidad**
 1. **Crear modelo** en `Models/`
@@ -1186,7 +1186,7 @@ public class ChatController : ControllerBase
 ### **Error de Login con Admin**
 **Problema**: No se puede hacer login con el usuario admin
 **Causa**: Hash de contraseña incorrecto en la base de datos
-**Solución**: Usar el script `CREAR_ADMIN.sql` con hash HMACSHA512 correcto
+**Solución**: Usar el script `portalti-backend/PortalTi.Api/Scripts/CREAR_ADMIN.sql` con hash HMACSHA512 correcto
 
 ---
 

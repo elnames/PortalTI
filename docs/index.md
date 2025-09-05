@@ -50,9 +50,9 @@ Bienvenido a la documentación completa del sistema PortalTI.
 
 ## 🛠️ Scripts de Base de Datos
 
-- **[🗄️ CREAR_BD_COMPLETA.sql](./CREAR_BD_COMPLETA.sql)** - Script completo para crear toda la base de datos
-- **[👤 CREAR_ADMIN.sql](./CREAR_ADMIN.sql)** - Script para crear usuario admin inicial
-- **[📊 POBLAR_BD.sql](./POBLAR_BD.sql)** - Script para poblar con datos de prueba
+- **[🗄️ CREAR_BD_COMPLETA.sql](../portalti-backend/PortalTi.Api/Scripts/CREAR_BD_COMPLETA.sql)** - Script completo para crear toda la base de datos
+- **[👤 CREAR_ADMIN.sql](../portalti-backend/PortalTi.Api/Scripts/CREAR_ADMIN.sql)** - Script para crear usuario admin inicial
+- **[📊 POBLAR_BD.sql](../portalti-backend/PortalTi.Api/Scripts/POBLAR_BD.sql)** - Script para poblar con datos de prueba
 
 ## 📞 Soporte
 

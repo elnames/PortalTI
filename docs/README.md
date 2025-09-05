@@ -229,17 +229,17 @@ dotnet watch run
 
 # Opción 2: Script completo de base de datos
 # Ejecutar el script SQL completo para crear toda la BD desde cero
-sqlcmd -S localhost -i CREAR_BD_COMPLETA.sql
+sqlcmd -S localhost -i portalti-backend/PortalTi.Api/Scripts/CREAR_BD_COMPLETA.sql
 
 # Opción 3: Migraciones manuales
 dotnet ef database update
 
 # Poblar con datos de prueba (opcional)
 # Usar el botón "🔄 Poblar BD Genérica" en el dashboard
-# O ejecutar el script SQL: POBLAR_BD.sql
+# O ejecutar el script SQL: portalti-backend/PortalTi.Api/Scripts/POBLAR_BD.sql
 
 # Crear usuario admin inicial
-sqlcmd -S localhost -i CREAR_ADMIN.sql
+sqlcmd -S localhost -i portalti-backend/PortalTi.Api/Scripts/CREAR_ADMIN.sql
 ```
 
 ## 🔧 Configuración Avanzada
@@ -346,9 +346,11 @@ PortalTI/
 ├── public/                      # Archivos estáticos
 │   ├── rustdesk.exe            # Ejecutable RustDesk
 │   └── ...
-├── CREAR_BD_COMPLETA.sql       # Script completo para crear toda la BD
-├── CREAR_ADMIN.sql             # Script para crear usuario admin inicial
-├── POBLAR_BD.sql               # Script de población de datos
+├── portalti-backend/PortalTi.Api/Scripts/
+│   ├── CREAR_BD_COMPLETA.sql   # Script completo para crear toda la BD
+│   ├── CREAR_ADMIN.sql         # Script para crear usuario admin inicial
+│   ├── POBLAR_BD.sql           # Script de población de datos
+│   └── PoblarProgramasEstandar.sql # Script para programas estándar
 └── README.md                   # Este archivo
 ```
 
@@ -522,9 +524,9 @@ dotnet test --filter Category=Integration
 ## 📚 Documentación
 
 ### **Scripts de Base de Datos**
-- **`CREAR_BD_COMPLETA.sql`**: Script completo para crear toda la base de datos desde cero
-- **`CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial (admin/admin)
-- **`POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
+- **`portalti-backend/PortalTi.Api/Scripts/CREAR_BD_COMPLETA.sql`**: Script completo para crear toda la base de datos desde cero
+- **`portalti-backend/PortalTi.Api/Scripts/CREAR_ADMIN.sql`**: Script para crear el usuario admin inicial (admin/admin)
+- **`portalti-backend/PortalTi.Api/Scripts/POBLAR_BD.sql`**: Script para poblar la base de datos con datos de prueba
 
 ### **Screenshots y Demostraciones**
 - **[📸 Galería de Screenshots](./docs/screenshots.md)**: Galería completa con capturas de pantalla organizadas
