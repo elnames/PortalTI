@@ -35,6 +35,7 @@ IF OBJECT_ID('AsignacionesActivos', 'U') IS NOT NULL DROP TABLE [AsignacionesAct
 IF OBJECT_ID('Licencias', 'U') IS NOT NULL DROP TABLE [Licencias]
 IF OBJECT_ID('ProgramasSeguridad', 'U') IS NOT NULL DROP TABLE [ProgramasSeguridad]
 IF OBJECT_ID('Software', 'U') IS NOT NULL DROP TABLE [Software]
+IF OBJECT_ID('ProgramasEstandar', 'U') IS NOT NULL DROP TABLE [ProgramasEstandar]
 IF OBJECT_ID('PazYSalvos', 'U') IS NOT NULL DROP TABLE [PazYSalvos]
 IF OBJECT_ID('UserActivityLogs', 'U') IS NOT NULL DROP TABLE [UserActivityLogs]
 IF OBJECT_ID('AuditLogs', 'U') IS NOT NULL DROP TABLE [AuditLogs]
@@ -291,6 +292,23 @@ CREATE TABLE [Licencias] (
     [CreadoPor] nvarchar(100) NULL,
     [ActualizadoPor] nvarchar(100) NULL,
     CONSTRAINT [PK_Licencias] PRIMARY KEY ([Id])
+)
+GO
+
+-- Tabla de programas estándar
+CREATE TABLE [ProgramasEstandar] (
+    [Id] int IDENTITY(1,1) NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Categoria] nvarchar(50) NOT NULL,
+    [Tipo] nvarchar(20) NOT NULL,
+    [Descripcion] nvarchar(500) NULL,
+    [VersionRecomendada] nvarchar(100) NULL,
+    [Activo] bit NOT NULL,
+    [FechaCreacion] datetime2 NOT NULL DEFAULT GETDATE(),
+    [FechaActualizacion] datetime2 NULL,
+    [CreadoPor] nvarchar(max) NULL,
+    [ActualizadoPor] nvarchar(max) NULL,
+    CONSTRAINT [PK_ProgramasEstandar] PRIMARY KEY ([Id])
 )
 GO
 
@@ -707,6 +725,19 @@ GO
 CREATE INDEX [IX_Licencias_FechaVencimiento] ON [Licencias] ([FechaVencimiento])
 GO
 
+-- Índices para ProgramasEstandar
+CREATE INDEX [IX_ProgramasEstandar_Categoria] ON [ProgramasEstandar] ([Categoria])
+GO
+
+CREATE INDEX [IX_ProgramasEstandar_Tipo] ON [ProgramasEstandar] ([Tipo])
+GO
+
+CREATE INDEX [IX_ProgramasEstandar_Activo] ON [ProgramasEstandar] ([Activo])
+GO
+
+CREATE INDEX [IX_ProgramasEstandar_Nombre] ON [ProgramasEstandar] ([Nombre])
+GO
+
 -- Índices para PazYSalvos
 CREATE INDEX [IX_PazYSalvos_UsuarioId] ON [PazYSalvos] ([UsuarioId])
 GO
@@ -843,9 +874,9 @@ PRINT '====================================================='
 PRINT 'CREACIÓN DE BASE DE DATOS COMPLETADA'
 PRINT '====================================================='
 PRINT 'Base de datos: PortalTi'
-PRINT 'Tablas creadas: 23'
+PRINT 'Tablas creadas: 24'
 PRINT 'Foreign keys: 25'
-PRINT 'Índices: 50+'
+PRINT 'Índices: 55+'
 PRINT 'Usuario admin: admin (password: admin123)'
 PRINT 'Configuraciones: 10'
 PRINT '====================================================='

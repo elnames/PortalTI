@@ -74,11 +74,25 @@ PortalTI es una aplicación web moderna y completa para la gestión integral de 
 - **Historial completo**: Seguimiento de cambios, aprobaciones y observaciones
 
 ### 📊 Dashboard y Reportes Avanzados
+- **Reporte Trimestral**: Generación de reportes Excel con datos reales de workstations y celulares
+- **Dos hojas especializadas**: "Workstations" y "Celulares" con formatos corporativos
+- **Datos reales**: Captura automática desde la base de datos (no simulados)
+- **Información de seguridad**: Estado de programas de seguridad instalados
+- **Filtros por trimestre**: Reportes específicos por período
+- **Formato corporativo**: Colores y estilos profesionales
 - **Métricas en tiempo real**: Estadísticas de uso y rendimiento
 - **Gráficos interactivos**: Visualización de datos con Chart.js
 - **Filtros avanzados**: Búsqueda por múltiples criterios
 - **Exportación de datos**: Generación de reportes en múltiples formatos
 - **KPI personalizables**: Indicadores clave de rendimiento
+
+### 🔧 Sistema de Programas Estándar
+- **Catálogo de software**: Gestión de programas obligatorios y opcionales
+- **Categorización inteligente**: Software, Seguridad y Licencias
+- **Verificación automática**: Comprobación de instalación en activos
+- **Programas predefinidos**: Cisco, Microsoft, Adobe y más
+- **Reportes de cumplimiento**: Estado de instalación por equipo
+- **Gestión de versiones**: Control de versiones recomendadas
 
 ### 🔔 Sistema de Notificaciones
 - **Notificaciones en tiempo real (SignalR)** y persistentes en BD

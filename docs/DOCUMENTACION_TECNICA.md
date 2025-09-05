@@ -15,6 +15,8 @@
 10. [Sistema de Chat en Tiempo Real](#sistema-de-chat-en-tiempo-real)
 11. [Sistema de Paz y Salvo](#sistema-de-paz-y-salvo)
 12. [Calendario de TI](#calendario-de-ti)
+13. [Sistema de Programas Estándar](#sistema-de-programas-estándar)
+14. [Sistema de Reportes](#sistema-de-reportes)
 
 ---
 
@@ -1185,6 +1187,139 @@ public class ChatController : ControllerBase
 **Problema**: No se puede hacer login con el usuario admin
 **Causa**: Hash de contraseña incorrecto en la base de datos
 **Solución**: Usar el script `CREAR_ADMIN.sql` con hash HMACSHA512 correcto
+
+---
+
+## 📊 Sistema de Programas Estándar
+
+### **Descripción General**
+El sistema de programas estándar permite definir y gestionar un catálogo de software, programas de seguridad y licencias que deben estar instalados en los equipos de la organización.
+
+### **Funcionalidades Principales**
+- **Gestión de Programas**: Crear, editar y eliminar programas estándar
+- **Categorización**: Organizar por Software, Seguridad y Licencias
+- **Verificación de Instalación**: Comprobar qué programas están instalados en cada activo
+- **Reportes de Cumplimiento**: Generar reportes de instalación de software
+
+### **Estructura de Datos**
+```sql
+-- Tabla ProgramasEstandar
+CREATE TABLE [ProgramasEstandar] (
+    [Id] int IDENTITY(1,1) NOT NULL,
+    [Nombre] nvarchar(100) NOT NULL,
+    [Categoria] nvarchar(50) NOT NULL, -- Software, Seguridad, Licencia
+    [Tipo] nvarchar(20) NOT NULL,      -- Crítico, Obligatorio, Opcional
+    [Descripcion] nvarchar(500) NULL,
+    [VersionRecomendada] nvarchar(100) NULL,
+    [Activo] bit NOT NULL,
+    [FechaCreacion] datetime2 NOT NULL DEFAULT GETDATE(),
+    [FechaActualizacion] datetime2 NULL,
+    [CreadoPor] nvarchar(max) NULL,
+    [ActualizadoPor] nvarchar(max) NULL,
+    CONSTRAINT [PK_ProgramasEstandar] PRIMARY KEY ([Id])
+)
+```
+
+### **API Endpoints**
+- `GET /api/programasestandar` - Listar programas estándar
+- `GET /api/programasestandar/{id}` - Obtener programa específico
+- `POST /api/programasestandar` - Crear nuevo programa
+- `PUT /api/programasestandar/{id}` - Actualizar programa
+- `DELETE /api/programasestandar/{id}` - Eliminar programa (soft delete)
+- `GET /api/programasestandar/categorias` - Obtener categorías disponibles
+- `POST /api/programasestandar/verificar-instalacion` - Verificar instalación en activo
+
+### **Programas Predefinidos**
+El sistema incluye programas estándar predefinidos:
+
+**Seguridad:**
+- Cisco Secure Endpoint (Crítico)
+- Cisco Umbrella (Crítico)
+- Rapid7 Insight Agent (Obligatorio)
+- Windows Defender (Obligatorio)
+- Firewall Windows (Obligatorio)
+
+**Software:**
+- Microsoft Office (Obligatorio)
+- Google Chrome (Obligatorio)
+- Microsoft Edge (Obligatorio)
+- Adobe Acrobat Reader (Obligatorio)
+- Zoom (Obligatorio)
+- Microsoft Teams (Obligatorio)
+
+**Licencias:**
+- Windows 10/11 Pro (Crítico)
+- Microsoft Office 365 (Obligatorio)
+- Cisco AnyConnect (Obligatorio)
+
+---
+
+## 📈 Sistema de Reportes
+
+### **Descripción General**
+El sistema de reportes permite generar documentos Excel con información detallada sobre activos, usuarios y cumplimiento de software.
+
+### **Reportes Disponibles**
+
+#### **1. Reporte Trimestral de Dispositivos**
+**Endpoint**: `GET /api/reportes/trimestral-excel?trimestre={trimestre}&año={año}`
+
+**Características:**
+- Genera archivo Excel con dos hojas: "Workstations" y "Celulares"
+- Usa datos reales de la base de datos
+- Incluye información de software y programas de seguridad instalados
+- Formato corporativo con colores y estilos
+
+**Estructura de la Hoja "Workstations":**
+```
+Localidad | Identificación | Workstation | Status | Instalaciones | Observaciones
+Región    | Username       | Hostname    | O.S    | Cisco Secure  | Fecha Actualización
+OpCo      | Correo         | Procesador  | Utiliz | Cisco Umbrella| Comentarios
+          |                |             | Remoto | Rapid7        | Validación
+```
+
+**Estructura de la Hoja "Celulares":**
+```
+Responsable | Empresa | Nombre Dispositivo | Fabricante | Modelo | Versión OS | Memoria | Teléfono | MAC
+```
+
+#### **2. Reporte de Paz y Salvo**
+**Endpoint**: `GET /api/reportes/paz-y-salvo-excel`
+
+**Características:**
+- Lista de usuarios con activos pendientes de devolución
+- Información detallada de asignaciones
+- Estado de paz y salvo
+
+#### **3. Reporte de Activos por Usuario**
+**Endpoint**: `GET /api/reportes/activos-usuario-excel?usuarioId={id}`
+
+**Características:**
+- Activos asignados a un usuario específico
+- Historial de asignaciones
+- Software instalado
+
+### **Tecnología Utilizada**
+- **ClosedXML**: Generación de archivos Excel
+- **Entity Framework**: Consultas a la base de datos
+- **LINQ**: Proyecciones y filtros de datos
+- **Stream**: Entrega de archivos al cliente
+
+### **Configuración de Almacenamiento**
+```json
+{
+  "Storage": {
+    "Root": "C:\\PortalTI\\Storage",
+    "Evidence": "C:\\PortalTI\\Storage\\evidence",
+    "Reports": "C:\\PortalTI\\Storage\\reports"
+  }
+}
+```
+
+### **Permisos de Archivos**
+El sistema incluye endpoints para gestionar permisos de archivos:
+- `GET /api/securefile/check-permissions` - Verificar permisos
+- `POST /api/securefile/fix-permissions` - Corregir permisos
 
 ---
 
