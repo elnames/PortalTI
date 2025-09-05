@@ -3,6 +3,7 @@ import { X, Plus, Send, Image as ImageIcon, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import api from '../services/api';
+import { getAbsoluteEvidenceUrl } from '../utils/evidenceUtils';
 
 export default function ActualizacionModal({ isOpen, onClose, ticketId, onActualizacionAgregada }) {
   const { user } = useAuth();
@@ -38,7 +39,8 @@ export default function ActualizacionModal({ isOpen, onClose, ticketId, onActual
           }
         });
 
-        formData.evidencia = uploadResponse.data.url;
+        // Construir URL absoluta para la evidencia
+        formData.evidencia = getAbsoluteEvidenceUrl(uploadResponse.data.url);
       }
 
       await api.post(`/tickets/${ticketId}/comentarios`, formData);

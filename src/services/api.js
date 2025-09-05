@@ -190,6 +190,11 @@ export const reportesAPI = {
     exportToExcel: (reportType, filters = {}) => api.get(`/reportes/${reportType}/excel`, {
         params: filters,
         responseType: 'blob'
+    }),
+    // Nuevo reporte trimestral
+    getRegistrosTrimestrales: (trimestre, año) => api.get('/reportes/registros-trimestrales/excel', {
+        params: { trimestre, año },
+        responseType: 'blob'
     })
 };
 

@@ -69,12 +69,38 @@ namespace PortalTi.Api.Controllers
                 // Construir ruta del archivo
                 var filePath = Path.Combine(_storageRoot, subdirectory, fileName);
                 
+                _logger.LogInformation("Intentando acceder a archivo: {FilePath}", filePath);
+                
                 if (!System.IO.File.Exists(filePath))
+                {
+                    _logger.LogWarning("Archivo no encontrado: {FilePath}", filePath);
                     return NotFound("Archivo no encontrado");
+                }
+
+                // Verificar permisos de lectura
+                try
+                {
+                    using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                    {
+                        // El archivo se puede abrir, continuar
+                    }
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    _logger.LogError(ex, "Sin permisos para acceder al archivo: {FilePath}", filePath);
+                    return StatusCode(403, "Sin permisos para acceder al archivo");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al verificar permisos del archivo: {FilePath}", filePath);
+                    return StatusCode(500, "Error al acceder al archivo");
+                }
 
                 // Obtener información del archivo
                 var fileInfo = new FileInfo(filePath);
                 var contentType = GetContentType(fileName);
+
+                _logger.LogInformation("Sirviendo archivo: {FilePath} (Tamaño: {Size} bytes)", filePath, fileInfo.Length);
 
                 // Para previsualización, no incluir nombre de archivo para evitar descarga
                 return PhysicalFile(filePath, contentType);
@@ -82,7 +108,126 @@ namespace PortalTi.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al previsualizar archivo: {Subdirectory}/{FileName}", subdirectory, fileName);
-                return StatusCode(500, "Error interno del servidor");
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+            }
+        }
+
+        [HttpGet("check-permissions")]
+        [Authorize(Policy = "CanManageTickets")]
+        public async Task<IActionResult> CheckEvidencePermissions()
+        {
+            try
+            {
+                var evidencePath = Path.Combine(_storageRoot, "evidence");
+                var result = new
+                {
+                    path = evidencePath,
+                    exists = Directory.Exists(evidencePath),
+                    canRead = false,
+                    canWrite = false,
+                    files = new string[0],
+                    error = (string)null
+                };
+
+                if (!Directory.Exists(evidencePath))
+                {
+                    return Ok(result);
+                }
+
+                try
+                {
+                    // Verificar permisos de lectura
+                    var files = Directory.GetFiles(evidencePath);
+                    result = result with { files = files };
+
+                    // Verificar permisos de escritura
+                    var testFile = Path.Combine(evidencePath, "permission_test.tmp");
+                    await System.IO.File.WriteAllTextAsync(testFile, "test");
+                    result = result with { canWrite = true };
+
+                    // Verificar permisos de lectura
+                    await System.IO.File.ReadAllTextAsync(testFile);
+                    result = result with { canRead = true };
+
+                    // Limpiar archivo de prueba
+                    System.IO.File.Delete(testFile);
+                }
+                catch (Exception ex)
+                {
+                    result = result with { error = ex.Message };
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al verificar permisos de evidencias");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
+        }
+
+        [HttpPost("fix-permissions")]
+        [Authorize(Policy = "CanManageTickets")]
+        public async Task<IActionResult> FixEvidencePermissions()
+        {
+            try
+            {
+                var evidencePath = Path.Combine(_storageRoot, "evidence");
+                
+                // Crear la carpeta si no existe
+                if (!Directory.Exists(evidencePath))
+                {
+                    Directory.CreateDirectory(evidencePath);
+                    _logger.LogInformation("Carpeta de evidencias creada: {Path}", evidencePath);
+                }
+
+                // Verificar y corregir permisos
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "icacls",
+                        Arguments = $"\"{evidencePath}\" /grant \"IIS_IUSRS:(OI)(CI)F\" /T",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                await process.WaitForExitAsync();
+
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
+
+                _logger.LogInformation("Resultado de icacls: {Output}", output);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _logger.LogWarning("Errores de icacls: {Error}", error);
+                }
+
+                // Verificar que los permisos funcionan
+                var testFile = Path.Combine(evidencePath, "test_permissions.txt");
+                try
+                {
+                    await System.IO.File.WriteAllTextAsync(testFile, "test");
+                    await System.IO.File.ReadAllTextAsync(testFile);
+                    System.IO.File.Delete(testFile);
+                    
+                    _logger.LogInformation("Permisos de evidencias verificados correctamente");
+                    return Ok(new { message = "Permisos de evidencias corregidos exitosamente", path = evidencePath });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al verificar permisos de evidencias");
+                    return StatusCode(500, new { message = "Error al verificar permisos", error = ex.Message });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al corregir permisos de evidencias");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 

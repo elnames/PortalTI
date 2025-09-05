@@ -29,7 +29,7 @@ import api, { reportesAPI } from '../services/api';
 export default function Reportes() {
     const navigate = useNavigate();
     const { user, token } = useAuth();
-    
+
     // Verificar autenticación
     useEffect(() => {
         if (!token) {
@@ -52,6 +52,11 @@ export default function Reportes() {
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
     });
+    const [trimestralParams, setTrimestralParams] = useState({
+        trimestre: ((new Date().getMonth()) / 3) + 1,
+        año: new Date().getFullYear()
+    });
+    const [generatingTrimestral, setGeneratingTrimestral] = useState(false);
     const [filters, setFilters] = useState({
         categoria: 'all',
         departamento: 'all',
@@ -82,6 +87,36 @@ export default function Reportes() {
             setError('Error al cargar los datos para los reportes.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Generar reporte trimestral
+    const generarReporteTrimestral = async () => {
+        setGeneratingTrimestral(true);
+        try {
+            const response = await reportesAPI.getRegistrosTrimestrales(
+                Math.floor(trimestralParams.trimestre),
+                trimestralParams.año
+            );
+
+            // Crear blob y descargar
+            const blob = new Blob([response.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Registros_Trimestrales_Q${Math.floor(trimestralParams.trimestre)}_${trimestralParams.año}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Error al generar reporte trimestral:', err);
+            setError('Error al generar el reporte trimestral.');
+        } finally {
+            setGeneratingTrimestral(false);
         }
     };
 
@@ -179,12 +214,12 @@ export default function Reportes() {
         const activosEnMantenimiento = reportData.activos.filter(a => a.estado === 'En Mantenimiento');
         const activosRetirados = reportData.activos.filter(a => a.estado === 'Retirado');
         const activosActivos = reportData.activos.filter(a => a.estado === 'Activo');
-        
+
         return {
             enMantenimiento: activosEnMantenimiento.length,
             retirados: activosRetirados.length,
             activos: activosActivos.length,
-            porcentajeMantenimiento: reportData.activos.length > 0 ? 
+            porcentajeMantenimiento: reportData.activos.length > 0 ?
                 ((activosEnMantenimiento.length / reportData.activos.length) * 100).toFixed(1) : 0
         };
     }, [reportData.activos]);
@@ -194,7 +229,7 @@ export default function Reportes() {
         const activosConValor = reportData.activos.filter(a => a.valor);
         const valorTotal = activosConValor.reduce((sum, activo) => sum + (activo.valor || 0), 0);
         const valorPromedio = activosConValor.length > 0 ? valorTotal / activosConValor.length : 0;
-        
+
         return {
             totalActivos: reportData.activos.length,
             activosConValor: activosConValor.length,
@@ -207,21 +242,21 @@ export default function Reportes() {
     const tendenciasStats = useMemo(() => {
         const asignacionesPorMes = {};
         const ticketsPorMes = {};
-        
+
         // Agrupar asignaciones por mes
         reportData.asignaciones.forEach(asignacion => {
             const fecha = new Date(asignacion.fechaAsignacion);
             const mes = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
             asignacionesPorMes[mes] = (asignacionesPorMes[mes] || 0) + 1;
         });
-        
+
         // Agrupar tickets por mes
         reportData.tickets.forEach(ticket => {
             const fecha = new Date(ticket.fechaCreacion);
             const mes = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
             ticketsPorMes[mes] = (ticketsPorMes[mes] || 0) + 1;
         });
-        
+
         return {
             asignacionesPorMes,
             ticketsPorMes,
@@ -268,8 +303,8 @@ export default function Reportes() {
                 responseType: 'blob'
             });
 
-            const blob = new Blob([response.data], { 
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            const blob = new Blob([response.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -329,7 +364,7 @@ export default function Reportes() {
                 </h1>
                 <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 rounded-lg p-4">
                     <p>{error}</p>
-                    <button 
+                    <button
                         onClick={fetchReportData}
                         className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                     >
@@ -449,9 +484,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('general')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'general'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <BarChart2 className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Reporte General</h3>
@@ -460,9 +495,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('activos')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'activos'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <HardDrive className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Reporte de Activos</h3>
@@ -471,9 +506,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('usuarios')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'usuarios'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <Users className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Reporte de Usuarios</h3>
@@ -482,9 +517,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('tickets')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'tickets'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <Activity className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Reporte de Tickets</h3>
@@ -493,9 +528,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('asignaciones')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'asignaciones'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <Calendar className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Reporte de Asignaciones</h3>
@@ -504,9 +539,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('mantenimiento')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'mantenimiento'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <AlertTriangle className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Reporte de Mantenimiento</h3>
@@ -515,9 +550,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('inventario')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'inventario'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <PieChart className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Inventario</h3>
@@ -526,9 +561,9 @@ export default function Reportes() {
                 <button
                     onClick={() => setSelectedReport('tendencias')}
                     className={`p-4 rounded-lg border transition-all ${selectedReport === 'tendencias'
-                            ? 'border-primary bg-primary bg-opacity-10 text-primary'
-                            : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
-                    }`}
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
                 >
                     <TrendingUp className="w-8 h-8 mb-2" />
                     <h3 className="font-medium">Tendencias</h3>
@@ -545,6 +580,17 @@ export default function Reportes() {
                     <h3 className="font-medium">Rendimiento Equipo TI</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">KPIs por agente y tendencias</p>
                 </button>
+                <button
+                    onClick={() => setSelectedReport('trimestral')}
+                    className={`p-4 rounded-lg border transition-all ${selectedReport === 'trimestral'
+                        ? 'border-primary bg-primary bg-opacity-10 text-primary'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:shadow-md'
+                        }`}
+                >
+                    <FileText className="w-8 h-8 mb-2" />
+                    <h3 className="font-medium">Registros Trimestrales</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Reporte Excel detallado</p>
+                </button>
             </div>
 
             {/* Contenido del reporte seleccionado */}
@@ -552,7 +598,7 @@ export default function Reportes() {
                 {selectedReport === 'general' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte General</h3>
-                        
+
                         {/* Estadísticas principales */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
@@ -711,7 +757,7 @@ export default function Reportes() {
                 {selectedReport === 'activos' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Activos</h3>
-                        
+
                         {/* Estado de activos */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
@@ -761,7 +807,7 @@ export default function Reportes() {
                                     'Red': Wifi
                                 };
                                 const Icon = icons[categoria] || HardDrive;
-                                
+
                                 return (
                                     <div key={categoria} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg text-center">
                                         <Icon className="w-8 h-8 mx-auto mb-2 text-gray-600 dark:text-gray-400" />
@@ -777,7 +823,7 @@ export default function Reportes() {
                 {selectedReport === 'usuarios' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Usuarios</h3>
-                        
+
                         {/* Distribución por departamento */}
                         <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
                             <h4 className="font-medium text-gray-900 dark:text-white mb-4">Distribución por Departamento</h4>
@@ -816,7 +862,7 @@ export default function Reportes() {
                 {selectedReport === 'tickets' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Tickets</h3>
-                        
+
                         {/* Estado de tickets */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             {ticketsPorEstado.map(({ estado, cantidad }) => {
@@ -827,7 +873,7 @@ export default function Reportes() {
                                     'Cancelado': 'gray'
                                 };
                                 const color = colors[estado] || 'gray';
-                                
+
                                 return (
                                     <div key={estado} className={`bg-${color}-50 dark:bg-${color}-900/20 p-4 rounded-lg`}>
                                         <div className="flex items-center">
@@ -873,7 +919,7 @@ export default function Reportes() {
                 {selectedReport === 'asignaciones' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Asignaciones</h3>
-                        
+
                         {/* Estadísticas de asignaciones */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
@@ -945,7 +991,7 @@ export default function Reportes() {
                 {selectedReport === 'mantenimiento' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Mantenimiento</h3>
-                        
+
                         {/* Estadísticas de mantenimiento */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
@@ -1025,7 +1071,7 @@ export default function Reportes() {
                 {selectedReport === 'inventario' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Inventario</h3>
-                        
+
                         {/* Estadísticas de valor */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
@@ -1081,7 +1127,7 @@ export default function Reportes() {
                                 {Object.entries(generalStats?.porCategoria || {}).map(([categoria, cantidad]) => {
                                     const activosCategoria = reportData.activos.filter(a => a.categoria === categoria);
                                     const valorCategoria = activosCategoria.reduce((sum, a) => sum + (a.valor || 0), 0);
-                                    
+
                                     return (
                                         <div key={categoria} className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                                             <div className="flex items-center justify-between">
@@ -1104,7 +1150,7 @@ export default function Reportes() {
                 {selectedReport === 'tendencias' && (
                     <div className="space-y-6">
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte de Tendencias</h3>
-                        
+
                         {/* Tendencias de asignaciones */}
                         <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
                             <h4 className="font-medium text-gray-900 dark:text-white mb-4">Tendencias de Asignaciones (Últimos 6 meses)</h4>
@@ -1114,7 +1160,7 @@ export default function Reportes() {
                                     const tickets = tendenciasStats.ticketsPorMes[mes] || 0;
                                     const fecha = new Date(mes + '-01');
                                     const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-                                    
+
                                     return (
                                         <div key={mes} className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                                             <div className="flex items-center justify-between">
@@ -1164,6 +1210,151 @@ export default function Reportes() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {selectedReport === 'trimestral' && (
+                    <div className="space-y-6">
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Reporte Trimestral de Registros</h3>
+
+                        {/* Configuración del reporte */}
+                        <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
+                            <h4 className="font-medium text-gray-900 dark:text-white mb-4">Configuración del Reporte</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Trimestre
+                                    </label>
+                                    <select
+                                        value={trimestralParams.trimestre}
+                                        onChange={(e) => setTrimestralParams(prev => ({ ...prev, trimestre: parseInt(e.target.value) }))}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                    >
+                                        <option value={1}>Q1 (Enero - Marzo)</option>
+                                        <option value={2}>Q2 (Abril - Junio)</option>
+                                        <option value={3}>Q3 (Julio - Septiembre)</option>
+                                        <option value={4}>Q4 (Octubre - Diciembre)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Año
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={trimestralParams.año}
+                                        onChange={(e) => setTrimestralParams(prev => ({ ...prev, año: parseInt(e.target.value) }))}
+                                        min="2020"
+                                        max="2030"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Información del reporte */}
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg">
+                            <h4 className="font-medium text-gray-900 dark:text-white mb-4">Información del Reporte</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                                        <strong>Formato:</strong> Excel (.xlsx)
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                                        <strong>Estructura:</strong> Tabla con columnas agrupadas
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                                        <strong>Datos incluidos:</strong> Usuarios con activos asignados
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                                        <strong>Columnas:</strong> Localidad, Identificación, Workstation, Status, Instalaciones, Observaciones
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                                        <strong>Filtros:</strong> Incluidos en el archivo Excel
+                                    </p>
+                                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                                        <strong>Formato:</strong> Colores y estilos profesionales
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Botón de generación */}
+                        <div className="flex justify-center">
+                            <button
+                                onClick={generarReporteTrimestral}
+                                disabled={generatingTrimestral}
+                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                            >
+                                {generatingTrimestral ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <span>Generando...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download className="w-4 h-4" />
+                                        <span>Generar Reporte Excel</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Vista previa de la estructura */}
+                        <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
+                            <h4 className="font-medium text-gray-900 dark:text-white mb-4">Vista Previa de la Estructura</h4>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                                    <thead>
+                                        <tr className="bg-blue-600 text-white">
+                                            <th className="px-3 py-2 text-left">Región</th>
+                                            <th className="px-3 py-2 text-left">OpCo</th>
+                                            <th className="px-3 py-2 text-left">Unidad</th>
+                                            <th className="px-3 py-2 text-left">Username</th>
+                                            <th className="px-3 py-2 text-left">Usuario AD</th>
+                                            <th className="px-3 py-2 text-left">Correo</th>
+                                            <th className="px-3 py-2 text-left">Hostname</th>
+                                            <th className="px-3 py-2 text-left">Procesador</th>
+                                            <th className="px-3 py-2 text-left">O.S Name</th>
+                                            <th className="px-3 py-2 text-left">Utilizac</th>
+                                            <th className="px-3 py-2 text-left">Uso Remo</th>
+                                            <th className="px-3 py-2 text-left">Cisco Secure Endp</th>
+                                            <th className="px-3 py-2 text-left">Cisco Umbre</th>
+                                            <th className="px-3 py-2 text-left">Rapid7</th>
+                                            <th className="px-3 py-2 text-left">Fecha de Actualizaci</th>
+                                            <th className="px-3 py-2 text-left">Comentar</th>
+                                            <th className="px-3 py-2 text-left">Validación</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr className="bg-white dark:bg-gray-800">
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Chile</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">VICSA</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Departamento</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Nombre Usuario</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">usuario</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">usuario@vicsa.cl</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">EQUIPO-001</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Intel Core i5</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Windows 10</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Sí</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Sí</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Instalado</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Instalado</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Instalado</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">05-09-2025</td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600"></td>
+                                            <td className="px-3 py-2 border-t border-gray-200 dark:border-gray-600">Confirmado</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                * Esta es una vista previa de la estructura. El archivo Excel incluirá todos los usuarios con activos asignados.
+                            </p>
                         </div>
                     </div>
                 )}

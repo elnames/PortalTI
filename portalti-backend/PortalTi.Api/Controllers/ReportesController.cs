@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Data;
 using PortalTi.Api.Models;
 using System.Linq;
+using ClosedXML.Excel;
 
 namespace PortalTi.Api.Controllers
 {
@@ -251,6 +252,151 @@ namespace PortalTi.Api.Controllers
             catch (Exception ex)
             {
                 return BadRequest($"Error al obtener rendimiento TI: {ex.Message}");
+            }
+        }
+
+        // Reporte Trimestral de Registros
+        [HttpGet("registros-trimestrales/excel")]
+        public async Task<IActionResult> GenerarReporteTrimestralExcel([FromQuery] int? trimestre, [FromQuery] int? año)
+        {
+            try
+            {
+                var trimestreActual = trimestre ?? ((DateTime.Now.Month - 1) / 3) + 1;
+                var añoActual = año ?? DateTime.Now.Year;
+
+                // Obtener datos de usuarios con sus activos asignados
+                var usuariosConAsignaciones = await _context.NominaUsuarios
+                    .Include(u => u.Asignaciones)
+                        .ThenInclude(a => a.Activo)
+                    .Where(u => u.Asignaciones.Any())
+                    .ToListAsync();
+
+                var datosReporte = usuariosConAsignaciones.Select(u => new
+                {
+                    // Localidad
+                    Region = "Chile",
+                    OpCo = "VICSA",
+                    Unidad = u.Departamento ?? "Sin departamento",
+                    
+                    // Identificación
+                    Username = u.Nombre + " " + u.Apellido,
+                    UsuarioAD = u.Email != null ? u.Email.Split('@')[0] : "N/A",
+                    Correo = u.Email ?? "N/A",
+                    
+                    // Workstation (del primer activo asignado)
+                    Hostname = u.Asignaciones.FirstOrDefault()?.Activo?.Nombre ?? "N/A",
+                    Procesador = u.Asignaciones.FirstOrDefault()?.Activo?.Procesador ?? "N/A",
+                    
+                    // Status
+                    OSName = u.Asignaciones.FirstOrDefault()?.Activo?.SistemaOperativo ?? "Windows 10",
+                    Utilizacion = "Sí",
+                    UsoRemoto = "Sí",
+                    
+                    // Instalaciones (simuladas por ahora)
+                    CiscoSecureEndpoint = "Instalado",
+                    CiscoUmbrella = "Instalado",
+                    Rapid7 = "Instalado",
+                    
+                    // Observaciones
+                    FechaActualizacion = DateTime.Now.ToString("dd-MM-yyyy"),
+                    Comentar = "",
+                    Validacion = "Confirmado"
+                }).ToList();
+
+                // Crear el archivo Excel
+                using var workbook = new XLWorkbook();
+                var worksheet = workbook.Worksheets.Add("Registros Trimestrales");
+
+                // Configurar el estilo de la cabecera principal
+                var headerStyle = workbook.Style;
+                headerStyle.Fill.BackgroundColor = XLColor.FromHtml("#1F497D");
+                headerStyle.Font.FontColor = XLColor.White;
+                headerStyle.Font.Bold = true;
+                headerStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                headerStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+                // Configurar el estilo de la sub-cabecera
+                var subHeaderStyle = workbook.Style;
+                subHeaderStyle.Fill.BackgroundColor = XLColor.FromHtml("#DCE6F1");
+                subHeaderStyle.Font.FontColor = XLColor.Black;
+                subHeaderStyle.Font.Bold = true;
+                subHeaderStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                subHeaderStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+                // Configurar el estilo de los datos
+                var dataStyle = workbook.Style;
+                dataStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                dataStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+                // Crear la cabecera principal (fila 1)
+                worksheet.Range("A1:P1").Merge();
+                worksheet.Cell("A1").Value = "REPORTE TRIMESTRAL DE REGISTROS";
+                worksheet.Cell("A1").Style = headerStyle;
+                worksheet.Row(1).Height = 30;
+
+                // Crear la sub-cabecera con información del trimestre (fila 2)
+                worksheet.Range("A2:P2").Merge();
+                worksheet.Cell("A2").Value = $"Trimestre {trimestreActual} - {añoActual}";
+                worksheet.Cell("A2").Style = subHeaderStyle;
+                worksheet.Row(2).Height = 25;
+
+                // Crear las cabeceras de columnas (fila 3)
+                var headers = new[]
+                {
+                    "Región", "OpCo", "Unidad", "Username", "Usuario AD", "Correo",
+                    "Hostname", "Procesador", "O.S Name", "Utilizac", "Uso Remo",
+                    "Cisco Secure Endp", "Cisco Umbre", "Rapid7", "Fecha de Actualizaci", "Comentar", "Validación"
+                };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    var cell = worksheet.Cell(3, i + 1);
+                    cell.Value = headers[i];
+                    cell.Style = subHeaderStyle;
+                    cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                }
+                worksheet.Row(3).Height = 25;
+
+                // Llenar los datos
+                for (int i = 0; i < datosReporte.Count; i++)
+                {
+                    var dato = datosReporte[i];
+                    var row = i + 4;
+
+                    var values = new[]
+                    {
+                        dato.Region, dato.OpCo, dato.Unidad, dato.Username, dato.UsuarioAD, dato.Correo,
+                        dato.Hostname, dato.Procesador, dato.OSName, dato.Utilizacion, dato.UsoRemoto,
+                        dato.CiscoSecureEndpoint, dato.CiscoUmbrella, dato.Rapid7, dato.FechaActualizacion, dato.Comentar, dato.Validacion
+                    };
+
+                    for (int j = 0; j < values.Length; j++)
+                    {
+                        var cell = worksheet.Cell(row, j + 1);
+                        cell.Value = values[j];
+                        cell.Style = dataStyle;
+                        cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    }
+                    worksheet.Row(row).Height = 20;
+                }
+
+                // Ajustar el ancho de las columnas
+                worksheet.Columns().AdjustToContents();
+
+                // Agregar filtros a la fila de cabecera
+                worksheet.Range(3, 1, 3, headers.Length).SetAutoFilter();
+
+                // Generar el archivo en memoria
+                using var stream = new MemoryStream();
+                workbook.SaveAs(stream);
+                stream.Position = 0;
+
+                var fileName = $"Registros_Trimestrales_Q{trimestreActual}_{añoActual}_{DateTime.Now:yyyyMMdd}.xlsx";
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error al generar reporte trimestral: {ex.Message}");
             }
         }
     }

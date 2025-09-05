@@ -1,11 +1,16 @@
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Eye, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { downloadEvidenceViaAPI } from '../utils/evidenceProxy';
+import EvidenceModal from './EvidenceModal';
+import EvidenceImage from './EvidenceImage';
 
 export default function TicketTimeline({ ticket, onAddActualizacion, onActualizacionEliminada }) {
   const { user } = useAuth();
   const [comentarios, setComentarios] = React.useState([]);
+  const [selectedEvidence, setSelectedEvidence] = React.useState(null);
+  const [showEvidenceModal, setShowEvidenceModal] = React.useState(false);
 
   // Estados del ticket con colores originales
   const estados = React.useMemo(() => [
@@ -128,6 +133,18 @@ export default function TicketTimeline({ ticket, onAddActualizacion, onActualiza
     }
   };
 
+  // Función para abrir modal de evidencia
+  const handleOpenEvidence = (evidenceUrl, evidenceName) => {
+    setSelectedEvidence({ url: evidenceUrl, name: evidenceName });
+    setShowEvidenceModal(true);
+  };
+
+  // Función para cerrar modal de evidencia
+  const handleCloseEvidence = () => {
+    setShowEvidenceModal(false);
+    setSelectedEvidence(null);
+  };
+
   // Si no hay ticket, no renderizar nada
   if (!ticket) {
     return null;
@@ -179,35 +196,39 @@ export default function TicketTimeline({ ticket, onAddActualizacion, onActualiza
 
                 {/* Evidencia de la actualización */}
                 {actualizacion.evidencia && (
-                  <div className="mt-2">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Evidencia:</span>
-                      <button
-                        onClick={() => window.open(actualizacion.evidencia, '_blank')}
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs"
-                      >
-                        Ver imagen
-                      </button>
-                      <button
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = actualizacion.evidencia;
-                          link.download = `evidencia-${actualizacion.id}`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }}
-                        className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 text-xs"
-                      >
-                        Descargar
-                      </button>
+                  <div className="mt-3 flex items-start space-x-3">
+                    {/* Miniatura de la evidencia */}
+                    <div className="flex-shrink-0">
+                      <EvidenceImage
+                        evidenceUrl={actualizacion.evidencia}
+                        alt="Evidencia"
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => handleOpenEvidence(actualizacion.evidencia, `evidencia-${actualizacion.id}`)}
+                      />
                     </div>
-                    <img
-                      src={actualizacion.evidencia}
-                      alt="Evidencia"
-                      className="max-w-xs rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => window.open(actualizacion.evidencia, '_blank')}
-                    />
+
+                    {/* Información y botones de la evidencia */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Evidencia adjunta</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleOpenEvidence(actualizacion.evidencia, `evidencia-${actualizacion.id}`)}
+                          className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded transition-colors"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>Ver imagen</span>
+                        </button>
+                        <button
+                          onClick={() => downloadEvidenceViaAPI(actualizacion.evidencia, `evidencia-${actualizacion.id}`)}
+                          className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 rounded transition-colors"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Descargar</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -346,6 +367,14 @@ export default function TicketTimeline({ ticket, onAddActualizacion, onActualiza
           })}
         </div>
       </div>
+
+      {/* Modal de evidencia */}
+      <EvidenceModal
+        isOpen={showEvidenceModal}
+        onClose={handleCloseEvidence}
+        evidenceUrl={selectedEvidence?.url}
+        evidenceName={selectedEvidence?.name}
+      />
     </div>
   );
 } 

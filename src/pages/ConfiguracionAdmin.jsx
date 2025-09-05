@@ -3,6 +3,7 @@ import { createColumnHelper } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import EditAuthUserModal from '../components/EditAuthUserModal';
 import CreateAuthUserModal from '../components/CreateAuthUserModal';
+import EvidencePermissionsManager from '../components/EvidencePermissionsManager';
 import {
     Settings,
     Users,
@@ -181,7 +182,7 @@ export default function ConfiguracionAdmin() {
 
             await systemConfigAPI.updateConfig(configToSend);
             alert('Configuración guardada correctamente');
-            
+
             // Recargar configuración para confirmar cambios
             await fetchSystemConfig();
         } catch (err) {
@@ -211,7 +212,7 @@ export default function ConfiguracionAdmin() {
         try {
             await systemConfigAPI.toggleMaintenance(maintenanceMode, maintenanceMessage);
             alert(`Modo mantenimiento ${maintenanceMode ? 'activado' : 'desactivado'} correctamente`);
-            
+
             // Recargar configuración para confirmar cambios
             await fetchSystemConfig();
         } catch (err) {
@@ -228,7 +229,7 @@ export default function ConfiguracionAdmin() {
         try {
             await systemConfigAPI.initializeConfig();
             alert('Configuración inicializada correctamente');
-            
+
             // Recargar configuración
             await fetchSystemConfig();
         } catch (err) {
@@ -519,7 +520,7 @@ export default function ConfiguracionAdmin() {
                                                             : log.ipAddress === 'Unknown' || !log.ipAddress
                                                                 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                                                 : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                                }`}>
+                                                            }`}>
                                                             {log.ipAddress || 'N/A'}
                                                         </span>
                                                         {log.ipAddress && log.ipAddress !== 'Local' && log.ipAddress !== 'Unknown' && (
@@ -606,6 +607,11 @@ export default function ConfiguracionAdmin() {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Gestión de Permisos de Evidencias */}
+                            <div className="lg:col-span-2">
+                                <EvidencePermissionsManager />
                             </div>
 
                             {/* Configuración de Apariencia */}
