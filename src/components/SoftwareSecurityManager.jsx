@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, CheckCircle, XCircle, Plus, Edit2, Trash2, Key } from 'lucide-react';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import UserAutoComplete from './UserAutoComplete';
-import { softwareSecurityAPI } from '../services/api';
+import { softwareSecurityAPI, programasEstandarAPI } from '../services/api';
 import api from '../services/api';
 
 export default function SoftwareSecurityManager({ activoId, activoData }) {
@@ -15,6 +15,10 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
     const [showAddSecurity, setShowAddSecurity] = useState(false);
     const [showAddLicense, setShowAddLicense] = useState(false);
     const [usuarios, setUsuarios] = useState([]);
+    const [programasEstandar, setProgramasEstandar] = useState([]);
+    const [programasSoftware, setProgramasSoftware] = useState([]);
+    const [programasSeguridad, setProgramasSeguridad] = useState([]);
+    const [programasLicencias, setProgramasLicencias] = useState([]);
     const { alertSuccess, alertError } = useNotificationContext();
 
     // Estados para formularios
@@ -45,6 +49,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
         if (activoId) {
             loadSoftwareAndSecurity();
             loadUsuarios();
+            loadProgramasEstandar();
         }
     }, [activoId]);
 
@@ -54,6 +59,19 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
             setUsuarios(response.data);
         } catch (error) {
             console.error('Error al cargar usuarios:', error);
+        }
+    };
+
+    const loadProgramasEstandar = async () => {
+        try {
+            const response = await programasEstandarAPI.getAll();
+            const programas = response.data;
+            setProgramasEstandar(programas);
+            setProgramasSoftware(programas.filter(p => p.categoria === 'Software'));
+            setProgramasSeguridad(programas.filter(p => p.categoria === 'Seguridad'));
+            setProgramasLicencias(programas.filter(p => p.categoria === 'Licencia'));
+        } catch (error) {
+            console.error('Error al cargar programas estándar:', error);
         }
     };
 
@@ -218,6 +236,42 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                     </button>
                 </div>
                 <div className="p-4">
+                    {/* Programas Estándar Disponibles */}
+                    {programasSoftware.length > 0 && (
+                        <div className="mb-6">
+                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Programas Estándar Disponibles</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {programasSoftware.map((programa) => {
+                                    const isInstalado = softwareList.some(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                                    return (
+                                        <div 
+                                            key={programa.id} 
+                                            className={`p-2 rounded border text-xs ${
+                                                isInstalado 
+                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{programa.nombre}</span>
+                                                {isInstalado ? (
+                                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                    <XCircle className="h-3 w-3 text-gray-400" />
+                                                )}
+                                            </div>
+                                            {programa.versionRecomendada && (
+                                                <div className="text-xs opacity-75 mt-1">
+                                                    v{programa.versionRecomendada}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
                     {softwareList.length === 0 ? (
                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay software registrado</p>
                     ) : (
@@ -271,6 +325,40 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                     </button>
                 </div>
                 <div className="p-4">
+                    {/* Programas de Seguridad Estándar Disponibles */}
+                    {programasSeguridad.length > 0 && (
+                        <div className="mb-6">
+                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Programas de Seguridad Estándar Disponibles</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {programasSeguridad.map((programa) => {
+                                    const isInstalado = securityList.some(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                                    return (
+                                        <div 
+                                            key={programa.id} 
+                                            className={`p-2 rounded border text-xs ${
+                                                isInstalado 
+                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{programa.nombre}</span>
+                                                {isInstalado ? (
+                                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                    <XCircle className="h-3 w-3 text-gray-400" />
+                                                )}
+                                            </div>
+                                            <div className="text-xs opacity-75 mt-1">
+                                                {programa.tipo}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
                     {securityList.length === 0 ? (
                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay programas de seguridad registrados</p>
                     ) : (
@@ -324,6 +412,40 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                     </button>
                 </div>
                 <div className="p-4">
+                    {/* Licencias Estándar Disponibles */}
+                    {programasLicencias.length > 0 && (
+                        <div className="mb-6">
+                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Licencias Estándar Disponibles</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {programasLicencias.map((programa) => {
+                                    const isAsignada = licenses.some(l => l.software.toLowerCase().includes(programa.nombre.toLowerCase()));
+                                    return (
+                                        <div 
+                                            key={programa.id} 
+                                            className={`p-2 rounded border text-xs ${
+                                                isAsignada 
+                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                                                    : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{programa.nombre}</span>
+                                                {isAsignada ? (
+                                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                    <XCircle className="h-3 w-3 text-gray-400" />
+                                                )}
+                                            </div>
+                                            <div className="text-xs opacity-75 mt-1">
+                                                {programa.tipo}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
                     {licenses.length === 0 ? (
                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay licencias asignadas</p>
                     ) : (
@@ -365,13 +487,42 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agregar Software</h3>
                         <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Nombre del software"
-                                value={newSoftware.nombre}
-                                onChange={(e) => setNewSoftware(prev => ({ ...prev, nombre: e.target.value }))}
-                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Seleccionar Software Estándar
+                                </label>
+                                <select
+                                    value={newSoftware.nombre}
+                                    onChange={(e) => {
+                                        const programa = programasSoftware.find(p => p.nombre === e.target.value);
+                                        setNewSoftware(prev => ({ 
+                                            ...prev, 
+                                            nombre: e.target.value,
+                                            version: programa?.versionRecomendada || ''
+                                        }));
+                                    }}
+                                    className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    <option value="">Seleccionar programa...</option>
+                                    {programasSoftware.map((programa) => (
+                                        <option key={programa.id} value={programa.nombre}>
+                                            {programa.nombre} {programa.versionRecomendada && `(${programa.versionRecomendada})`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    O escribir manualmente
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre del software"
+                                    value={newSoftware.nombre}
+                                    onChange={(e) => setNewSoftware(prev => ({ ...prev, nombre: e.target.value }))}
+                                    className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
                             <input
                                 type="text"
                                 placeholder="Versión"
@@ -426,13 +577,42 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agregar Programa de Seguridad</h3>
                         <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Nombre del programa"
-                                value={newSecurity.nombre}
-                                onChange={(e) => setNewSecurity(prev => ({ ...prev, nombre: e.target.value }))}
-                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Seleccionar Programa de Seguridad Estándar
+                                </label>
+                                <select
+                                    value={newSecurity.nombre}
+                                    onChange={(e) => {
+                                        const programa = programasSeguridad.find(p => p.nombre === e.target.value);
+                                        setNewSecurity(prev => ({ 
+                                            ...prev, 
+                                            nombre: e.target.value,
+                                            tipo: programa?.tipo || 'Antivirus'
+                                        }));
+                                    }}
+                                    className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    <option value="">Seleccionar programa...</option>
+                                    {programasSeguridad.map((programa) => (
+                                        <option key={programa.id} value={programa.nombre}>
+                                            {programa.nombre} ({programa.tipo})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    O escribir manualmente
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre del programa"
+                                    value={newSecurity.nombre}
+                                    onChange={(e) => setNewSecurity(prev => ({ ...prev, nombre: e.target.value }))}
+                                    className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
                             <select
                                 value={newSecurity.tipo}
                                 onChange={(e) => setNewSecurity(prev => ({ ...prev, tipo: e.target.value }))}
@@ -486,13 +666,42 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agregar Licencia</h3>
                         <div className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Software"
-                                value={newLicense.software}
-                                onChange={(e) => setNewLicense(prev => ({ ...prev, software: e.target.value }))}
-                                className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Seleccionar Licencia Estándar
+                                </label>
+                                <select
+                                    value={newLicense.software}
+                                    onChange={(e) => {
+                                        const programa = programasLicencias.find(p => p.nombre === e.target.value);
+                                        setNewLicense(prev => ({ 
+                                            ...prev, 
+                                            software: e.target.value,
+                                            tipo: programa?.tipo || 'Perpetua'
+                                        }));
+                                    }}
+                                    className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    <option value="">Seleccionar licencia...</option>
+                                    {programasLicencias.map((programa) => (
+                                        <option key={programa.id} value={programa.nombre}>
+                                            {programa.nombre} ({programa.tipo})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    O escribir manualmente
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Software"
+                                    value={newLicense.software}
+                                    onChange={(e) => setNewLicense(prev => ({ ...prev, software: e.target.value }))}
+                                    className="w-full border px-3 py-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
                             <select
                                 value={newLicense.tipo}
                                 onChange={(e) => setNewLicense(prev => ({ ...prev, tipo: e.target.value }))}

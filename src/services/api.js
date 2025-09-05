@@ -261,6 +261,14 @@ export const softwareSecurityAPI = {
     deleteLicencia: (id) => api.delete(`/SoftwareSecurity/licencia/${id}`)
 };
 
+// Métodos para Programas Estándar
+export const programasEstandarAPI = {
+    getAll: () => api.get('/programasestandar'),
+    getByCategoria: (categoria) => api.get(`/programasestandar?categoria=${categoria}`),
+    getCategorias: () => api.get('/programasestandar/categorias'),
+    verificarInstalacion: (data) => api.post('/programasestandar/verificar-instalacion', data)
+};
+
 // Métodos para Paz y Salvo
 export const pazYSalvoAPI = {
     getAll: () => api.get('/pazysalvo'),
