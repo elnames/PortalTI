@@ -14,12 +14,10 @@ import {
     MapPin,
     Building,
     Mail,
-    Phone,
     FileText,
     History,
     Activity,
     Shield,
-    Key,
     Plus,
     X
 } from 'lucide-react'
@@ -37,7 +35,7 @@ export default function ActivoDetail() {
     const [error, setError] = useState(null)
     const [activeTab, setActiveTab] = useState('info')
     const [showAsignarModal, setShowAsignarModal] = useState(false)
-    const { showNotification, alertSuccess, alertError } = useNotificationContext()
+    const { alertSuccess, alertError } = useNotificationContext()
 
     const fetchActivo = async () => {
         if (!codigo) {
@@ -60,7 +58,7 @@ export default function ActivoDetail() {
 
     useEffect(() => {
         fetchActivo()
-    }, [codigo])
+    }, [codigo, fetchActivo])
 
     const handleAsignacionCreada = () => {
         fetchActivo() // Recargar el activo para mostrar la nueva asignación

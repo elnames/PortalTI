@@ -6,7 +6,6 @@ import {
     Users,
     HardDrive,
     TrendingUp,
-    TrendingDown,
     Calendar,
     Download,
     Filter,
@@ -14,8 +13,6 @@ import {
     Activity,
     AlertTriangle,
     CheckCircle,
-    Clock,
-    MapPin,
     Building,
     Smartphone,
     Monitor,
@@ -28,7 +25,7 @@ import api, { reportesAPI } from '../services/api';
 
 export default function Reportes() {
     const navigate = useNavigate();
-    const { user, token } = useAuth();
+    const { token } = useAuth();
 
     // Verificar autenticación
     useEffect(() => {

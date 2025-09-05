@@ -3,7 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { Shield, CheckCircle, XCircle, Plus, Edit2, Trash2, Key } from 'lucide-react';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import UserAutoComplete from './UserAutoComplete';
-import { softwareSecurityAPI, programasEstandarAPI } from '../services/api';
+import {
+    softwareSecurityAPI,
+    programasEstandarAPI,
+    softwareAPI,
+    programasSeguridadAPI,
+    licenciasAPI
+} from '../services/api';
 import api from '../services/api';
 
 export default function SoftwareSecurityManager({ activoId, activoData }) {
@@ -84,30 +90,30 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
 
     const handleTogglePrograma = async (programa, tipo) => {
         try {
-            const isInstalado = tipo === 'software' 
+            const isInstalado = tipo === 'software'
                 ? softwareList.some(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()))
                 : tipo === 'seguridad'
-                ? programasSeguridadList.some(p => p.nombre.toLowerCase().includes(programa.nombre.toLowerCase()))
-                : licenciasList.some(l => l.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                    ? securityList.some(p => p.nombre.toLowerCase().includes(programa.nombre.toLowerCase()))
+                    : licenses.some(l => l.software.toLowerCase().includes(programa.nombre.toLowerCase()));
 
             if (isInstalado) {
                 // Si está instalado, eliminarlo
                 if (tipo === 'software') {
                     const softwareToRemove = softwareList.find(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
                     if (softwareToRemove) {
-                        await softwareAPI.delete(softwareToRemove.id);
+                        await softwareSecurityAPI.deleteSoftware(softwareToRemove.id);
                         loadSoftware();
                     }
                 } else if (tipo === 'seguridad') {
-                    const programaToRemove = programasSeguridadList.find(p => p.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                    const programaToRemove = securityList.find(p => p.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
                     if (programaToRemove) {
-                        await programasSeguridadAPI.delete(programaToRemove.id);
+                        await softwareSecurityAPI.deleteProgramaSeguridad(programaToRemove.id);
                         loadProgramasSeguridad();
                     }
                 } else if (tipo === 'licencia') {
-                    const licenciaToRemove = licenciasList.find(l => l.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
+                    const licenciaToRemove = licenses.find(l => l.software.toLowerCase().includes(programa.nombre.toLowerCase()));
                     if (licenciaToRemove) {
-                        await licenciasAPI.delete(licenciaToRemove.id);
+                        await softwareSecurityAPI.deleteLicencia(licenciaToRemove.id);
                         loadLicencias();
                     }
                 }
@@ -123,13 +129,22 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                 };
 
                 if (tipo === 'software') {
-                    await softwareAPI.create(nuevoItem);
+                    await softwareSecurityAPI.createSoftware({
+                        ...nuevoItem,
+                        activoId: activoId
+                    });
                     loadSoftware();
                 } else if (tipo === 'seguridad') {
-                    await programasSeguridadAPI.create(nuevoItem);
+                    await softwareSecurityAPI.createProgramaSeguridad({
+                        ...nuevoItem,
+                        activoId: activoId
+                    });
                     loadProgramasSeguridad();
                 } else if (tipo === 'licencia') {
-                    await licenciasAPI.create(nuevoItem);
+                    await softwareSecurityAPI.createLicencia({
+                        ...nuevoItem,
+                        activoId: activoId
+                    });
                     loadLicencias();
                 }
                 alertSuccess(`${programa.nombre} agregado correctamente`);
@@ -144,6 +159,33 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
         if (!userId || !usuarios.length) return 'No asignado';
         const usuario = usuarios.find(u => u.id === userId);
         return usuario ? `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || usuario.email || 'Usuario sin nombre' : 'Usuario no encontrado';
+    };
+
+    const loadSoftware = async () => {
+        try {
+            const response = await softwareSecurityAPI.getByActivo(activoId);
+            setSoftwareList(response.data.software || []);
+        } catch (error) {
+            console.error('Error al cargar software:', error);
+        }
+    };
+
+    const loadProgramasSeguridad = async () => {
+        try {
+            const response = await softwareSecurityAPI.getByActivo(activoId);
+            setSecurityList(response.data.programasSeguridad || []);
+        } catch (error) {
+            console.error('Error al cargar programas de seguridad:', error);
+        }
+    };
+
+    const loadLicencias = async () => {
+        try {
+            const response = await softwareSecurityAPI.getByActivo(activoId);
+            setLicenses(response.data.licencias || []);
+        } catch (error) {
+            console.error('Error al cargar licencias:', error);
+        }
     };
 
     const loadSoftwareAndSecurity = async () => {
@@ -309,14 +351,13 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                 {programasSoftware.map((programa) => {
                                     const isInstalado = softwareList.some(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
                                     return (
-                                        <div 
-                                            key={programa.id} 
+                                        <div
+                                            key={programa.id}
                                             onClick={() => handleTogglePrograma(programa, 'software')}
-                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                                isInstalado 
-                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${isInstalado
+                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
                                                     : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium">{programa.nombre}</span>
@@ -337,7 +378,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                             </div>
                         </div>
                     )}
-                    
+
                     {softwareList.length === 0 ? (
                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay software registrado</p>
                     ) : (
@@ -399,14 +440,13 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                 {programasSeguridad.map((programa) => {
                                     const isInstalado = securityList.some(s => s.nombre.toLowerCase().includes(programa.nombre.toLowerCase()));
                                     return (
-                                        <div 
-                                            key={programa.id} 
+                                        <div
+                                            key={programa.id}
                                             onClick={() => handleTogglePrograma(programa, 'seguridad')}
-                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                                isInstalado 
-                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${isInstalado
+                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
                                                     : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium">{programa.nombre}</span>
@@ -425,7 +465,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                             </div>
                         </div>
                     )}
-                    
+
                     {securityList.length === 0 ? (
                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay programas de seguridad registrados</p>
                     ) : (
@@ -487,14 +527,13 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                 {programasLicencias.map((programa) => {
                                     const isAsignada = licenses.some(l => l.software.toLowerCase().includes(programa.nombre.toLowerCase()));
                                     return (
-                                        <div 
-                                            key={programa.id} 
+                                        <div
+                                            key={programa.id}
                                             onClick={() => handleTogglePrograma(programa, 'licencia')}
-                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                                isAsignada 
-                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                                            className={`p-2 rounded border text-xs cursor-pointer transition-all duration-200 hover:shadow-md ${isAsignada
+                                                    ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
                                                     : 'bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <span className="font-medium">{programa.nombre}</span>
@@ -513,7 +552,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                             </div>
                         </div>
                     )}
-                    
+
                     {licenses.length === 0 ? (
                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay licencias asignadas</p>
                     ) : (
@@ -563,8 +602,8 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     value={newSoftware.nombre}
                                     onChange={(e) => {
                                         const programa = programasSoftware.find(p => p.nombre === e.target.value);
-                                        setNewSoftware(prev => ({ 
-                                            ...prev, 
+                                        setNewSoftware(prev => ({
+                                            ...prev,
                                             nombre: e.target.value,
                                             version: programa?.versionRecomendada || ''
                                         }));
@@ -653,8 +692,8 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     value={newSecurity.nombre}
                                     onChange={(e) => {
                                         const programa = programasSeguridad.find(p => p.nombre === e.target.value);
-                                        setNewSecurity(prev => ({ 
-                                            ...prev, 
+                                        setNewSecurity(prev => ({
+                                            ...prev,
                                             nombre: e.target.value,
                                             tipo: programa?.tipo || 'Antivirus'
                                         }));
@@ -742,8 +781,8 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                                     value={newLicense.software}
                                     onChange={(e) => {
                                         const programa = programasLicencias.find(p => p.nombre === e.target.value);
-                                        setNewLicense(prev => ({ 
-                                            ...prev, 
+                                        setNewLicense(prev => ({
+                                            ...prev,
                                             software: e.target.value,
                                             tipo: programa?.tipo || 'Perpetua'
                                         }));
