@@ -181,7 +181,10 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
 
     const loadLicencias = async () => {
         try {
+            console.log('Cargando licencias para activo:', activoId);
             const response = await softwareSecurityAPI.getByActivo(activoId);
+            console.log('Respuesta de licencias:', response.data);
+            console.log('Licencias encontradas:', response.data.licencias);
             setLicenses(response.data.licencias || []);
         } catch (error) {
             console.error('Error al cargar licencias:', error);
@@ -191,10 +194,15 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
     const loadSoftwareAndSecurity = async () => {
         try {
             setLoading(true);
+            console.log('Cargando software y seguridad para activo:', activoId);
             const response = await softwareSecurityAPI.getByActivo(activoId);
+            console.log('Respuesta completa:', response.data);
             setSoftwareList(response.data.software || []);
             setSecurityList(response.data.programasSeguridad || []);
             setLicenses(response.data.licencias || []);
+            console.log('Software cargado:', response.data.software?.length || 0);
+            console.log('Programas de seguridad cargados:', response.data.programasSeguridad?.length || 0);
+            console.log('Licencias cargadas:', response.data.licencias?.length || 0);
         } catch (error) {
             console.error('Error al cargar software y seguridad:', error);
             alertError('Error al cargar software y seguridad');
@@ -243,9 +251,9 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
                 fechaInicio: null,
                 fechaVencimiento: null
             });
-            setLicenses(prev => [...prev, response.data]);
             setNewLicense({ software: '', tipo: 'Perpetua', numeroLicencia: '', usuarioAsignado: '', notas: '' });
             setShowAddLicense(false);
+            loadLicencias(); // Recargar la lista de licencias
             alertSuccess('Licencia agregada correctamente');
         } catch (error) {
             console.error('Error al agregar licencia:', error);
@@ -284,7 +292,7 @@ export default function SoftwareSecurityManager({ activoId, activoData }) {
 
         try {
             await softwareSecurityAPI.deleteLicencia(id);
-            setLicenses(prev => prev.filter(l => l.id !== id));
+            loadLicencias(); // Recargar la lista de licencias
             alertSuccess('Licencia eliminada correctamente');
         } catch (error) {
             console.error('Error al eliminar licencia:', error);
