@@ -1,0 +1,18 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "echo 'Full stack deploy' && npm run build && npm run start:backend"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Configuración para servicios múltiples
+[services.backend]
+source = "portalti-backend/PortalTi.Api"
+buildCommand = "dotnet publish -c Release -o ./publish"
+startCommand = "dotnet ./publish/PortalTi.Api.dll"
+
+[services.frontend]
+source = "."
+buildCommand = "npm run build"
+startCommand = "npx serve -s build -l 3000"

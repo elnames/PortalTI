@@ -1,0 +1,33 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "npm run build && npm run start:backend",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  },
+  "services": [
+    {
+      "name": "portal-ti-backend",
+      "source": "portalti-backend/PortalTi.Api",
+      "build": {
+        "builder": "NIXPACKS"
+      },
+      "deploy": {
+        "startCommand": "dotnet PortalTi.Api.dll"
+      }
+    },
+    {
+      "name": "portal-ti-frontend", 
+      "source": ".",
+      "build": {
+        "builder": "NIXPACKS"
+      },
+      "deploy": {
+        "startCommand": "npm run build && npx serve -s build -l 3000"
+      }
+    }
+  ]
+}
