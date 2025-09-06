@@ -255,6 +255,9 @@ using (var scope = app.Services.CreateScope())
 
     // Sembrar datos si la BD está vacía
     DbInitializer.SeedIfEmpty(context);
+    
+    // Asegurar que existe el usuario admin
+    DbInitializer.EnsureAdminUser(context);
 }
 
 // 9) Middlewares (¡¡¡orden crítico!!!)

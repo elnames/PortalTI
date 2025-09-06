@@ -588,6 +588,47 @@ namespace PortalTi.Api.Controllers
             }
         }
 
+        [HttpPost("regenerate-admin")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> RegenerateAdmin()
+        {
+            try
+            {
+                // Eliminar usuarios admin existentes
+                var existingAdmins = await _db.AuthUsers.Where(u => u.Username == "admin").ToListAsync();
+                if (existingAdmins.Any())
+                {
+                    _db.AuthUsers.RemoveRange(existingAdmins);
+                    await _db.SaveChangesAsync();
+                }
+
+                // Crear nuevo usuario admin con hash correcto
+                using var hmac = new HMACSHA512();
+                var adminUser = new AuthUser
+                {
+                    Username = "admin",
+                    PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes("admin")),
+                    PasswordSalt = hmac.Key,
+                    Role = "admin",
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+
+                _db.AuthUsers.Add(adminUser);
+                await _db.SaveChangesAsync();
+
+                // Log de actividad
+                await LogActivity(adminUser.Id, "regenerate_admin", "Usuario admin regenerado");
+
+                return Ok(new { message = "Usuario admin regenerado correctamente. Credenciales: admin / admin" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error regenerando usuario admin");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
         [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword(ChangePasswordRequest req)
         {

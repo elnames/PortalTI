@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using PortalTi.Api.Models;
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace PortalTi.Api.Data
 {
@@ -11,6 +13,48 @@ namespace PortalTi.Api.Data
         {
             if (context.NominaUsuarios.Any()) return;
             SeedInitialData(context);
+        }
+
+        /// <summary>
+        /// Asegura que existe un usuario admin con contraseña correcta
+        /// </summary>
+        public static void EnsureAdminUser(PortalTiContext context)
+        {
+            // Verificar si ya existe un usuario admin
+            if (context.AuthUsers.Any(u => u.Username == "admin" && u.Role == "admin"))
+                return;
+
+            // Eliminar usuarios admin existentes con credenciales incorrectas
+            var existingAdmins = context.AuthUsers.Where(u => u.Username == "admin").ToList();
+            if (existingAdmins.Any())
+            {
+                context.AuthUsers.RemoveRange(existingAdmins);
+                context.SaveChanges();
+            }
+
+            // Crear usuario admin con hash correcto
+            var adminUser = CreateAdminUser("admin", "admin");
+            context.AuthUsers.Add(adminUser);
+            context.SaveChanges();
+
+            Console.WriteLine("Usuario admin creado automáticamente con credenciales: admin / admin");
+        }
+
+        /// <summary>
+        /// Crea un usuario admin con hash de contraseña correcto
+        /// </summary>
+        private static AuthUser CreateAdminUser(string username, string password)
+        {
+            using var hmac = new HMACSHA512();
+            return new AuthUser
+            {
+                Username = username,
+                PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password)),
+                PasswordSalt = hmac.Key,
+                Role = "admin",
+                IsActive = true,
+                CreatedAt = DateTime.Now
+            };
         }
 
         /// <summary>
@@ -176,6 +220,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notificaciones_Created
 
         private static void SeedGenericData(PortalTiContext context)
         {
+            // Asegurar que existe el usuario admin
+            EnsureAdminUser(context);
+            
             var random = new Random();
 
             // Datos genéricos
