@@ -228,17 +228,32 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// 7) CORS: política específica para el front en localhost:3000
+// 7) CORS: configuración para desarrollo y producción
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("FrontCorsPolicy", policy =>
-        policy
-          .WithOrigins("http://localhost:3000")
-          .AllowAnyMethod()
-          .AllowAnyHeader()
-          .AllowCredentials()
-          .SetIsOriginAllowed(origin => true) // Permitir cualquier origen en desarrollo
-    );
+    if (builder.Environment.IsDevelopment())
+    {
+        options.AddPolicy("FrontCorsPolicy", policy =>
+            policy
+              .WithOrigins("http://localhost:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials()
+              .SetIsOriginAllowed(origin => true) // Permitir cualquier origen en desarrollo
+        );
+    }
+    else
+    {
+        // En producción, usar variables de entorno
+        var allowedOrigins = builder.Configuration["CorsSettings:AllowedOrigins"]?.Split(',') ?? new[] { "*" };
+        options.AddPolicy("FrontCorsPolicy", policy =>
+            policy
+              .WithOrigins(allowedOrigins)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials()
+        );
+    }
 });
 
 var app = builder.Build();
