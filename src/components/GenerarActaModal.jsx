@@ -20,25 +20,21 @@ export default function GenerarActaModal({ isOpen, onClose, asignacion }) {
                 Observaciones: observaciones || null
             };
 
-            const { data } = await actasAPI.generarActaAdmin(payload);
+            console.log('FRONTEND - Previsualizando acta temporal con payload:', payload);
+            console.log('FRONTEND - IncluirFirmaTI:', includeSignature);
+            console.log('FRONTEND - AsignacionId:', asignacion.id);
 
-            // Abrir previsualización del PDF generado (descarga directa)
-            try {
-                // Abrir previsualización en una nueva pestaña (no forzar descarga)
-                const actaId = data.actaId;
-                if (actaId) {
-                    const preview = await actasAPI.previewAuto(actaId);
-                    const url = window.URL.createObjectURL(preview.data);
-                    window.open(url, '_blank');
-                }
-            } catch (e) {
-                console.warn('No se pudo abrir la previsualización:', e);
-            }
+            // Usar el nuevo endpoint de previsualización temporal (no guarda en Storage)
+            const response = await actasAPI.previsualizarActaTemporal(payload);
+
+            // Abrir previsualización en el navegador
+            const url = window.URL.createObjectURL(response.data);
+            window.open(url, '_blank');
             
             onClose();
         } catch (error) {
-            console.error('Error al generar acta:', error);
-            alert('Error al generar la acta. Por favor, inténtalo de nuevo.');
+            console.error('Error al previsualizar acta:', error);
+            alert('Error al previsualizar la acta. Por favor, inténtalo de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -105,9 +101,14 @@ export default function GenerarActaModal({ isOpen, onClose, asignacion }) {
                                     onChange={(e) => setIncludeSignature(e.target.checked)}
                                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
-                                    Incluir firma digital del usuario actual
-                                </span>
+                                <div>
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                                        Incluir firma digital del admin/soporte actual
+                                    </span>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Se incluirá tu firma digital en la sección "Firma TI" del documento
+                                    </p>
+                                </div>
                             </label>
                         </div>
 
@@ -159,8 +160,8 @@ export default function GenerarActaModal({ isOpen, onClose, asignacion }) {
                                 </>
                             ) : (
                                 <>
-                                    <Download className="w-4 h-4" />
-                                    <span>Generar y Descargar</span>
+                                    <FileText className="w-4 h-4" />
+                                    <span>Previsualizar para Imprimir</span>
                                 </>
                             )}
                         </button>
