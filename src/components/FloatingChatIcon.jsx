@@ -139,7 +139,7 @@ const FloatingChatIcon = ({ onChatSelect }) => {
     }, []);
 
     // Calcular total de mensajes no leídos
-    const totalNoLeidos = conversaciones.reduce((total, conv) => total + (conv.mensajesNoLeidos || 0), 0);
+    const totalNoLeidos = Array.isArray(conversaciones) ? conversaciones.reduce((total, conv) => total + (conv.mensajesNoLeidos || 0), 0) : 0;
 
     // Recargar conversaciones periódicamente para mantener el contador actualizado
     useEffect(() => {
@@ -166,11 +166,15 @@ const FloatingChatIcon = ({ onChatSelect }) => {
         try {
             setIsLoading(true);
             const response = await chatAPI.getConversaciones();
+            // Asegurar que siempre sea un array
+            const conversacionesData = Array.isArray(response.data) ? response.data : [];
             // Solo mostrar las últimas 5 conversaciones
-            setConversaciones(response.data.slice(0, 5));
+            setConversaciones(conversacionesData.slice(0, 5));
         } catch (error) {
             console.error('Error al cargar conversaciones:', error);
             showToast('Error al cargar las conversaciones', 'error');
+            // En caso de error, establecer array vacío
+            setConversaciones([]);
         } finally {
             setIsLoading(false);
         }

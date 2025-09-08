@@ -1,0 +1,10 @@
+[33m900ce99[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix configuration issues - Correct API URLs and CORS settings
+[33mf64c0dc[m Fix database connection priority - Use DATABASE_URL from Railway first
+[33mf8405a3[m Fix PostgreSQL connection strings and JWT secret keys in all config files
+[33mcc805d5[m Fix PostgreSQL connection string - Remove SQL Server parameters
+[33mc569c56[m Fix PostgreSQL migrations - Remove SQL Server migrations and create new PostgreSQL migration
+[33m728c5ba[m Force Railway redeploy with PostgreSQL changes
+[33m798507c[m Fix PostgreSQL package version compatibility for .NET 9.0
+[33m611c381[m Switch from SQL Server to PostgreSQL for Railway deployment
+[33m2b890ae[m Add port configuration for Railway deployment
+[33m7244f82[m Fix Railway configuration to use Dockerfile properly

@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -25,20 +26,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     setLoading(true);
     try {
-      // Usa siempre la URL base definida
-      const baseUrl = 'http://localhost:5266/api'; // Forzado para evitar problemas de cache
-      const res = await fetch(`${baseUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        // Log extra para depurar (puedes dejarlo si tienes problemas)
-        console.error('Login failed:', txt);
-        throw new Error('Credenciales inválidas');
-      }
-      const { user: u, token: t } = await res.json();
+      console.log('Intentando login con api.js');
+      const response = await authAPI.login(credentials);
+      const { user: u, token: t } = response.data;
       setUser(u);
       setToken(t);
 
@@ -52,6 +42,9 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.setItem('token', t);
         sessionStorage.setItem('rememberMe', 'true');
       }
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw new Error('Credenciales inválidas');
     } finally {
       setLoading(false);
     }
@@ -101,21 +94,12 @@ export const AuthProvider = ({ children }) => {
       if (token && !userDataLoaded && !user?.nombre) {
         try {
           setUserDataLoaded(true);
-          const baseUrl = 'http://localhost:5266/api';
-          const res = await fetch(`${baseUrl}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (res.ok) {
-            const userData = await res.json();
-            setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
-            if (sessionStorage.getItem('rememberMe') === 'true') {
-              sessionStorage.setItem('user', JSON.stringify(userData));
-            }
+          const response = await authAPI.getProfile();
+          const userData = response.data;
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          if (sessionStorage.getItem('rememberMe') === 'true') {
+            sessionStorage.setItem('user', JSON.stringify(userData));
           }
         } catch (error) {
           console.error('Error al actualizar datos del usuario:', error);

@@ -1,5 +1,6 @@
 // src/utils/evidenceUtils.js
 import api from '../services/api';
+import { getApiBaseUrl } from '../config';
 
 /**
  * Convierte una URL relativa de evidencia a una URL absoluta
@@ -15,8 +16,7 @@ export const getAbsoluteEvidenceUrl = (evidenceUrl) => {
     }
 
     // Construir URL absoluta
-    const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5266/api';
-    const apiBaseUrl = baseURL.replace('/api', '');
+    const apiBaseUrl = getApiBaseUrl();
 
     return `${apiBaseUrl}${evidenceUrl}`;
 };

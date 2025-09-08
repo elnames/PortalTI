@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { useAuth } from "../contexts/AuthContext";
+import { getApiBaseUrl } from "../config";
 
 export default function useChatSignalR() {
   const [connection, setConnection] = useState(null);
@@ -16,9 +17,12 @@ export default function useChatSignalR() {
     if (!token) return;
 
     const conn = new HubConnectionBuilder()
-      .withUrl(`${process.env.REACT_APP_API_URL || 'http://localhost:5266'}/hubs/chat?access_token=${token}`, {
+      .withUrl(`${getApiBaseUrl()}/hubs/chat?access_token=${token}`, {
         skipNegotiation: false,
-        transport: 1 // WebSockets
+        transport: 1, // WebSockets
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
       })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: retryContext => {
