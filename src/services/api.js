@@ -15,19 +15,19 @@ api.interceptors.request.use(
         console.log('API INTERCEPTOR - Token encontrado:', !!token);
         console.log('API INTERCEPTOR - URL:', config.url);
         console.log('API INTERCEPTOR - Method:', config.method);
-        
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
             console.log('API INTERCEPTOR - Authorization header agregado');
         } else {
             console.log('API INTERCEPTOR - No hay token, petición sin autenticación');
         }
-        
+
         // Agregar header para evitar warning de ngrok
         if (config.baseURL && config.baseURL.includes('ngrok-free.app')) {
             config.headers['ngrok-skip-browser-warning'] = 'true';
         }
-        
+
         return config;
     },
     (error) => {
@@ -160,7 +160,10 @@ export const activosAPI = {
     getRetirados: () => api.get('/activos/retirados'),
     getMisActivos: () => api.get('/activos/mis-activos'),
     darBaja: (id, motivo) => api.put(`/activos/${id}/dar-baja`, { motivoBaja: motivo }),
-    updateRustDeskId: (activoId, rustDeskId) => api.patch(`/activos/${activoId}/rustdesk-id`, { rustDeskId })
+    updateRustDeskId: (activoId, rustDeskId) => api.patch(`/activos/${activoId}/rustdesk-id`, { rustDeskId }),
+    updateRustDeskPassword: (activoId, password) => api.patch(`/activos/${activoId}/rustdesk-password`, { password }),
+    updateAnyDeskId: (activoId, anyDeskId) => api.patch(`/activos/${activoId}/anydesk-id`, { anyDeskId }),
+    updateAnyDeskPassword: (activoId, password) => api.patch(`/activos/${activoId}/anydesk-password`, { password })
 };
 
 // Métodos para Tickets
