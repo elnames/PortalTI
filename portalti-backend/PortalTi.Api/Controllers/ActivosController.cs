@@ -182,6 +182,10 @@ namespace PortalTi.Api.Controllers
                     activo.Capacidad,
                     activo.Nombre,
                     activo.Cantidad,
+                    activo.RustDeskId,
+                    activo.RustDeskPassword,
+                    activo.AnyDeskId,
+                    activo.AnyDeskPassword,
                     AsignadoA = activo.Asignaciones
                         .Where(aa => aa.Estado == "Activa")
                         .Select(aa => new

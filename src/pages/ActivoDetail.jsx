@@ -452,8 +452,8 @@ export default function ActivoDetail() {
                 )}
 
                 {activeTab === 'conexion' && (
-                    <RemoteConnectionManager 
-                        activoData={activo} 
+                    <RemoteConnectionManager
+                        activoData={activo}
                         onDataUpdated={fetchActivo}
                     />
                 )}

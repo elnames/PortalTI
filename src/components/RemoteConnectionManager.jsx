@@ -50,12 +50,15 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
     // Cargar datos de conexión cuando se monta el componente
     useEffect(() => {
         if (activoData) {
-            setConnectionData({
+            console.log('Datos del activo recibidos:', activoData);
+            const newConnectionData = {
                 rustDeskId: activoData.RustDeskId || activoData.rustDeskId || '',
                 rustDeskPassword: activoData.RustDeskPassword || activoData.rustDeskPassword || '',
                 anyDeskId: activoData.AnyDeskId || activoData.anyDeskId || '',
                 anyDeskPassword: activoData.AnyDeskPassword || activoData.anyDeskPassword || ''
-            });
+            };
+            console.log('Datos de conexión mapeados:', newConnectionData);
+            setConnectionData(newConnectionData);
         }
     }, [activoData]);
 
@@ -109,6 +112,10 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
 
         try {
             const activoId = activoData.Id || activoData.id;
+            console.log('Datos del activo:', activoData);
+            console.log('ID del activo:', activoId);
+            console.log('Campo a guardar:', field, 'Valor:', value);
+            
             if (!activoId) {
                 showToast('Error: ID de activo no encontrado', 'error');
                 return;
@@ -127,7 +134,7 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
 
             setEditingField(null);
             showToast(`${field} guardado correctamente`, 'success');
-            
+
             // Notificar al componente padre para que recargue los datos
             if (onDataUpdated) {
                 onDataUpdated();
@@ -316,7 +323,7 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
                             🔧 RustDesk
                         </h5>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
+                        <div>
                                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     ID de RustDesk:
                                 </label>
@@ -365,8 +372,8 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
                                         </button>
                                     )}
                                 </div>
-                            </div>
-                            <div>
+                        </div>
+                        <div>
                                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Contraseña:
                                 </label>
@@ -453,8 +460,8 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
                                         onClick={() => initiateConnection(config)}
                                         disabled={!id}
                                         className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors ${id
-                                                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                            : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                                             }`}
                                         title={id ? `Conectar usando ${config.name}` : `Configura el ID de ${config.name} primero`}
                                     >
@@ -464,17 +471,17 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
 
                                     {/* Botón de copiar */}
                                     {id && (
-                                        <button
-                                            onClick={() => copyToClipboard(url, config.protocol)}
-                                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                                            title="Copiar URL"
-                                        >
-                                            {copiedProtocol === config.protocol ? (
-                                                <CheckCircle className="h-4 w-4 text-green-500" />
-                                            ) : (
-                                                <Copy className="h-4 w-4" />
-                                            )}
-                                        </button>
+                                    <button
+                                        onClick={() => copyToClipboard(url, config.protocol)}
+                                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                        title="Copiar URL"
+                                    >
+                                        {copiedProtocol === config.protocol ? (
+                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                            <Copy className="h-4 w-4" />
+                                        )}
+                                    </button>
                                     )}
                                 </div>
                             </div>
