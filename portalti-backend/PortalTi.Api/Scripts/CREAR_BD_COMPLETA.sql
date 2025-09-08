@@ -108,6 +108,9 @@ CREATE TABLE [Activos] (
     [FechaBaja] datetime2 NULL,
     [MotivoBaja] nvarchar(500) NULL,
     [RustDeskId] nvarchar(100) NULL,
+    [RustDeskPassword] nvarchar(100) NULL,
+    [AnyDeskId] nvarchar(100) NULL,
+    [AnyDeskPassword] nvarchar(100) NULL,
     CONSTRAINT [PK_Activos] PRIMARY KEY ([Id])
 )
 GO
