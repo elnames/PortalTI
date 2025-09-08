@@ -8,6 +8,12 @@ namespace PortalTi.Api.Services
 {
     public class PdfService
     {
+        private readonly IConfiguration _configuration;
+
+        public PdfService(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
         public byte[] GenerateActaEntrega(AsignacionActivo asignacion, Activo activo, NominaUsuario usuario, string? userSignaturePath = null, DateTime? fechaEntrega = null)
         {
             return GenerateActaEntregaWithSignatures(asignacion, activo, usuario, null, userSignaturePath, fechaEntrega);
@@ -15,6 +21,10 @@ namespace PortalTi.Api.Services
 
         public byte[] GenerateActaEntregaWithSignatures(AsignacionActivo asignacion, Activo activo, NominaUsuario usuario, string? adminSignaturePath = null, string? userSignaturePath = null, DateTime? fechaEntrega = null)
         {
+            Console.WriteLine($"PDF - GenerateActaEntregaWithSignatures called with:");
+            Console.WriteLine($"PDF - adminSignaturePath: '{adminSignaturePath}'");
+            Console.WriteLine($"PDF - userSignaturePath: '{userSignaturePath}'");
+            
             using (MemoryStream ms = new MemoryStream())
             {
                 Document document = new Document(PageSize.A4, 40, 40, 40, 40);
@@ -149,9 +159,16 @@ namespace PortalTi.Api.Services
                 {
                     try
                     {
+                        var storageRoot = _configuration["Storage:Root"] ?? "Storage";
+                        
+                        // Si es una ruta relativa, resolverla desde el directorio del proyecto
+                        if (!Path.IsPathRooted(storageRoot))
+                        {
+                            storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
+                        }
                         string signaturePath = userSignaturePath.StartsWith("/storage/")
-                            ? Path.Combine(Directory.GetCurrentDirectory(), "Storage", userSignaturePath.Replace("/storage/", string.Empty))
-                            : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", userSignaturePath.TrimStart('/'));
+                            ? Path.Combine(storageRoot, userSignaturePath.Replace("/storage/", string.Empty))
+                            : Path.Combine(storageRoot, userSignaturePath.TrimStart('/'));
                         if (System.IO.File.Exists(signaturePath))
                         {
                             iTextSharp.text.Image signature = iTextSharp.text.Image.GetInstance(signaturePath);
@@ -182,14 +199,36 @@ namespace PortalTi.Api.Services
                 tiFirmaCell.VerticalAlignment = Element.ALIGN_BOTTOM;
                 tiFirmaCell.HorizontalAlignment = Element.ALIGN_CENTER;
 
-                // Si se proporciona una firma de admin, usarla; sino, usar línea
+                // Si se proporciona una firma de admin, usarla; sino, usar línea (MISMA LÓGICA QUE USUARIO)
                 if (!string.IsNullOrEmpty(adminSignaturePath))
                 {
                     try
                     {
+                        var storageRoot = _configuration["Storage:Root"] ?? "Storage";
+                        
+                        // Si es una ruta relativa, resolverla desde el directorio del proyecto
+                        if (!Path.IsPathRooted(storageRoot))
+                        {
+                            storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
+                        }
                         string signaturePath = adminSignaturePath.StartsWith("/storage/")
-                            ? Path.Combine(Directory.GetCurrentDirectory(), "Storage", adminSignaturePath.Replace("/storage/", string.Empty))
-                            : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", adminSignaturePath.TrimStart('/'));
+                            ? Path.Combine(storageRoot, adminSignaturePath.Replace("/storage/", string.Empty))
+                            : Path.Combine(storageRoot, adminSignaturePath.TrimStart('/'));
+                        
+                        Console.WriteLine($"PDF - Admin signature debug:");
+                        Console.WriteLine($"PDF - adminSignaturePath original: '{adminSignaturePath}'");
+                        Console.WriteLine($"PDF - storageRoot: '{storageRoot}'");
+                        Console.WriteLine($"PDF - signaturePath construida: '{signaturePath}'");
+                        Console.WriteLine($"PDF - File.Exists: {System.IO.File.Exists(signaturePath)}");
+                        
+                        // Listar archivos en el directorio de firmas para debug
+                        var signaturesDir = Path.Combine(storageRoot, "signatures");
+                        if (Directory.Exists(signaturesDir))
+                        {
+                            var files = Directory.GetFiles(signaturesDir);
+                            Console.WriteLine($"PDF - Archivos en signatures dir: {string.Join(", ", files)}");
+                        }
+                        
                         if (System.IO.File.Exists(signaturePath))
                         {
                             iTextSharp.text.Image signature = iTextSharp.text.Image.GetInstance(signaturePath);
