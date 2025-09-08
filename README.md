@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![PortalTI Logo](public/logo.png)
+![PortalTI Logo](public/banner_portalti.png)
 
 **Sistema completo de gestión de activos, tickets, usuarios y reportes empresariales**
 
