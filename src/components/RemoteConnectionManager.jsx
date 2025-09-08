@@ -4,7 +4,7 @@ import { Monitor, ExternalLink, Copy, CheckCircle, XCircle, Edit2, Save, X, Eye,
 import { useToast } from '../contexts/ToastContext';
 import { activosAPI } from '../services/api';
 
-export default function RemoteConnectionManager({ activoData }) {
+export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
     const { showToast } = useToast();
     const [copiedProtocol, setCopiedProtocol] = useState(null);
     const [editingField, setEditingField] = useState(null);
@@ -127,6 +127,11 @@ export default function RemoteConnectionManager({ activoData }) {
 
             setEditingField(null);
             showToast(`${field} guardado correctamente`, 'success');
+            
+            // Notificar al componente padre para que recargue los datos
+            if (onDataUpdated) {
+                onDataUpdated();
+            }
         } catch (error) {
             console.error('Error al guardar campo:', error);
             showToast('Error al guardar la información', 'error');

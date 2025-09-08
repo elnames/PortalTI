@@ -96,7 +96,7 @@ const RustDeskModal = ({ isOpen, onClose, conversacionId, onCredencialesEnviadas
 El administrador puede usar estas credenciales para conectarse a tu equipo.`;
 
             // Importar la API de chat dinámicamente
-            const { default: chatAPI } = await import('../services/api');
+            const { chatAPI } = await import('../services/api');
 
             // Enviar el mensaje al chat
             await chatAPI.enviarMensaje(conversacionId, {
