@@ -530,6 +530,9 @@ namespace PortalTi.Api.Controllers
                         aa.Activo.Nombre,
                         aa.Activo.Cantidad,
                         aa.Activo.RustDeskId,
+                        aa.Activo.RustDeskPassword,
+                        aa.Activo.AnyDeskId,
+                        aa.Activo.AnyDeskPassword,
                         FechaAsignacion = aa.FechaAsignacion
                     })
                     .ToListAsync();
@@ -642,6 +645,84 @@ namespace PortalTi.Api.Controllers
                 return StatusCode(500, new { message = "Error al actualizar ID de RustDesk", error = ex.Message });
             }
         }
+
+        // PATCH: api/Activos/{id}/rustdesk-password
+        [HttpPatch("{id}/rustdesk-password")]
+        public async Task<IActionResult> UpdateRustDeskPassword(int id, [FromBody] UpdatePasswordDto dto)
+        {
+            try
+            {
+                var activo = await _db.Activos.FindAsync(id);
+                if (activo == null)
+                {
+                    return NotFound();
+                }
+
+                activo.RustDeskPassword = dto.Password;
+                await _db.SaveChangesAsync();
+
+                await LogActivity("UpdateRustDeskPassword", $"Contraseña de RustDesk del activo {activo.Codigo} actualizada", new { ActivoId = id });
+
+                return Ok(new { message = "Contraseña de RustDesk actualizada correctamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar contraseña de RustDesk");
+                return StatusCode(500, new { message = "Error al actualizar contraseña de RustDesk", error = ex.Message });
+            }
+        }
+
+        // PATCH: api/Activos/{id}/anydesk-id
+        [HttpPatch("{id}/anydesk-id")]
+        public async Task<IActionResult> UpdateAnyDeskId(int id, [FromBody] UpdateAnyDeskIdDto dto)
+        {
+            try
+            {
+                var activo = await _db.Activos.FindAsync(id);
+                if (activo == null)
+                {
+                    return NotFound();
+                }
+
+                activo.AnyDeskId = dto.AnyDeskId;
+                await _db.SaveChangesAsync();
+
+                await LogActivity("UpdateAnyDeskId", $"ID de AnyDesk del activo {activo.Codigo} actualizado", new { ActivoId = id, AnyDeskId = dto.AnyDeskId });
+
+                return Ok(new { message = "ID de AnyDesk actualizado correctamente", anyDeskId = activo.AnyDeskId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar ID de AnyDesk");
+                return StatusCode(500, new { message = "Error al actualizar ID de AnyDesk", error = ex.Message });
+            }
+        }
+
+        // PATCH: api/Activos/{id}/anydesk-password
+        [HttpPatch("{id}/anydesk-password")]
+        public async Task<IActionResult> UpdateAnyDeskPassword(int id, [FromBody] UpdatePasswordDto dto)
+        {
+            try
+            {
+                var activo = await _db.Activos.FindAsync(id);
+                if (activo == null)
+                {
+                    return NotFound();
+                }
+
+                activo.AnyDeskPassword = dto.Password;
+                await _db.SaveChangesAsync();
+
+                await LogActivity("UpdateAnyDeskPassword", $"Contraseña de AnyDesk del activo {activo.Codigo} actualizada", new { ActivoId = id });
+
+                return Ok(new { message = "Contraseña de AnyDesk actualizada correctamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar contraseña de AnyDesk");
+                return StatusCode(500, new { message = "Error al actualizar contraseña de AnyDesk", error = ex.Message });
+            }
+        }
     }
 
     public class DarBajaActivoRequest
@@ -652,5 +733,15 @@ namespace PortalTi.Api.Controllers
     public class UpdateRustDeskIdDto
     {
         public string RustDeskId { get; set; } = string.Empty;
+    }
+
+    public class UpdateAnyDeskIdDto
+    {
+        public string AnyDeskId { get; set; } = string.Empty;
+    }
+
+    public class UpdatePasswordDto
+    {
+        public string Password { get; set; } = string.Empty;
     }
 }
