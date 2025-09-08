@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -82,13 +82,13 @@ export default function Calendario() {
     setIsMicrosoftAuthenticated(teamsService.isAuthenticated());
   }, []);
 
-  // Recargar eventos cuando cambien las categorías seleccionadas o la búsqueda
-  useEffect(() => {
+  // Función para manejar cambios en filtros sin causar bucles
+  const handleFilterChange = useCallback(() => {
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.refetchEvents();
     }
-  }, [selectedCategories, searchQuery]);
+  }, []);
 
   const formatLocal = (dateObj, time = '09:00') => {
     const pad = (n) => String(n).padStart(2, '0');
@@ -162,8 +162,10 @@ export default function Calendario() {
         return categoryMatch;
       });
       
-      // Actualizar estadísticas de eventos
-      setEventStats({ total: data.length, filtered: filteredEvents.length });
+      // Actualizar estadísticas de eventos (sin causar re-render del calendario)
+      setTimeout(() => {
+        setEventStats({ total: data.length, filtered: filteredEvents.length });
+      }, 0);
       
       const events = filteredEvents.map(ev => ({
         id: String(ev.id),
@@ -416,7 +418,11 @@ export default function Calendario() {
                 type="text"
                 placeholder="Buscar eventos..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  // Recargar eventos después del cambio con debounce
+                  setTimeout(handleFilterChange, 300);
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -448,6 +454,8 @@ export default function Calendario() {
                         } else {
                           setSelectedCategories(selectedCategories.filter(c => c !== key));
                         }
+                        // Recargar eventos después del cambio
+                        setTimeout(handleFilterChange, 100);
                       }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
