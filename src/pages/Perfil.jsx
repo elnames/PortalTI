@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Lock, Check, Upload, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { SignatureImage } from '../utils/signatureUtils';
 
 export default function Perfil() {
     const { user } = useAuth();
@@ -264,12 +265,12 @@ export default function Perfil() {
                             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Firma actual:</p>
                                 <div className="flex items-center justify-between">
-                                    <img
-                                        src={`${process.env.REACT_APP_API_URL || 'http://localhost:5263'}${currentSignature}`}
+                                    <SignatureImage
+                                        signaturePath={currentSignature}
                                         alt="Firma actual"
                                         className="max-h-16 bg-white p-2 border rounded"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
+                                        onError={(error) => {
+                                            console.error('Error cargando firma:', error);
                                         }}
                                     />
                                     <button

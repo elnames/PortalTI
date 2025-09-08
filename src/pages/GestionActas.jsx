@@ -13,7 +13,8 @@ import {
   Trash2,
   FileCheck,
   CheckCircle,
-  XCircle
+  XCircle,
+  Upload
 } from 'lucide-react';
 import { asignacionesAPI, actasAPI } from '../services/api';
 import GenerarActaModal from '../components/GenerarActaModal';
@@ -415,9 +416,16 @@ const GestionActas = () => {
   };
 
   // Funciones de manejo de actas
-  const handleGenerarActa = (asignacion) => {
-    setSelectedAsignacion(asignacion);
+  const handleGenerarActa = (acta, asignacionId) => {
+    // Buscar la asignación completa por ID
+    const asignacionCompleta = asignaciones.find(a => a.id === asignacionId);
+    setSelectedAsignacion(asignacionCompleta);
     setShowGenerarActaModal(true);
+  };
+
+  const handleSubirActa = (acta, asignacionId) => {
+    setSelectedAsignacionForUpload({ id: asignacionId });
+    setShowUploadModal(true);
   };
 
   const handleCloseGenerarActa = () => {
@@ -1025,7 +1033,43 @@ const GestionActas = () => {
                           })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {/* Acciones eliminadas: la gestión ahora ocurre en el detalle de actas */}
+                          <div className="flex space-x-2">
+                            {/* Botón de previsualización (ojo azul) */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrevisualizarActa(actasPorAsignacion[asignacion.id], asignacion.id);
+                              }}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                              title="Previsualizar acta"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            
+                            {/* Botón de generar acta */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGenerarActa(actasPorAsignacion[asignacion.id], asignacion.id);
+                              }}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                              title="Generar acta"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                            
+                            {/* Botón de subir acta */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSubirActa(actasPorAsignacion[asignacion.id], asignacion.id);
+                              }}
+                              className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                              title="Subir acta"
+                            >
+                              <Upload className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

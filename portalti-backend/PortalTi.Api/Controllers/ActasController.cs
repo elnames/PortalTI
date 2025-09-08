@@ -294,6 +294,14 @@ namespace PortalTi.Api.Controllers
         [AuditAction("generar_acta", "Acta", true, true)]
         public async Task<IActionResult> GenerarActa([FromBody] GenerarActaRequest request)
         {
+            Console.WriteLine("=== ENDPOINT GENERAR ACTA LLAMADO ===");
+            Console.WriteLine($"Request recibido: AsignacionId={request?.AsignacionId}, IncluirFirmaTI={request?.IncluirFirmaTI}");
+            
+            // Debug de autenticación
+            Console.WriteLine($"User.Identity.IsAuthenticated: {User.Identity?.IsAuthenticated}");
+            Console.WriteLine($"User.Identity.Name: {User.Identity?.Name}");
+            Console.WriteLine($"User Claims: {string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+            
             try
             {
                 if (request == null || request.AsignacionId <= 0)
@@ -307,13 +315,33 @@ namespace PortalTi.Api.Controllers
                 if (asignacion == null)
                     return NotFound("Asignación no encontrada");
 
-                // Firma TI opcional
+                // Firma TI opcional - usar la firma del usuario actual (admin/soporte) que está generando el acta
                 string? adminSignaturePath = null;
                 if (request.IncluirFirmaTI == true)
                 {
+                    // Obtener firma de admin/soporte (cualquier admin/soporte, como en previsualización personalizada)
                     var adminUser = await _db.AuthUsers
                         .FirstOrDefaultAsync(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath));
-                    adminSignaturePath = adminUser?.SignaturePath;
+
+                    if (adminUser != null)
+                    {
+                        adminSignaturePath = adminUser.SignaturePath;
+                        Console.WriteLine($"CONTROLLER - IncluirFirmaTI: {request.IncluirFirmaTI}");
+                        Console.WriteLine($"CONTROLLER - AdminUser: {adminUser.Username}");
+                        Console.WriteLine($"CONTROLLER - AdminSignaturePath: {adminSignaturePath}");
+                        
+                        _logger.LogInformation("GenerarActa - IncluirFirmaTI: {IncluirFirmaTI}, AdminUser: {AdminUser}, SignaturePath: {SignaturePath}", 
+                            request.IncluirFirmaTI, adminUser.Username, adminSignaturePath);
+                    }
+                    else
+                    {
+                        Console.WriteLine("CONTROLLER - No se encontró firma de admin/soporte");
+                        _logger.LogWarning("GenerarActa - No se encontró firma de admin/soporte");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"CONTROLLER - IncluirFirmaTI es false o null: {request.IncluirFirmaTI}");
                 }
 
                 var fechaEntrega = !string.IsNullOrWhiteSpace(request.FechaEntrega)
@@ -332,7 +360,13 @@ namespace PortalTi.Api.Controllers
                 );
 
                 // Guardar PDF en Storage/actas/<categoria>
-                var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                var storageRoot = _configuration["Storage:Root"] ?? "Storage";
+                
+                // Si es una ruta relativa, resolverla desde el directorio del proyecto
+                if (!Path.IsPathRooted(storageRoot))
+                {
+                    storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
+                }
                 string categoriaFolder = GetCategoriaFolder(asignacion.Activo.Categoria);
                 string uploadsDir = Path.Combine(storageRoot, "actas", categoriaFolder);
                 Directory.CreateDirectory(uploadsDir);
@@ -588,11 +622,23 @@ namespace PortalTi.Api.Controllers
                 if (!string.IsNullOrEmpty(acta.RutaArchivo) &&
                     (acta.MetodoFirma?.ToLower() == "pdf_subido" || acta.MetodoFirma?.ToLower() == "admin_subida"))
                 {
-                    string filePath = Path.Combine("wwwroot", acta.RutaArchivo);
+                    var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                    string filePath = Path.Combine(storageRoot, acta.RutaArchivo.Replace("storage/", string.Empty));
+                    
+                    _logger.LogInformation($"PreviewAuto - Intentando leer archivo: {filePath}");
+                    _logger.LogInformation($"PreviewAuto - StorageRoot: {storageRoot}");
+                    _logger.LogInformation($"PreviewAuto - RutaArchivo: {acta.RutaArchivo}");
+                    _logger.LogInformation($"PreviewAuto - MetodoFirma: {acta.MetodoFirma}");
+                    
                     if (System.IO.File.Exists(filePath))
                     {
+                        _logger.LogInformation($"PreviewAuto - Archivo encontrado, leyendo: {filePath}");
                         var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
                         return File(fileBytes, "application/pdf", acta.NombreArchivo ?? "acta.pdf");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"PreviewAuto - Archivo NO encontrado: {filePath}");
                     }
                 }
 
@@ -737,9 +783,11 @@ namespace PortalTi.Api.Controllers
                     });
                 }
 
+                // Obtener la ruta de almacenamiento desde configuración
+                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Storage");
                 string signatureFilePath = currentUser.SignaturePath.StartsWith("/storage/")
-                    ? Path.Combine(Directory.GetCurrentDirectory(), "Storage", currentUser.SignaturePath.Replace("/storage/", string.Empty))
-                    : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", currentUser.SignaturePath.TrimStart('/'));
+                    ? Path.Combine(storageRoot, currentUser.SignaturePath.Replace("/storage/", string.Empty))
+                    : Path.Combine(storageRoot, currentUser.SignaturePath.TrimStart('/'));
                 if (!System.IO.File.Exists(signatureFilePath))
                 {
                     return BadRequest(new { 
@@ -793,7 +841,7 @@ namespace PortalTi.Api.Controllers
                         RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}",
                         FechaFirma = DateTime.Now,
                         FechaSubida = DateTime.Now,
-                        Observaciones = string.IsNullOrEmpty(observaciones) ? $"Firma digital aplicada [SHA256:{sha256}]" : $"{observaciones} [SHA256:{sha256}]"
+                        Observaciones = string.IsNullOrEmpty(observaciones) ? "Firma digital aplicada" : observaciones
                     };
                     _db.Actas.Add(acta);
                 }
@@ -805,7 +853,7 @@ namespace PortalTi.Api.Controllers
                     acta.RutaArchivo = $"storage/actas/{categoriaFolder}/{fileName}";
                     acta.FechaFirma = DateTime.Now;
                     acta.FechaSubida = DateTime.Now;
-                    acta.Observaciones = string.IsNullOrEmpty(observaciones) ? $"Firma digital aplicada [SHA256:{sha256}]" : $"{observaciones} [SHA256:{sha256}]";
+                    acta.Observaciones = string.IsNullOrEmpty(observaciones) ? "Firma digital aplicada" : observaciones;
                 }
 
                 await _db.SaveChangesAsync();
@@ -1311,6 +1359,80 @@ namespace PortalTi.Api.Controllers
             }
         }
 
+        [HttpPost("previsualizar-temporal")]
+        [Authorize(Policy = "CanManageActas")]
+        public async Task<IActionResult> PrevisualizarActaTemporal([FromBody] GenerarActaRequest request)
+        {
+            try
+            {
+                Console.WriteLine("=== ENDPOINT PREVISUALIZAR TEMPORAL LLAMADO ===");
+                Console.WriteLine($"Request recibido: AsignacionId={request?.AsignacionId}, IncluirFirmaTI={request?.IncluirFirmaTI}");
+                
+                if (request == null || request.AsignacionId <= 0)
+                    return BadRequest("Datos inválidos para previsualizar acta");
+
+                var asignacion = await _db.AsignacionesActivos
+                    .Include(aa => aa.Usuario)
+                    .Include(aa => aa.Activo)
+                    .FirstOrDefaultAsync(aa => aa.Id == request.AsignacionId);
+
+                if (asignacion == null)
+                    return NotFound("Asignación no encontrada");
+
+                // Firma TI opcional - usar la firma del usuario actual (admin/soporte) que está generando el acta
+                string? adminSignaturePath = null;
+                if (request.IncluirFirmaTI == true)
+                {
+                    // Obtener firma de admin/soporte (cualquier admin/soporte, como en previsualización personalizada)
+                    var adminUser = await _db.AuthUsers
+                        .FirstOrDefaultAsync(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath));
+
+                    if (adminUser != null)
+                    {
+                        adminSignaturePath = adminUser.SignaturePath;
+                        Console.WriteLine($"CONTROLLER - IncluirFirmaTI: {request.IncluirFirmaTI}");
+                        Console.WriteLine($"CONTROLLER - AdminUser: {adminUser.Username}");
+                        Console.WriteLine($"CONTROLLER - AdminSignaturePath: {adminSignaturePath}");
+                        
+                        _logger.LogInformation("PrevisualizarActaTemporal - IncluirFirmaTI: {IncluirFirmaTI}, AdminUser: {AdminUser}, SignaturePath: {SignaturePath}", 
+                            request.IncluirFirmaTI, adminUser.Username, adminSignaturePath);
+                    }
+                    else
+                    {
+                        Console.WriteLine("CONTROLLER - No se encontró firma de admin/soporte");
+                        _logger.LogWarning("PrevisualizarActaTemporal - No se encontró firma de admin/soporte");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"CONTROLLER - IncluirFirmaTI es false o null: {request.IncluirFirmaTI}");
+                }
+
+                var fechaEntrega = !string.IsNullOrWhiteSpace(request.FechaEntrega)
+                    && DateTime.TryParse(request.FechaEntrega, out var fecha)
+                        ? fecha
+                        : asignacion.FechaAsignacion;
+
+                // Generar PDF (con o sin firma TI) - SIN GUARDAR EN STORAGE
+                byte[] pdfBytes = _pdfService.GenerateActaEntregaWithSignatures(
+                    asignacion,
+                    asignacion.Activo,
+                    asignacion.Usuario,
+                    adminSignaturePath,
+                    null,
+                    fechaEntrega
+                );
+
+                string fileName = GenerateHumanReadableActaFileName(asignacion.Usuario, fechaEntrega);
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al previsualizar acta temporal");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
         [HttpGet("previsualizar-personalizada/{id}")]
         [Authorize(Roles = "admin,soporte")]
         public async Task<IActionResult> PrevisualizarActaPersonalizada(int id, [FromQuery] bool? incluirFirmaTI = true, [FromQuery] string? fechaEntrega = null)
@@ -1468,6 +1590,110 @@ namespace PortalTi.Api.Controllers
             }
         }
 
+        [HttpGet("test-generar")]
+        [AllowAnonymous]
+        public IActionResult TestGenerar()
+        {
+            Console.WriteLine("=== TEST GENERAR ENDPOINT LLAMADO ===");
+            return Ok(new { message = "Test endpoint funcionando", timestamp = DateTime.Now });
+        }
+
+        [HttpGet("test-auth")]
+        [Authorize]
+        public IActionResult TestAuth()
+        {
+            Console.WriteLine("=== TEST AUTH ENDPOINT LLAMADO ===");
+            Console.WriteLine($"User.Identity.IsAuthenticated: {User.Identity?.IsAuthenticated}");
+            Console.WriteLine($"User.Identity.Name: {User.Identity?.Name}");
+            Console.WriteLine($"User Claims: {string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+            
+            return Ok(new { 
+                message = "Auth test funcionando", 
+                isAuthenticated = User.Identity?.IsAuthenticated,
+                name = User.Identity?.Name,
+                claims = User.Claims.Select(c => new { c.Type, c.Value }).ToArray(),
+                timestamp = DateTime.Now 
+            });
+        }
+
+        [HttpGet("test-policy")]
+        [Authorize(Policy = "CanManageActas")]
+        public IActionResult TestPolicy()
+        {
+            Console.WriteLine("=== TEST POLICY ENDPOINT LLAMADO ===");
+            Console.WriteLine($"User.Identity.IsAuthenticated: {User.Identity?.IsAuthenticated}");
+            Console.WriteLine($"User.Identity.Name: {User.Identity?.Name}");
+            Console.WriteLine($"User Claims: {string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"))}");
+            
+            return Ok(new { 
+                message = "Policy test funcionando", 
+                isAuthenticated = User.Identity?.IsAuthenticated,
+                name = User.Identity?.Name,
+                claims = User.Claims.Select(c => new { c.Type, c.Value }).ToArray(),
+                timestamp = DateTime.Now 
+            });
+        }
+
+        [HttpGet("debug-signatures-public")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugSignaturesPublic()
+        {
+            try
+            {
+                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Storage");
+                var signaturesDir = Path.Combine(storageRoot, "signatures");
+                
+                var result = new
+                {
+                    storageRoot = storageRoot,
+                    signaturesDir = signaturesDir,
+                    signaturesDirExists = Directory.Exists(signaturesDir),
+                    signatureFiles = Directory.Exists(signaturesDir) ? Directory.GetFiles(signaturesDir) : new string[0],
+                    adminUsers = await _db.AuthUsers
+                        .Where(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath))
+                        .Select(u => new { u.Username, u.Role, u.SignaturePath })
+                        .ToListAsync()
+                };
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en debug de firmas");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("debug-signatures")]
+        [Authorize(Roles = "admin,soporte")]
+        public async Task<IActionResult> DebugSignatures()
+        {
+            try
+            {
+                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Storage");
+                var signaturesDir = Path.Combine(storageRoot, "signatures");
+                
+                var result = new
+                {
+                    storageRoot = storageRoot,
+                    signaturesDir = signaturesDir,
+                    signaturesDirExists = Directory.Exists(signaturesDir),
+                    signatureFiles = Directory.Exists(signaturesDir) ? Directory.GetFiles(signaturesDir) : new string[0],
+                    adminUsers = await _db.AuthUsers
+                        .Where(u => (u.Role == "admin" || u.Role == "soporte") && !string.IsNullOrEmpty(u.SignaturePath))
+                        .Select(u => new { u.Username, u.Role, u.SignaturePath })
+                        .ToListAsync()
+                };
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en debug de firmas");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         [HttpDelete("{actaId}")]
         [Authorize(Roles = "admin,soporte")]
         public async Task<IActionResult> EliminarActa(int actaId)
@@ -1481,7 +1707,8 @@ namespace PortalTi.Api.Controllers
                 // Eliminar archivo si existe
                 if (!string.IsNullOrEmpty(acta.RutaArchivo))
                 {
-                    string filePath = Path.Combine("wwwroot", acta.RutaArchivo);
+                    var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                    string filePath = Path.Combine(storageRoot, acta.RutaArchivo.Replace("storage/", string.Empty));
                     if (System.IO.File.Exists(filePath))
                     {
                         System.IO.File.Delete(filePath);

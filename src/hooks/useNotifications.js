@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import api from "../services/api";
+import { getApiBaseUrl } from "../config";
 
 export default function useNotifications() {
   const [items, setItems] = useState([]);
@@ -99,9 +100,12 @@ export default function useNotifications() {
     if (!token) return;
 
     const conn = new HubConnectionBuilder()
-      .withUrl(`${process.env.REACT_APP_API_URL || 'http://localhost:5266'}/hubs/notifications?access_token=${token}`, {
+      .withUrl(`${getApiBaseUrl()}/hubs/notifications?access_token=${token}`, {
         skipNegotiation: false,
-        transport: 1
+        transport: 1,
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
       })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: retryContext => {

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Upload, Download, Eye, AlertTriangle, CheckCircle, XCircle, User, Calendar, Package, CheckSquare, Square, Trash2 } from 'lucide-react';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import { pazYSalvoAPI, usuariosAPI } from '../services/api';
+import { getApiBaseUrl } from '../config';
 import UserAutoComplete from './UserAutoComplete';
 
 export default function PazYSalvoManager() {
@@ -238,7 +239,7 @@ export default function PazYSalvoManager() {
 
     const viewFile = (id) => {
         // Abrir en nueva pestaña para previsualización
-        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5266'}/api/pazysalvo/preview/${id}`;
+        const url = `${getApiBaseUrl()}/api/pazysalvo/preview/${id}`;
         window.open(url, '_blank');
     };
 

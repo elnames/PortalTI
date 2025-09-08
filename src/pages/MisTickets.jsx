@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Link } from 'react-router-dom';
+import { ticketsAPI } from '../services/api';
 
 const MisTickets = () => {
   const { showToast } = useToast();
@@ -15,36 +16,9 @@ const MisTickets = () => {
 
   const fetchMisTickets = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        showToast('Error', 'No hay token de autenticación', 'error');
-        return;
-      }
-
-      const response = await fetch(`http://localhost:5266/api/tickets/mis-tickets-usuario`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', response.status, errorText);
-
-        if (response.status === 401) {
-          showToast('Error', 'No autorizado. Verifica tu sesión.', 'error');
-        } else if (response.status === 403) {
-          showToast('Error', 'No tienes permisos para acceder a esta funcionalidad.', 'error');
-        } else {
-          showToast('Error', `Error ${response.status}: ${errorText}`, 'error');
-        }
-        return;
-      }
-
-      const data = await response.json();
+      const response = await ticketsAPI.getMisTickets();
       // El backend ahora devuelve { tickets: [...], pagination: {...} }
-      setTickets(data.tickets || data);
+      setTickets(response.data.tickets || response.data);
     } catch (error) {
       console.error('Error:', error);
       showToast('Error', 'No se pudieron cargar tus tickets', 'error');

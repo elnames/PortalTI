@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ActivosAsignadosModal from '../components/ActivosAsignadosModal';
 import EstadoActaCell from '../components/EstadoActaCell';
-import { actasAPI } from '../services/api';
+import { actasAPI, activosAPI } from '../services/api';
 
 const MisActivos = () => {
   const { user } = useAuth();
@@ -21,18 +21,8 @@ const MisActivos = () => {
 
   const fetchMisActivos = async () => {
     try {
-      const response = await fetch(`http://localhost:5266/api/activos/mis-activos`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al cargar activos');
-      }
-
-      const data = await response.json();
-      setActivos(data);
+      const response = await activosAPI.getMisActivos();
+      setActivos(response.data);
     } catch (error) {
       console.error('Error:', error);
       showToast('Error', 'No se pudieron cargar tus activos', 'error');
@@ -56,7 +46,7 @@ const MisActivos = () => {
   };
 
   const getActaForActivo = (activoId) => {
-    return actas.find(acta => acta.asignacion.activo.codigo === activoId);
+    return Array.isArray(actas) ? actas.find(acta => acta.asignacion?.activo?.codigo === activoId) : null;
   };
 
   const getEstadoColor = (estado) => {
@@ -151,7 +141,7 @@ const MisActivos = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Actas Pendientes</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {actas.filter(acta => acta.estado === 'Pendiente').length}
+                {Array.isArray(actas) ? actas.filter(acta => acta.estado === 'Pendiente').length : 0}
               </p>
             </div>
           </div>
@@ -167,7 +157,7 @@ const MisActivos = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Actas Aprobadas</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {actas.filter(acta => acta.estado === 'Aprobada').length}
+                {Array.isArray(actas) ? actas.filter(acta => acta.estado === 'Aprobada').length : 0}
               </p>
             </div>
           </div>

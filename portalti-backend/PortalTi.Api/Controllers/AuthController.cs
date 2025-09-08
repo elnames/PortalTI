@@ -735,7 +735,18 @@ namespace PortalTi.Api.Controllers
 
                 // Ruta raíz de almacenamiento privado
                 var storageRoot = _config["Storage:Root"] ?? Path.Combine(_env.ContentRootPath, "Storage");
+                
+                // Si es una ruta relativa, resolverla desde el directorio del proyecto
+                if (!Path.IsPathRooted(storageRoot))
+                {
+                    storageRoot = Path.Combine(_env.ContentRootPath, storageRoot);
+                }
                 var signaturesDir = Path.Combine(storageRoot, "signatures");
+                
+                _logger.LogInformation($"UploadSignature - StorageRoot: {storageRoot}");
+                _logger.LogInformation($"UploadSignature - SignaturesDir: {signaturesDir}");
+                _logger.LogInformation($"UploadSignature - Directory.Exists: {Directory.Exists(signaturesDir)}");
+                
                 Directory.CreateDirectory(signaturesDir);
 
                 // Eliminar firma anterior si existe (soporta rutas en wwwroot o en storage)
@@ -765,6 +776,9 @@ namespace PortalTi.Api.Controllers
                 // Guardar ruta lógica segura
                 user.SignaturePath = $"/storage/signatures/{fileName}";
                 await _db.SaveChangesAsync();
+
+                _logger.LogInformation($"UploadSignature - Archivo guardado exitosamente: {filePath}");
+                _logger.LogInformation($"UploadSignature - SignaturePath guardado: {user.SignaturePath}");
 
                 // Log de actividad
                 await LogActivity(userId.Value, "upload_signature", "Firma digital subida", new { fileName });

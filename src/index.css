@@ -152,13 +152,53 @@ code {
 /* Popover de notificaciones: adaptar a tema oscuro/claro */
 .notification-popover .ant-popover-inner {
     background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 .dark .notification-popover .ant-popover-inner {
     background-color: #111827; /* gray-900 */
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
 }
 .notification-popover .ant-popover-inner .ant-list-item {
     border-color: rgba(0,0,0,0.05);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 .dark .notification-popover .ant-popover-inner .ant-list-item {
     border-color: rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.notification-popover .ant-popover-inner .ant-list-item:last-child {
+    border-bottom: none;
+}
+
+/* Mejoras para móviles */
+@media (max-width: 640px) {
+    .notification-popover .ant-popover-inner {
+        margin: 0;
+        max-width: calc(100vw - 32px);
+        width: calc(100vw - 32px);
+    }
+    .notification-popover .ant-popover-arrow {
+        display: none;
+    }
+    .notification-popover {
+        left: auto !important;
+        right: 8px !important;
+        transform: none !important;
+    }
+}
+
+/* Asegurar que el popover no se salga de la pantalla */
+.notification-popover {
+    max-width: calc(100vw - 32px) !important;
+}
+
+@media (max-width: 480px) {
+    .notification-popover .ant-popover-inner {
+        max-width: calc(100vw - 24px);
+        width: calc(100vw - 24px);
+    }
+    .notification-popover {
+        right: 4px !important;
+    }
 }

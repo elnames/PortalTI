@@ -1,19 +1,33 @@
 // src/services/api.js
 import axios from 'axios';
+import { config } from '../config';
 
 // Configuración base de axios
 const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5266/api',
-    timeout: 30000,
+    baseURL: config.api.baseURL,
+    timeout: config.api.timeout,
 });
 
-// Interceptor para agregar el token de autenticación
+// Interceptor para agregar el token de autenticación y headers de ngrok
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
+        console.log('API INTERCEPTOR - Token encontrado:', !!token);
+        console.log('API INTERCEPTOR - URL:', config.url);
+        console.log('API INTERCEPTOR - Method:', config.method);
+        
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log('API INTERCEPTOR - Authorization header agregado');
+        } else {
+            console.log('API INTERCEPTOR - No hay token, petición sin autenticación');
         }
+        
+        // Agregar header para evitar warning de ngrok
+        if (config.baseURL && config.baseURL.includes('ngrok-free.app')) {
+            config.headers['ngrok-skip-browser-warning'] = 'true';
+        }
+        
         return config;
     },
     (error) => {
@@ -66,6 +80,7 @@ export const actasAPI = {
 
     // ACCIONES DE ACTA
     generarActaAdmin: (data) => api.post('/actas/generar', data),
+    previsualizarActaTemporal: (data) => api.post('/actas/previsualizar-temporal', data, { responseType: 'blob' }),
     marcarPendienteFirma: (data) => api.post('/actas/marcar-pendiente-firma', data),
     firmarDigital: (data) => api.post('/actas/firmar-digital', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
     subirPdf: (formData) => api.post('/actas/subir-pdf', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -143,6 +158,7 @@ export const activosAPI = {
     getAsignados: () => api.get('/activos/asignados'),
     getEnMantenimiento: () => api.get('/activos/en-mantenimiento'),
     getRetirados: () => api.get('/activos/retirados'),
+    getMisActivos: () => api.get('/activos/mis-activos'),
     darBaja: (id, motivo) => api.put(`/activos/${id}/dar-baja`, { motivoBaja: motivo }),
     updateRustDeskId: (activoId, rustDeskId) => api.patch(`/activos/${activoId}/rustdesk-id`, { rustDeskId })
 };
@@ -163,7 +179,7 @@ export const ticketsAPI = {
 
 // Métodos para Dashboard
 export const dashboardAPI = {
-    getStats: () => api.get('/dashboard/stats'),
+    getStats: () => api.get('/dashboard'),
     getRecentActivity: () => api.get('/dashboard/recent-activity'),
     getChartData: () => api.get('/dashboard/chart-data')
 };
@@ -174,7 +190,7 @@ export const authAPI = {
     register: (userData) => api.post('/auth/register', userData),
     refresh: () => api.post('/auth/refresh'),
     logout: () => api.post('/auth/logout'),
-    getProfile: () => api.get('/auth/profile'),
+    getProfile: () => api.get('/auth/me'),
     getUsuarios: () => api.get('/auth/usuarios'),
     updateProfile: (data) => api.put('/auth/profile', data),
     changePassword: (data) => api.put('/auth/change-password', data),

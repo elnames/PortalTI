@@ -1,6 +1,7 @@
 // src/contexts/SearchContext.jsx
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const SearchContext = createContext();
 
@@ -39,28 +40,8 @@ export const SearchProvider = ({ children }) => {
             setIsSearching(true);
 
             try {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    console.error('No hay token de autenticación');
-                    setSearchResults([]);
-                    return;
-                }
-
-                const response = await fetch(`http://localhost:5266/api/search?q=${encodeURIComponent(query)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    console.error('Error en búsqueda:', response.status);
-                    setSearchResults([]);
-                    return;
-                }
-
-                const data = await response.json();
-                setSearchResults(data);
+                const response = await api.get(`/search?q=${encodeURIComponent(query)}`);
+                setSearchResults(response.data);
             } catch (error) {
                 console.error('Error en búsqueda:', error);
                 setSearchResults([]);

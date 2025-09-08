@@ -19,7 +19,17 @@ namespace PortalTi.Api.Controllers
         {
             _fileService = fileService;
             _logger = logger;
-            _storageRoot = configuration["Storage:Root"] ?? Path.Combine(Directory.GetCurrentDirectory(), "Storage");
+            var configRoot = configuration["Storage:Root"] ?? "Storage";
+            
+            // Si es una ruta relativa, resolverla desde el directorio del proyecto
+            if (!Path.IsPathRooted(configRoot))
+            {
+                _storageRoot = Path.Combine(Directory.GetCurrentDirectory(), configRoot);
+            }
+            else
+            {
+                _storageRoot = configRoot;
+            }
         }
 
         [HttpGet("download/{subdirectory}/{fileName}")]

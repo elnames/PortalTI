@@ -29,8 +29,14 @@ export default function Dashboard() {
 
     useEffect(() => {
         api.get('/dashboard')
-            .then(res => setData(res.data))
-            .catch(err => setError(err.message))
+            .then(res => {
+                console.log('Dashboard data received:', res.data);
+                setData(res.data);
+            })
+            .catch(err => {
+                console.error('Dashboard error:', err);
+                setError(err.message);
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -47,30 +53,31 @@ export default function Dashboard() {
 
     if (loading) return <div className="p-6">Cargando dashboard...</div>;
     if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
-    if (!data) return null;
+    if (!data) return <div className="p-6 text-yellow-500">No hay datos disponibles</div>;
 
     // Preparar datos para las diferentes gráficas
+    console.log('Dashboard data structure:', data);
     const chartData = {
-        activosPorCategoria: data.activos.porCategoria.map(cat => ({ 
-            name: cat.categoria, 
-            value: cat.cantidad 
-        })),
+        activosPorCategoria: data?.activos?.porCategoria?.map(cat => ({ 
+            name: cat.Categoria, 
+            value: cat.Cantidad 
+        })) || [],
         ticketsPorEstado: [
-            { name: 'Pendientes', value: data.tickets.pendientes },
-            { name: 'En Proceso', value: data.tickets.enProceso },
-            { name: 'Resueltos', value: data.tickets.resueltos },
-            { name: 'Cerrados', value: data.tickets.cerrados }
+            { name: 'Pendientes', value: data?.tickets?.pendientes || 0 },
+            { name: 'En Proceso', value: data?.tickets?.enProceso || 0 },
+            { name: 'Resueltos', value: data?.tickets?.resueltos || 0 },
+            { name: 'Cerrados', value: data?.tickets?.cerrados || 0 }
         ],
         estadisticasGenerales: [
-            { name: 'Activos', value: data.estadisticas.totalActivos },
-            { name: 'Usuarios', value: data.estadisticas.totalUsuarios },
-            { name: 'Tickets', value: data.tickets.total },
-            { name: 'Actas', value: data.actas.total }
+            { name: 'Activos', value: data?.activos?.total || 0 },
+            { name: 'Usuarios', value: data?.estadisticasGenerales?.totalUsuarios || 0 },
+            { name: 'Tickets', value: data?.tickets?.total || 0 },
+            { name: 'Actas', value: data?.actas?.total || 0 }
         ],
         estadosActivos: [
-            { name: 'Asignados', value: data.estadisticas.activosAsignados },
-            { name: 'Disponibles', value: data.estadisticas.activosDisponibles },
-            { name: 'Dados de Baja', value: data.estadisticas.activosDadosDeBaja }
+            { name: 'Asignados', value: data?.activos?.asignados || 0 },
+            { name: 'Disponibles', value: data?.activos?.disponibles || 0 },
+            { name: 'Dados de Baja', value: data?.activos?.dadosDeBaja || 0 }
         ]
     };
 

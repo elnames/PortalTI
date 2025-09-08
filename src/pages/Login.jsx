@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Eye, EyeOff, User, Lock, Mail, Hash, Info } from 'lucide-react';
+import { authAPI } from '../services/api';
 import logo from '../assets/logo.png';
 
 export default function Login() {
@@ -63,23 +64,15 @@ export default function Login() {
     }
 
     try {
-      const response = await fetch('http://localhost:5266/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          rut: registerData.rut,
-          email: registerData.email,
-          password: registerData.password
-        }),
+      const response = await authAPI.register({
+        rut: registerData.rut,
+        email: registerData.email,
+        password: registerData.password
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Error en el registro');
-      }
+      // authAPI ya maneja los errores, si llegamos aquí es exitoso
 
       showSuccess('Usuario registrado exitosamente');
 
@@ -107,9 +100,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-blue-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-500">
       <div className="w-full max-w-md p-6 rounded-2xl shadow-2xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md animate-fade-in">
         <div className="flex flex-col items-center mb-6">
-          <img src={logo} alt="Logo" className="h-16 mb-2 drop-shadow-lg" />
-          <h1 className="text-3xl font-bold text-blue-700 dark:text-blue-400 tracking-tight mb-1">Portal TI</h1>
-          <span className="text-gray-500 dark:text-gray-300 text-sm">Portal TI</span>
+          <img src={logo} alt="Logo" className="h-28 mb-auto drop-shadow-lg" />
+        {/* <h1 className="text-3xl font-bold text-blue-700 dark:text-blue-400 tracking-tight mb-1">Portal TI</h1> */}
+          {/* <span className="text-gray-500 dark:text-gray-300 text-sm">Portal TI</span> */}
         </div>
 
         {!isRegistering ? (
