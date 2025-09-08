@@ -27,6 +27,9 @@ namespace PortalTi.Api.Models
         public DateTime? FechaBaja { get; set; }
         public string? MotivoBaja { get; set; }
         public string? RustDeskId { get; set; }
+        public string? RustDeskPassword { get; set; }
+        public string? AnyDeskId { get; set; }
+        public string? AnyDeskPassword { get; set; }
         
         // Propiedad de navegación para las asignaciones
         public ICollection<AsignacionActivo> Asignaciones { get; set; } = new List<AsignacionActivo>();
