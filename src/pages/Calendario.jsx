@@ -58,7 +58,6 @@ export default function Calendario() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState(['general', 'meeting', 'personal', 'work']);
   const [showAgenda, setShowAgenda] = useState(false);
-  const [eventStats, setEventStats] = useState({ total: 0, filtered: 0 });
   const [microsoftUser, setMicrosoftUser] = useState(null);
   const [isMicrosoftAuthenticated, setIsMicrosoftAuthenticated] = useState(false);
 
@@ -82,13 +81,33 @@ export default function Calendario() {
     setIsMicrosoftAuthenticated(teamsService.isAuthenticated());
   }, []);
 
-  // Función para manejar cambios en filtros sin causar bucles
-  const handleFilterChange = useCallback(() => {
+  // Re-evaluar filtros cuando cambien las categorías o búsqueda
+  useEffect(() => {
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
-      calendarApi.refetchEvents();
+      const events = calendarApi.getEvents();
+      
+      events.forEach(event => {
+        const category = event.extendedProps.category || 'general';
+        const title = event.title || '';
+        const description = event.extendedProps.description || '';
+        
+        const categoryMatch = selectedCategories.includes(category);
+        const searchMatch = !searchQuery.trim() || 
+          title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          description.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const element = document.querySelector(`[data-event-id="${event.id}"]`);
+        if (element) {
+          if (!categoryMatch || !searchMatch) {
+            element.style.display = 'none';
+          } else {
+            element.style.display = '';
+          }
+        }
+      });
     }
-  }, []);
+  }, [selectedCategories, searchQuery]);
 
   const formatLocal = (dateObj, time = '09:00') => {
     const pad = (n) => String(n).padStart(2, '0');
@@ -146,28 +165,7 @@ export default function Calendario() {
       const { startStr, endStr } = info;
       const { data } = await calendarioAPI.getEvents({ start: startStr, end: endStr });
       
-      // Filtrar eventos por categorías seleccionadas y búsqueda
-      const filteredEvents = data.filter(ev => {
-        const eventCategory = ev.category || 'general';
-        const categoryMatch = selectedCategories.includes(eventCategory);
-        
-        // Si hay búsqueda, filtrar también por título y descripción
-        if (searchQuery.trim()) {
-          const searchLower = searchQuery.toLowerCase();
-          const titleMatch = ev.title?.toLowerCase().includes(searchLower) || false;
-          const descriptionMatch = ev.description?.toLowerCase().includes(searchLower) || false;
-          return categoryMatch && (titleMatch || descriptionMatch);
-        }
-        
-        return categoryMatch;
-      });
-      
-      // Actualizar estadísticas de eventos (sin causar re-render del calendario)
-      setTimeout(() => {
-        setEventStats({ total: data.length, filtered: filteredEvents.length });
-      }, 0);
-      
-      const events = filteredEvents.map(ev => ({
+      const events = data.map(ev => ({
         id: String(ev.id),
         title: ev.title,
         start: ev.start,
@@ -418,11 +416,7 @@ export default function Calendario() {
                 type="text"
                 placeholder="Buscar eventos..."
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  // Recargar eventos después del cambio con debounce
-                  setTimeout(handleFilterChange, 300);
-                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -432,14 +426,7 @@ export default function Calendario() {
         {/* Categorías */}
         {sidebarOpen && (
           <div className="px-4 pb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Categorías</h3>
-              {eventStats.total > 0 && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {eventStats.filtered}/{eventStats.total} eventos
-                </span>
-              )}
-            </div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Categorías</h3>
             <div className="space-y-2">
               {Object.entries(categories).map(([key, category]) => {
                 const IconComponent = category.icon;
@@ -454,8 +441,6 @@ export default function Calendario() {
                         } else {
                           setSelectedCategories(selectedCategories.filter(c => c !== key));
                         }
-                        // Recargar eventos después del cambio
-                        setTimeout(handleFilterChange, 100);
                       }}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -601,6 +586,25 @@ export default function Calendario() {
                 'text-white',
                 'font-medium'
               ]}
+              eventDidMount={(info) => {
+                const event = info.event;
+                const category = event.extendedProps.category || 'general';
+                const title = event.title || '';
+                const description = event.extendedProps.description || '';
+                
+                // Verificar si el evento debe mostrarse según los filtros
+                const categoryMatch = selectedCategories.includes(category);
+                const searchMatch = !searchQuery.trim() || 
+                  title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  description.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                // Ocultar evento si no coincide con los filtros
+                if (!categoryMatch || !searchMatch) {
+                  info.el.style.display = 'none';
+                } else {
+                  info.el.style.display = '';
+                }
+              }}
               eventContent={(eventInfo) => {
                 const category = eventInfo.event.extendedProps.category;
                 const IconComponent = categories[category]?.icon || Calendar;
