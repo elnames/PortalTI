@@ -11,7 +11,7 @@
 [![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-red.svg)](https://www.microsoft.com/sql-server)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[📖 **Ver Documentación Completa**](docs/index.md) | [🚀 **Inicio Rápido**](#-inicio-rápido) | [📸 **Screenshots**](docs/screenshots.md)
+[📖 **Ver Documentación Completa**](docs/README.md) | [🚀 **Inicio Rápido**](#-inicio-rápido) | [📸 **Screenshots**](docs/screenshots.md)
 
 </div>
 
@@ -118,97 +118,6 @@ Ejecuta los scripts en orden:
 
 ---
 
-## 🏗️ Arquitectura del Sistema
-
-```mermaid
-graph TB
-    A[Frontend React] --> B[API Gateway]
-    B --> C[Backend ASP.NET Core]
-    C --> D[SQL Server Database]
-    C --> E[File Storage]
-    C --> F[Microsoft Graph API]
-    
-    G[Users] --> A
-    H[Admin] --> A
-    I[Mobile] --> A
-```
-
-### 🎨 **Frontend (React)**
-- **Componentes modulares** con Tailwind CSS
-- **Context API** para estado global
-- **React Router** para navegación
-- **Axios** para comunicación con API
-
-### ⚙️ **Backend (ASP.NET Core)**
-- **API REST** con autenticación JWT
-- **Entity Framework Core** para ORM
-- **SignalR** para notificaciones en tiempo real
-- **ClosedXML** para generación de Excel
-
-### 🗄️ **Base de Datos (SQL Server)**
-- **Diseño normalizado** con relaciones optimizadas
-- **Índices** para consultas eficientes
-- **Triggers** para auditoría automática
-- **Stored Procedures** para operaciones complejas
-
----
-
-## 🔧 Tecnologías Utilizadas
-
-### Frontend
-- **React 18.2.0** - Biblioteca de UI
-- **Tailwind CSS** - Framework de estilos
-- **Lucide React** - Iconografía
-- **FullCalendar** - Componente de calendario
-- **Axios** - Cliente HTTP
-
-### Backend
-- **ASP.NET Core 9.0** - Framework web
-- **Entity Framework Core** - ORM
-- **JWT Authentication** - Autenticación
-- **SignalR** - Comunicación en tiempo real
-- **ClosedXML** - Generación de Excel
-
-### Base de Datos
-- **SQL Server 2022** - Motor de base de datos
-- **Entity Framework Migrations** - Control de versiones
-- **Stored Procedures** - Lógica de negocio
-
-### Integraciones
-- **Microsoft Graph API** - Integración con Teams
-- **RustDesk** - Control remoto
-- **File System** - Almacenamiento de archivos
-
----
-
-## 📊 Características Destacadas
-
-### 🎯 **Sistema de Programas Estándar**
-- **Lista predefinida** de software empresarial
-- **Categorización automática** (Software, Seguridad, Licencias)
-- **Verificación de instalaciones** con un clic
-- **Reportes integrados** con estado real
-
-### 📈 **Reportes Trimestrales**
-- **Generación automática** en Excel
-- **Dos hojas**: Workstations y Celulares
-- **Datos reales** de la base de datos
-- **Formato profesional** con estilos corporativos
-
-### 🔐 **Seguridad Avanzada**
-- **Autenticación JWT** con refresh tokens
-- **Autorización basada en roles**
-- **Auditoría completa** de acciones
-- **Almacenamiento seguro** de archivos
-
-### 💬 **Comunicación Integrada**
-- **Chat interno** entre usuarios y soporte
-- **Notificaciones en tiempo real**
-- **Sistema de tickets** con seguimiento
-- **Integración con Microsoft Teams**
-
----
-
 ## 🚀 Roadmap
 
 ### ✅ **Completado**
@@ -255,7 +164,7 @@ graph TB
 
 - **📧 Email**: [javier.rjorquera@gmail.com](mailto:javier.rjorquera@gmail.com)
 - **🐛 Issues**: [GitHub Issues](https://github.com/elnames/PortalTI/issues)
-- **📖 Documentación**: [Ver Documentación Completa](docs/index.md)
+- **📖 Documentación**: [Ver Documentación Completa](docs/README.md)
 
 ---
 
