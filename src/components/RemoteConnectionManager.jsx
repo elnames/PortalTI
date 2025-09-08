@@ -1,109 +1,155 @@
 // src/components/RemoteConnectionManager.jsx
-import React, { useState } from 'react';
-import { Monitor, ExternalLink, Copy, CheckCircle, XCircle } from 'lucide-react';
-import { useNotificationContext } from '../contexts/NotificationContext';
+import React, { useState, useEffect } from 'react';
+import { Monitor, ExternalLink, Copy, CheckCircle, XCircle, Edit2, Save, X, Eye, EyeOff } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import { activosAPI } from '../services/api';
 
 export default function RemoteConnectionManager({ activoData }) {
+    const { showToast } = useToast();
     const [copiedProtocol, setCopiedProtocol] = useState(null);
-    const { alertRemoteConnection, alertSuccess, alertError, alertInfo } = useNotificationContext();
+    const [editingField, setEditingField] = useState(null);
+    const [connectionData, setConnectionData] = useState({
+        rustDeskId: '',
+        rustDeskPassword: '',
+        anyDeskId: '',
+        anyDeskPassword: ''
+    });
+    const [showPasswords, setShowPasswords] = useState({
+        rustDesk: false,
+        anyDesk: false
+    });
 
-    // Configuración de conexiones remotas
+    // Configuración de conexiones remotas - Solo AnyDesk y RustDesk
     const connectionConfigs = [
         {
             name: 'AnyDesk',
             protocol: 'anydesk',
             icon: '🖥️',
             description: 'Conexión remota AnyDesk',
-            getUrl: (hostname) => `anydesk://${hostname}`,
-            getDisplayUrl: (hostname) => `anydesk://${hostname}`,
+            getUrl: (id) => `anydesk://${id}`,
+            getDisplayUrl: (id) => `anydesk://${id}`,
             requiresClient: true,
-            clientName: 'AnyDesk'
+            clientName: 'AnyDesk',
+            idField: 'anyDeskId',
+            passwordField: 'anyDeskPassword'
         },
         {
             name: 'RustDesk',
             protocol: 'rustdesk',
             icon: '🔧',
             description: 'Conexión remota RustDesk',
-            getUrl: (hostname) => `rustdesk://${hostname}`,
-            getDisplayUrl: (hostname) => `rustdesk://${hostname}`,
+            getUrl: (id) => `rustdesk://${id}`,
+            getDisplayUrl: (id) => `rustdesk://${id}`,
             requiresClient: true,
-            clientName: 'RustDesk'
-        },
-        {
-            name: 'RDP',
-            protocol: 'rdp',
-            icon: '🖥️',
-            description: 'Conexión RDP (Remote Desktop)',
-            getUrl: (ip) => `rdp://${ip}`,
-            getDisplayUrl: (ip) => `rdp://${ip}`,
-            requiresClient: true,
-            clientName: 'Remote Desktop'
-        },
-        {
-            name: 'VNC',
-            protocol: 'vnc',
-            icon: '👁️',
-            description: 'Conexión VNC',
-            getUrl: (hostname) => `vnc://${hostname}`,
-            getDisplayUrl: (hostname) => `vnc://${hostname}`,
-            requiresClient: true,
-            clientName: 'VNC Viewer'
-        },
-        {
-            name: 'SSH',
-            protocol: 'ssh',
-            icon: '🔐',
-            description: 'Conexión SSH',
-            getUrl: (hostname) => `ssh://${hostname}`,
-            getDisplayUrl: (hostname) => `ssh://${hostname}`,
-            requiresClient: true,
-            clientName: 'SSH Client'
+            clientName: 'RustDesk',
+            idField: 'rustDeskId',
+            passwordField: 'rustDeskPassword'
         }
     ];
+
+    // Cargar datos de conexión cuando se monta el componente
+    useEffect(() => {
+        if (activoData) {
+            setConnectionData({
+                rustDeskId: activoData.RustDeskId || activoData.rustDeskId || '',
+                rustDeskPassword: activoData.RustDeskPassword || activoData.rustDeskPassword || '',
+                anyDeskId: activoData.AnyDeskId || activoData.anyDeskId || '',
+                anyDeskPassword: activoData.AnyDeskPassword || activoData.anyDeskPassword || ''
+            });
+        }
+    }, [activoData]);
 
     const copyToClipboard = async (text, protocol) => {
         try {
             await navigator.clipboard.writeText(text);
             setCopiedProtocol(protocol);
-            alertSuccess('URL copiada al portapapeles');
+            showToast('URL copiada al portapapeles', 'success');
             setTimeout(() => setCopiedProtocol(null), 2000);
         } catch (error) {
-            alertError('Error al copiar al portapapeles');
+            showToast('Error al copiar al portapapeles', 'error');
         }
     };
 
-    const initiateConnection = (config, hostname) => {
+    const initiateConnection = (config) => {
         try {
-            const url = config.getUrl(hostname);
+            const id = connectionData[config.idField];
+            if (!id) {
+                showToast(`Primero configura el ID de ${config.name}`, 'warning');
+                return;
+            }
 
-            // Mostrar alerta de conexión
-            alertRemoteConnection(config.name, hostname);
+            const url = config.getUrl(id);
+
+            // Mostrar información de conexión
+            showToast(`Iniciando conexión ${config.name}...`, 'info');
 
             // Intentar abrir la conexión
             window.open(url, '_blank');
 
             // Si no se abre automáticamente, mostrar instrucciones
             setTimeout(() => {
-                if (!window.open) {
-                    alertInfo(`Si la conexión no se abrió automáticamente, copia y pega esta URL en tu ${config.clientName}: ${url}`);
-                }
+                showToast(`Si la conexión no se abrió automáticamente, copia y pega esta URL en tu ${config.clientName}: ${url}`, 'info');
             }, 1000);
 
         } catch (error) {
-            alertError(`Error al iniciar conexión ${config.name}: ${error.message}`);
+            showToast(`Error al iniciar conexión ${config.name}: ${error.message}`, 'error');
         }
     };
 
+    const handleEditField = (field) => {
+        setEditingField(field);
+    };
+
+    const handleSaveField = async (field) => {
+        const value = connectionData[field];
+        if (!value.trim()) {
+            showToast('El campo no puede estar vacío', 'error');
+            return;
+        }
+
+        try {
+            const activoId = activoData.Id || activoData.id;
+            if (!activoId) {
+                showToast('Error: ID de activo no encontrado', 'error');
+                return;
+            }
+
+            // Determinar qué API llamar según el campo
+            if (field === 'rustDeskId') {
+                await activosAPI.updateRustDeskId(activoId, value.trim());
+            } else if (field === 'rustDeskPassword') {
+                await activosAPI.updateRustDeskPassword(activoId, value.trim());
+            } else if (field === 'anyDeskId') {
+                await activosAPI.updateAnyDeskId(activoId, value.trim());
+            } else if (field === 'anyDeskPassword') {
+                await activosAPI.updateAnyDeskPassword(activoId, value.trim());
+            }
+
+            setEditingField(null);
+            showToast(`${field} guardado correctamente`, 'success');
+        } catch (error) {
+            console.error('Error al guardar campo:', error);
+            showToast('Error al guardar la información', 'error');
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingField(null);
+    };
+
+    const togglePasswordVisibility = (type) => {
+        setShowPasswords(prev => ({
+            ...prev,
+            [type]: !prev[type]
+        }));
+    };
+
     const getConnectionInfo = () => {
-        // Obtener información de conexión del activo
-        // Por ahora usamos datos de ejemplo
         return {
-            hostname: activoData?.nombreEquipo || 'EQUIPO-001',
-            ip: '192.168.1.100',
-            anydeskId: '123456789',
-            rustdeskId: 'RUST-001',
-            sshPort: '22',
-            rdpPort: '3389'
+            hostname: activoData?.NombreEquipo || activoData?.nombreEquipo || activoData?.Codigo || activoData?.codigo || 'EQUIPO-001',
+            ip: '192.168.1.100', // Esto debería venir del activo
+            anydeskId: connectionData.anyDeskId,
+            rustdeskId: connectionData.rustDeskId
         };
     };
 
@@ -117,7 +163,7 @@ export default function RemoteConnectionManager({ activoData }) {
                     Conexión Remota
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Conecta remotamente a este equipo usando diferentes protocolos
+                    Conecta remotamente a este equipo usando AnyDesk o RustDesk
                 </p>
             </div>
 
@@ -134,13 +180,246 @@ export default function RemoteConnectionManager({ activoData }) {
                             <span className="text-gray-500 dark:text-gray-400">IP:</span>
                             <span className="ml-2 font-mono text-gray-900 dark:text-white">{connectionInfo.ip}</span>
                         </div>
-                        <div>
-                            <span className="text-gray-500 dark:text-gray-400">AnyDesk ID:</span>
-                            <span className="ml-2 font-mono text-gray-900 dark:text-white">{connectionInfo.anydeskId}</span>
+                    </div>
+                </div>
+
+                {/* Configuración de credenciales */}
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3">Configuración de Credenciales</h4>
+
+                    {/* AnyDesk */}
+                    <div className="mb-4">
+                        <h5 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2 flex items-center">
+                            🖥️ AnyDesk
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    ID de AnyDesk:
+                                </label>
+                                <div className="flex items-center space-x-1">
+                                    {editingField === 'anyDeskId' ? (
+                                        <input
+                                            type="text"
+                                            value={connectionData.anyDeskId}
+                                            onChange={(e) => setConnectionData(prev => ({ ...prev, anyDeskId: e.target.value }))}
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                                            placeholder="Ingresa el ID de AnyDesk"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={connectionData.anyDeskId || 'No configurado'}
+                                            readOnly
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white"
+                                        />
+                                    )}
+                                    {editingField === 'anyDeskId' ? (
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleSaveField('anyDeskId')}
+                                                className="p-1 text-green-500 hover:text-green-700"
+                                                title="Guardar"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={handleCancelEdit}
+                                                className="p-1 text-red-500 hover:text-red-700"
+                                                title="Cancelar"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleEditField('anyDeskId')}
+                                            className="p-1 text-blue-500 hover:text-blue-700"
+                                            title="Editar ID"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Contraseña:
+                                </label>
+                                <div className="flex items-center space-x-1">
+                                    {editingField === 'anyDeskPassword' ? (
+                                        <input
+                                            type="password"
+                                            value={connectionData.anyDeskPassword}
+                                            onChange={(e) => setConnectionData(prev => ({ ...prev, anyDeskPassword: e.target.value }))}
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                                            placeholder="Ingresa la contraseña"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <input
+                                            type={showPasswords.anyDesk ? "text" : "password"}
+                                            value={connectionData.anyDeskPassword || '••••••••'}
+                                            readOnly
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white"
+                                        />
+                                    )}
+                                    {editingField === 'anyDeskPassword' ? (
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleSaveField('anyDeskPassword')}
+                                                className="p-1 text-green-500 hover:text-green-700"
+                                                title="Guardar"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={handleCancelEdit}
+                                                className="p-1 text-red-500 hover:text-red-700"
+                                                title="Cancelar"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleEditField('anyDeskPassword')}
+                                                className="p-1 text-blue-500 hover:text-blue-700"
+                                                title="Editar contraseña"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => togglePasswordVisibility('anyDesk')}
+                                                className="p-1 text-gray-500 hover:text-gray-700"
+                                                title={showPasswords.anyDesk ? "Ocultar" : "Mostrar"}
+                                            >
+                                                {showPasswords.anyDesk ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span className="text-gray-500 dark:text-gray-400">RustDesk ID:</span>
-                            <span className="ml-2 font-mono text-gray-900 dark:text-white">{connectionInfo.rustdeskId}</span>
+                    </div>
+
+                    {/* RustDesk */}
+                    <div>
+                        <h5 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2 flex items-center">
+                            🔧 RustDesk
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    ID de RustDesk:
+                                </label>
+                                <div className="flex items-center space-x-1">
+                                    {editingField === 'rustDeskId' ? (
+                                        <input
+                                            type="text"
+                                            value={connectionData.rustDeskId}
+                                            onChange={(e) => setConnectionData(prev => ({ ...prev, rustDeskId: e.target.value }))}
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                                            placeholder="Ingresa el ID de RustDesk"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={connectionData.rustDeskId || 'No configurado'}
+                                            readOnly
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white"
+                                        />
+                                    )}
+                                    {editingField === 'rustDeskId' ? (
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleSaveField('rustDeskId')}
+                                                className="p-1 text-green-500 hover:text-green-700"
+                                                title="Guardar"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={handleCancelEdit}
+                                                className="p-1 text-red-500 hover:text-red-700"
+                                                title="Cancelar"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleEditField('rustDeskId')}
+                                            className="p-1 text-blue-500 hover:text-blue-700"
+                                            title="Editar ID"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Contraseña:
+                                </label>
+                                <div className="flex items-center space-x-1">
+                                    {editingField === 'rustDeskPassword' ? (
+                                        <input
+                                            type="password"
+                                            value={connectionData.rustDeskPassword}
+                                            onChange={(e) => setConnectionData(prev => ({ ...prev, rustDeskPassword: e.target.value }))}
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                                            placeholder="Ingresa la contraseña"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <input
+                                            type={showPasswords.rustDesk ? "text" : "password"}
+                                            value={connectionData.rustDeskPassword || '••••••••'}
+                                            readOnly
+                                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white"
+                                        />
+                                    )}
+                                    {editingField === 'rustDeskPassword' ? (
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleSaveField('rustDeskPassword')}
+                                                className="p-1 text-green-500 hover:text-green-700"
+                                                title="Guardar"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={handleCancelEdit}
+                                                className="p-1 text-red-500 hover:text-red-700"
+                                                title="Cancelar"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex space-x-1">
+                                            <button
+                                                onClick={() => handleEditField('rustDeskPassword')}
+                                                className="p-1 text-blue-500 hover:text-blue-700"
+                                                title="Editar contraseña"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => togglePasswordVisibility('rustDesk')}
+                                                className="p-1 text-gray-500 hover:text-gray-700"
+                                                title={showPasswords.rustDesk ? "Ocultar" : "Mostrar"}
+                                            >
+                                                {showPasswords.rustDesk ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -148,8 +427,9 @@ export default function RemoteConnectionManager({ activoData }) {
                 {/* Opciones de conexión */}
                 <div className="space-y-3">
                     {connectionConfigs.map((config) => {
-                        const url = config.getUrl(connectionInfo.hostname);
-                        const displayUrl = config.getDisplayUrl(connectionInfo.hostname);
+                        const id = connectionData[config.idField];
+                        const url = id ? config.getUrl(id) : '';
+                        const displayUrl = id ? config.getDisplayUrl(id) : 'No configurado';
 
                         return (
                             <div key={config.protocol} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -165,26 +445,32 @@ export default function RemoteConnectionManager({ activoData }) {
                                 <div className="flex items-center space-x-2">
                                     {/* Botón de conexión */}
                                     <button
-                                        onClick={() => initiateConnection(config, connectionInfo.hostname)}
-                                        className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
-                                        title={`Conectar usando ${config.name}`}
+                                        onClick={() => initiateConnection(config)}
+                                        disabled={!id}
+                                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors ${id
+                                                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                            }`}
+                                        title={id ? `Conectar usando ${config.name}` : `Configura el ID de ${config.name} primero`}
                                     >
                                         <ExternalLink className="h-4 w-4" />
                                         <span>Conectar</span>
                                     </button>
 
                                     {/* Botón de copiar */}
-                                    <button
-                                        onClick={() => copyToClipboard(url, config.protocol)}
-                                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                                        title="Copiar URL"
-                                    >
-                                        {copiedProtocol === config.protocol ? (
-                                            <CheckCircle className="h-4 w-4 text-green-500" />
-                                        ) : (
-                                            <Copy className="h-4 w-4" />
-                                        )}
-                                    </button>
+                                    {id && (
+                                        <button
+                                            onClick={() => copyToClipboard(url, config.protocol)}
+                                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                            title="Copiar URL"
+                                        >
+                                            {copiedProtocol === config.protocol ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <Copy className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -198,34 +484,12 @@ export default function RemoteConnectionManager({ activoData }) {
                         Instrucciones de Conexión
                     </h4>
                     <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                        <li>• Configura primero el ID y contraseña de cada herramienta</li>
                         <li>• Asegúrate de tener instalado el cliente correspondiente en tu equipo</li>
                         <li>• El equipo destino debe estar encendido y conectado a la red</li>
-                        <li>• Algunas conexiones pueden requerir credenciales de acceso</li>
+                        <li>• El usuario debe autorizar la conexión cuando se solicite</li>
                         <li>• Para conexiones externas, verifica que los puertos estén abiertos</li>
                     </ul>
-                </div>
-
-                {/* Estado de servicios */}
-                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Estado de Servicios</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-gray-700 dark:text-gray-300">RDP: Activo</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-gray-700 dark:text-gray-300">SSH: Activo</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <XCircle className="h-4 w-4 text-red-500" />
-                            <span className="text-gray-700 dark:text-gray-300">VNC: Inactivo</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-gray-700 dark:text-gray-300">AnyDesk: Activo</span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
