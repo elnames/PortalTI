@@ -31,12 +31,12 @@ export default function NotificationBell() {
   };
 
   const content = (
-    <div className="w-72 sm:w-80 md:w-96 max-w-[calc(100vw-32px)]">
-      <div className="flex justify-between items-center mb-3 px-1">
-        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm sm:text-base">Notificaciones</span>
+    <div className="w-80 sm:w-96 lg:w-[28rem] max-w-[calc(100vw-32px)]">
+      <div className="flex justify-between items-center mb-4 px-2">
+        <span className="font-semibold text-gray-900 dark:text-gray-100 text-base">Notificaciones</span>
         {items.length > 0 && (
           <button
-            className="text-xs px-2 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 transition-colors whitespace-nowrap"
+            className="text-sm px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 transition-colors whitespace-nowrap font-medium"
             onClick={(e) => { e.stopPropagation(); deleteAll(); }}
             title="Borrar todas"
           >
@@ -50,33 +50,33 @@ export default function NotificationBell() {
           No hay notificaciones
         </div>
       ) : (
-        <div className="max-h-64 sm:max-h-72 overflow-y-auto pr-1">
+        <div className="max-h-80 lg:max-h-96 overflow-y-auto pr-2">
           <List
             dataSource={items}
             renderItem={(notification) => (
               <List.Item
-                className={`cursor-pointer rounded-lg my-1.5 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${!notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                className={`cursor-pointer rounded-xl my-2 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 ${!notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' : 'border-l-4 border-transparent'}`}
                 onClick={() => handleNotificationClick(notification)}
               >
                 <List.Item.Meta
                   title={
-                    <span className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${!notification.isRead ? 'font-semibold' : ''}`}>
+                    <span className={`text-sm font-semibold text-gray-900 dark:text-gray-100 ${!notification.isRead ? 'text-blue-900 dark:text-blue-100' : ''}`}>
                       {notification.titulo}
                     </span>
                   }
                   description={
-                    <div className="mt-1">
-                      <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <div className="mt-2">
+                      <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed block">
                         {notification.mensaje}
                       </span>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">
                         {new Date(notification.createdAt).toLocaleString('es-ES')}
                       </div>
                     </div>
                   }
                 />
                 <button
-                  className="text-sm text-gray-400 hover:text-red-500 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className="text-lg text-gray-400 hover:text-red-500 ml-3 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
                   onClick={(e) => { e.stopPropagation(); deleteNotification(notification.id); }}
                   title="Eliminar"
                 >
@@ -103,9 +103,7 @@ export default function NotificationBell() {
       overlayClassName="notification-popover"
       overlayStyle={{
         maxWidth: 'calc(100vw - 32px)',
-        width: 'auto',
-        left: 'auto !important',
-        right: '8px !important'
+        width: 'auto'
       }}
     >
       <Badge count={unread} size="small" offset={[-2, 2]}>
