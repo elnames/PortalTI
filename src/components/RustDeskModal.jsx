@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,6 +8,9 @@ const RustDeskModal = ({ isOpen, onClose, conversacionId, onCredencialesEnviadas
     const { user } = useAuth();
     const [manualId, setManualId] = useState('');
     const [manualPassword, setManualPassword] = useState('');
+    const [anyDeskId, setAnyDeskId] = useState('');
+    const [anyDeskPassword, setAnyDeskPassword] = useState('');
+    const [selectedTool, setSelectedTool] = useState('rustdesk'); // 'rustdesk' o 'anydesk'
     const [isEnviando, setIsEnviando] = useState(false);
 
     const descargarRustDesk = () => {
@@ -20,6 +24,17 @@ const RustDeskModal = ({ isOpen, onClose, conversacionId, onCredencialesEnviadas
         showToast('Descargando RustDesk...', 'success');
     };
 
+    const descargarAnyDesk = () => {
+        // Descargar AnyDesk desde la carpeta public
+        const link = document.createElement('a');
+        link.href = '/anydesk.exe'; // Asumiendo que el archivo se llama anydesk.exe
+        link.download = 'anydesk.exe';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Descargando AnyDesk...', 'success');
+    };
+
     const abrirRustDesk = () => {
         // Intentar abrir RustDesk si está instalado
         try {
@@ -27,6 +42,16 @@ const RustDeskModal = ({ isOpen, onClose, conversacionId, onCredencialesEnviadas
             showToast('Abriendo RustDesk...', 'success');
         } catch (error) {
             showToast('RustDesk no está instalado. Descárgalo primero.', 'warning');
+        }
+    };
+
+    const abrirAnyDesk = () => {
+        // Intentar abrir AnyDesk si está instalado
+        try {
+            window.open('anydesk://', '_blank');
+            showToast('Abriendo AnyDesk...', 'success');
+        } catch (error) {
+            showToast('AnyDesk no está instalado. Descárgalo primero.', 'warning');
         }
     };
 
@@ -47,7 +72,11 @@ const RustDeskModal = ({ isOpen, onClose, conversacionId, onCredencialesEnviadas
     };
 
     const enviarCredenciales = async () => {
-        if (!manualId) {
+        const currentId = selectedTool === 'rustdesk' ? manualId : anyDeskId;
+        const currentPassword = selectedTool === 'rustdesk' ? manualPassword : anyDeskPassword;
+        const toolName = selectedTool === 'rustdesk' ? 'RUSTDESK' : 'ANYDESK';
+
+        if (!currentId) {
             showToast('Completa el ID', 'warning');
             return;
         }
@@ -60,9 +89,9 @@ const RustDeskModal = ({ isOpen, onClose, conversacionId, onCredencialesEnviadas
         setIsEnviando(true);
 
         try {
-            const credenciales = `🔧 **CREDENCIALES DE RUSTDESK**
+            const credenciales = `🔧 **CREDENCIALES DE ${toolName}**
 
-**ID:** ${manualId}${manualPassword ? `\n**Contraseña:** ${manualPassword}` : ''}
+**ID:** ${currentId}${currentPassword ? `\n**Contraseña:** ${currentPassword}` : ''}
 
 El administrador puede usar estas credenciales para conectarse a tu equipo.`;
 
@@ -73,7 +102,7 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
             await chatAPI.enviarMensaje(conversacionId, {
                 contenido: credenciales,
                 esInterno: false,
-                tipo: 'credenciales_rustdesk'
+                tipo: `credenciales_${selectedTool}`
             });
 
             showToast('Credenciales enviadas al chat', 'success');
@@ -81,12 +110,15 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
             // Limpiar los campos
             setManualId('');
             setManualPassword('');
+            setAnyDeskId('');
+            setAnyDeskPassword('');
 
             // Notificar al componente padre que se enviaron credenciales
             if (onCredencialesEnviadas) {
                 onCredencialesEnviadas({
-                    id: manualId,
-                    password: manualPassword
+                    id: currentId,
+                    password: currentPassword,
+                    tool: selectedTool
                 });
             }
 
@@ -103,8 +135,20 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    return createPortal(
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9998] p-4"
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}
+        >
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -116,6 +160,28 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                 El administrador necesita acceder a tu equipo. Sigue estos pasos:
                             </p>
+
+                            {/* Selector de herramienta */}
+                            <div className="mt-3 flex space-x-2">
+                                <button
+                                    onClick={() => setSelectedTool('rustdesk')}
+                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedTool === 'rustdesk'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                        }`}
+                                >
+                                    🔧 RustDesk
+                                </button>
+                                <button
+                                    onClick={() => setSelectedTool('anydesk')}
+                                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedTool === 'anydesk'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                        }`}
+                                >
+                                    🖥️ AnyDesk
+                                </button>
+                            </div>
                         </div>
                         <button
                             onClick={onClose}
@@ -132,33 +198,33 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                 {/* Content */}
                 <div className="p-6">
                     <div className="space-y-6">
-                        {/* Paso 1: Descargar RustDesk */}
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                        {/* Paso 1: Descargar herramienta */}
+                        <div className={`${selectedTool === 'rustdesk' ? 'bg-purple-50 dark:bg-purple-900/20' : 'bg-blue-50 dark:bg-blue-900/20'} rounded-lg p-4`}>
                             <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                <div className={`flex-shrink-0 w-8 h-8 ${selectedTool === 'rustdesk' ? 'bg-purple-600' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-sm font-bold`}>
                                     1
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                                        Descargar RustDesk
+                                    <h3 className={`font-medium ${selectedTool === 'rustdesk' ? 'text-purple-900 dark:text-purple-100' : 'text-blue-900 dark:text-blue-100'} mb-2`}>
+                                        Descargar {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}
                                     </h3>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                                        Si no tienes RustDesk instalado, descárgalo desde nuestro servidor:
+                                    <p className={`text-sm ${selectedTool === 'rustdesk' ? 'text-purple-700 dark:text-purple-300' : 'text-blue-700 dark:text-blue-300'} mb-3`}>
+                                        Si no tienes {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} instalado, descárgalo desde nuestro servidor:
                                     </p>
                                     <button
-                                        onClick={descargarRustDesk}
-                                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        onClick={selectedTool === 'rustdesk' ? descargarRustDesk : descargarAnyDesk}
+                                        className={`flex items-center space-x-2 px-4 py-2 ${selectedTool === 'rustdesk' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg transition-colors`}
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        <span>Descargar RustDesk</span>
+                                        <span>Descargar {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Paso 2: Abrir RustDesk */}
+                        {/* Paso 2: Abrir herramienta */}
                         <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                             <div className="flex items-start space-x-3">
                                 <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
@@ -166,50 +232,50 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-medium text-green-900 dark:text-green-100 mb-2">
-                                        Abrir RustDesk
+                                        Abrir {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}
                                     </h3>
                                     <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-                                        Ejecuta RustDesk en tu equipo. En la ventana principal verás tu ID y contraseña:
+                                        Ejecuta {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} en tu equipo. En la ventana principal verás tu ID y contraseña:
                                     </p>
                                     <button
-                                        onClick={abrirRustDesk}
+                                        onClick={selectedTool === 'rustdesk' ? abrirRustDesk : abrirAnyDesk}
                                         className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                         </svg>
-                                        <span>Abrir RustDesk</span>
+                                        <span>Abrir {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         {/* Paso 3: Ingresar ID y Contraseña */}
-                        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                        <div className={`${selectedTool === 'rustdesk' ? 'bg-purple-50 dark:bg-purple-900/20' : 'bg-blue-50 dark:bg-blue-900/20'} rounded-lg p-4`}>
                             <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                <div className={`flex-shrink-0 w-8 h-8 ${selectedTool === 'rustdesk' ? 'bg-purple-600' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-sm font-bold`}>
                                     3
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-medium text-purple-900 dark:text-purple-100 mb-2">
+                                    <h3 className={`font-medium ${selectedTool === 'rustdesk' ? 'text-purple-900 dark:text-purple-100' : 'text-blue-900 dark:text-blue-100'} mb-2`}>
                                         Ingresar ID y Contraseña
                                     </h3>
-                                    <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                                        Copia el ID y contraseña de la ventana de RustDesk e ingrésalos aquí:
+                                    <p className={`text-sm ${selectedTool === 'rustdesk' ? 'text-purple-700 dark:text-purple-300' : 'text-blue-700 dark:text-blue-300'} mb-3`}>
+                                        Copia el ID y contraseña de la ventana de {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} e ingrésalos aquí:
                                     </p>
 
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                    ID de RustDesk *
+                                                    ID de {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} *
                                                 </label>
                                                 <input
                                                     type="text"
-                                                    value={manualId}
-                                                    onChange={(e) => setManualId(e.target.value)}
-                                                    placeholder="Ej: 12345678901234567890"
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                    value={selectedTool === 'rustdesk' ? manualId : anyDeskId}
+                                                    onChange={(e) => selectedTool === 'rustdesk' ? setManualId(e.target.value) : setAnyDeskId(e.target.value)}
+                                                    placeholder={selectedTool === 'rustdesk' ? "Ej: 12345678901234567890" : "Ej: 123456789"}
+                                                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${selectedTool === 'rustdesk' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' : 'focus:ring-blue-500 dark:focus:ring-blue-400'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
                                                 />
                                             </div>
                                             <div>
@@ -218,18 +284,18 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                                                 </label>
                                                 <input
                                                     type="text"
-                                                    value={manualPassword}
-                                                    onChange={(e) => setManualPassword(e.target.value)}
+                                                    value={selectedTool === 'rustdesk' ? manualPassword : anyDeskPassword}
+                                                    onChange={(e) => selectedTool === 'rustdesk' ? setManualPassword(e.target.value) : setAnyDeskPassword(e.target.value)}
                                                     placeholder="Si configuraste una"
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${selectedTool === 'rustdesk' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' : 'focus:ring-blue-500 dark:focus:ring-blue-400'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
                                                 />
                                             </div>
                                         </div>
                                         <div className="flex space-x-2">
                                             <button
                                                 onClick={enviarCredenciales}
-                                                disabled={isEnviando || !manualId}
-                                                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                disabled={isEnviando || !(selectedTool === 'rustdesk' ? manualId : anyDeskId)}
+                                                className={`flex items-center space-x-2 px-4 py-2 ${selectedTool === 'rustdesk' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                                             >
                                                 {isEnviando ? (
                                                     <>
@@ -259,7 +325,7 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
 
                                     <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                                         <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                                            <strong>Nota:</strong> Copia el ID y contraseña directamente de la ventana de RustDesk. El ID es el número largo que aparece en la parte superior.
+                                            <strong>Nota:</strong> Copia el ID y contraseña directamente de la ventana de {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}. {selectedTool === 'rustdesk' ? 'El ID es el número largo que aparece en la parte superior.' : 'El ID es el número que aparece en la ventana principal.'}
                                         </p>
                                     </div>
                                 </div>
@@ -277,11 +343,11 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                                         Enviar tu ID
                                     </h3>
                                     <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-                                        Copia tu ID de RustDesk (el número largo que aparece) y envíamelo en el chat:
+                                        Copia tu ID de {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} {selectedTool === 'rustdesk' ? '(el número largo que aparece)' : '(el número que aparece)'} y envíamelo en el chat:
                                     </p>
                                     <div className="bg-white dark:bg-gray-700 border border-yellow-300 dark:border-yellow-600 rounded-lg p-3">
                                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            <strong>Ejemplo de ID:</strong> 12345678901234567890
+                                            <strong>Ejemplo de ID:</strong> {selectedTool === 'rustdesk' ? '12345678901234567890' : '123456789'}
                                         </p>
                                     </div>
                                 </div>
@@ -299,7 +365,7 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                                         Autorizar conexión
                                     </h3>
                                     <p className="text-sm text-indigo-700 dark:text-indigo-300">
-                                        Cuando el administrador intente conectarse, RustDesk te pedirá autorización. Haz clic en "Aceptar" y puedes marcar "Confiar en este dispositivo" para futuras conexiones.
+                                        Cuando el administrador intente conectarse, {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} te pedirá autorización. Haz clic en "Aceptar" y puedes marcar "Confiar en este dispositivo" para futuras conexiones.
                                     </p>
                                 </div>
                             </div>
@@ -316,11 +382,11 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                                         Información importante
                                     </h3>
                                     <ul className="text-sm text-red-700 dark:text-red-300 space-y-1">
-                                        <li>• Mantén RustDesk abierto mientras te ayuden</li>
-                                        <li>• Si no ves tu ID, haz clic en "Mostrar ID" en RustDesk</li>
+                                        <li>• Mantén {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'} abierto mientras te ayuden</li>
+                                        <li>• Si no ves tu ID, haz clic en "Mostrar ID" en {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}</li>
                                         <li>• Tu contraseña solo la necesitas si configuraste una</li>
                                         <li>• Puedes cerrar este modal y continuar con el chat</li>
-                                        <li>• Copia el ID exactamente como aparece en RustDesk</li>
+                                        <li>• Copia el ID exactamente como aparece en {selectedTool === 'rustdesk' ? 'RustDesk' : 'AnyDesk'}</li>
                                     </ul>
                                 </div>
                             </div>
@@ -346,7 +412,8 @@ El administrador puede usar estas credenciales para conectarse a tu equipo.`;
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
