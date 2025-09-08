@@ -1,5 +1,38 @@
 # To-Do técnico (seguridad, integridad y operación)
 
+## ✅ **Tareas Completadas Recientemente**
+
+### **📅 Calendario y Filtrado**
+- [x] **Filtrado inteligente** por categorías y búsqueda implementado
+- [x] **Corrección de bucles infinitos** en fetchEvents
+- [x] **Optimización de rendimiento** sin saturar el servidor
+- [x] **Diseño responsivo** para móviles y escritorio
+
+### **📱 Notificaciones y UX**
+- [x] **Diseño móvil optimizado** sin corte en pantallas pequeñas
+- [x] **Contador de eventos** filtrados vs totales
+- [x] **Transiciones suaves** y mejor experiencia visual
+- [x] **Posicionamiento inteligente** del popover
+
+### **📄 Sistema de Actas**
+- [x] **Separación de funcionalidades** generar vs previsualizar
+- [x] **Previsualización temporal** sin guardar en Storage
+- [x] **Eliminación de texto SHA256** en observaciones
+- [x] **Resolución robusta de rutas** para portabilidad
+
+### **💾 Gestión de Storage**
+- [x] **Rutas relativas portables** entre equipos
+- [x] **Estandarización** en todos los controladores
+- [x] **Logs de debug** para troubleshooting
+- [x] **Corrección de paz y salvo** para subida de archivos
+
+### **🗄️ Base de Datos**
+- [x] **Script genérico mejorado** sin usuarios autenticados automáticos
+- [x] **Preservación de admins** existentes
+- [x] **Datos de prueba completos** para desarrollo
+
+---
+
 ## Seguridad y control de acceso
 - [ ] Definir policies por acción en `Program.cs` (ej.: `CanApproveActa`, `CanRejectActa`, `CanManageAssets`, `CanDeleteNotifications`)
 - [ ] Decorar endpoints críticos con `[Authorize(Policy="...")]`

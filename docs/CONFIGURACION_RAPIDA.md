@@ -68,3 +68,36 @@ Si quieres probar el calendario sin Teams por ahora:
 - **Tenant**: Verifica que estés en el tenant correcto
 
 ¡Con estos pasos tendrás Teams funcionando en 5 minutos! 🎉
+
+---
+
+## 🆕 **Mejoras Recientes del Sistema**
+
+### **📅 Calendario Mejorado**
+- ✅ **Filtrado inteligente** por categorías y búsqueda
+- ✅ **Sin bucles infinitos** - Rendimiento optimizado
+- ✅ **Responsive design** - Funciona perfecto en móviles
+
+### **📱 Notificaciones Optimizadas**
+- ✅ **Diseño móvil** - Sin corte en pantallas pequeñas
+- ✅ **Contador de eventos** - Muestra filtrados vs totales
+- ✅ **Transiciones suaves** - Mejor experiencia visual
+
+### **📄 Actas de Entrega**
+- ✅ **Firmas digitales** - Sin texto SHA256 molesto
+- ✅ **Previsualización temporal** - Para imprimir sin guardar
+- ✅ **Rutas portables** - Funciona en cualquier equipo
+
+### **💾 Gestión de Archivos**
+- ✅ **Paz y salvo** - Subida de archivos corregida
+- ✅ **Storage robusto** - Rutas relativas portables
+- ✅ **Logs de debug** - Para troubleshooting fácil
+
+### **🗄️ Base de Datos**
+- ✅ **Script genérico** - Sin usuarios autenticados automáticos
+- ✅ **Solo datos de prueba** - Activos, tickets, actas
+- ✅ **Preserva admins** - Mantiene usuarios existentes
+
+---
+
+**¡El sistema está más estable y funcional que nunca!** 🚀

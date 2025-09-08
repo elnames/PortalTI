@@ -28,6 +28,10 @@
 2. **[🔌 API Documentation](./API.md)** - Documentación completa de la API REST
 3. **[💾 Almacenamiento](./STORAGE.md)** - Configuración y gestión de archivos
 
+### 🆕 **Mejoras Recientes**
+1. **[🚀 Configuración Rápida](./CONFIGURACION_RAPIDA.md)** - Setup rápido con mejoras
+2. **[📋 TODO Actualizado](./TODO.md)** - Tareas completadas y pendientes
+
 ---
 
 ## 📖 Documentación Disponible
@@ -94,6 +98,40 @@
 | **🏠 README** | [Ver README Principal](../README.md) |
 
 </div>
+
+---
+
+## 🚀 **Mejoras Recientes del Sistema**
+
+### **📅 Calendario Inteligente**
+- ✅ **Filtrado por categorías** - General, Reunión, Personal, Trabajo, Teams, Llamada
+- ✅ **Búsqueda en tiempo real** - Por título y descripción de eventos
+- ✅ **Sin bucles infinitos** - Rendimiento optimizado
+- ✅ **Diseño responsivo** - Funciona perfecto en móviles
+
+### **📱 Notificaciones Optimizadas**
+- ✅ **Diseño móvil mejorado** - Sin corte en pantallas pequeñas
+- ✅ **Contador de eventos** - Muestra filtrados vs totales
+- ✅ **Transiciones suaves** - Mejor experiencia visual
+- ✅ **Posicionamiento inteligente** - Evita problemas de layout
+
+### **📄 Sistema de Actas Mejorado**
+- ✅ **Separación de funcionalidades** - Generar vs Previsualizar
+- ✅ **Previsualización temporal** - Para imprimir sin guardar
+- ✅ **Firmas digitales limpias** - Sin texto SHA256 molesto
+- ✅ **Rutas portables** - Funciona en cualquier equipo
+
+### **💾 Gestión de Storage Robusta**
+- ✅ **Rutas relativas** - Configuración portable entre equipos
+- ✅ **Resolución automática** - Combina rutas correctamente
+- ✅ **Estandarización** - Mismo manejo en todos los controladores
+- ✅ **Paz y salvo funcional** - Subida de archivos corregida
+
+### **🗄️ Base de Datos Genérica**
+- ✅ **Sin usuarios autenticados automáticos** - Solo datos de prueba
+- ✅ **Preservación de admins** - Mantiene usuarios existentes
+- ✅ **Datos completos** - Activos, tickets, actas, asignaciones
+- ✅ **Scripts optimizados** - Población eficiente
 
 ---
 

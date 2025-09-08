@@ -24,12 +24,15 @@
 - **Asignación automática** a usuarios con historial completo
 - **Software & Seguridad** integrado con programas estándar
 - **Conexión remota** y control de acceso
+- **Actas de entrega** con firmas digitales
+- **Paz y salvo** para devolución de activos
 
 ### 🎫 **Sistema de Tickets**
 - **Creación intuitiva** de tickets de soporte
 - **Seguimiento en tiempo real** con notificaciones
 - **Chat interno** para comunicación directa
 - **Gestión de evidencias** con imágenes y archivos
+- **Notificaciones móviles** optimizadas
 
 ### 👥 **Gestión de Usuarios**
 - **Autenticación segura** con JWT
@@ -45,6 +48,7 @@
 
 ### 📅 **Calendario Integrado**
 - **Vista estilo Outlook** con múltiples vistas
+- **Filtrado inteligente** por categorías y búsqueda
 - **Integración con Microsoft Teams**
 - **Creación de reuniones** automática
 - **Gestión de eventos** empresariales
@@ -214,6 +218,12 @@ graph TB
 - [x] Reportes trimestrales
 - [x] Integración con Microsoft Teams
 - [x] Sistema de programas estándar
+- [x] Actas de entrega con firmas digitales
+- [x] Sistema de paz y salvo
+- [x] Filtrado inteligente en calendario
+- [x] Notificaciones móviles optimizadas
+- [x] Resolución robusta de rutas de Storage
+- [x] Separación de funcionalidades de actas
 
 ### 🔄 **En Desarrollo**
 - [ ] Dashboard avanzado con métricas

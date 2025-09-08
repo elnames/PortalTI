@@ -17,6 +17,7 @@
 12. [Calendario de TI](#calendario-de-ti)
 13. [Sistema de Programas Estándar](#sistema-de-programas-estándar)
 14. [Sistema de Reportes](#sistema-de-reportes)
+15. [Mejoras Recientes](#mejoras-recientes)
 
 ---
 
@@ -1323,5 +1324,51 @@ El sistema incluye endpoints para gestionar permisos de archivos:
 
 ---
 
+## 🚀 Mejoras Recientes
+
+### **📅 Calendario con Filtrado Inteligente**
+- **Filtrado por categorías**: General, Reunión, Personal, Trabajo, Teams, Llamada
+- **Búsqueda en tiempo real**: Por título y descripción de eventos
+- **Filtrado visual**: Sin recargas de página ni bucles infinitos
+- **Optimización de rendimiento**: Filtrado eficiente sin saturar el servidor
+
+### **📱 Notificaciones Móviles Optimizadas**
+- **Diseño responsivo**: Optimizado para móviles y escritorio
+- **Posicionamiento inteligente**: Evita corte en pantallas pequeñas
+- **Contador de eventos**: Muestra eventos filtrados vs totales
+- **Transiciones suaves**: Mejor experiencia de usuario
+
+### **📄 Sistema de Actas Mejorado**
+- **Separación de funcionalidades**: Generar vs Previsualizar
+- **Previsualización temporal**: Sin guardar en Storage
+- **Firmas digitales**: Sin texto SHA256 en observaciones
+- **Resolución robusta de rutas**: Portabilidad entre entornos
+
+### **💾 Gestión de Storage Optimizada**
+- **Rutas relativas**: Configuración portable entre equipos
+- **Resolución automática**: Combina rutas correctamente
+- **Estandarización**: Mismo manejo en todos los controladores
+- **Logs de debug**: Para troubleshooting de archivos
+
+### **🔧 Base de Datos Genérica Mejorada**
+- **Sin usuarios autenticados**: Solo datos de prueba
+- **Preservación de admins**: Mantiene usuarios admin existentes
+- **Datos completos**: Activos, asignaciones, tickets, actas
+- **Scripts optimizados**: Población eficiente de datos
+
+### **📋 Paz y Salvo Funcional**
+- **Subida de archivos**: Corregida resolución de rutas
+- **Almacenamiento seguro**: En directorio `pazysalvo`
+- **Gestión completa**: Crear, editar, eliminar, descargar
+- **Logs de debug**: Para verificar funcionamiento
+
+### **🎯 Mejoras de UX/UI**
+- **Botones clarificados**: "Previsualizar para Imprimir"
+- **Indicadores visuales**: Mejor feedback al usuario
+- **Responsive design**: Optimizado para todos los dispositivos
+- **Transiciones suaves**: Mejor experiencia visual
+
+---
+
 **PortalTI** - Documentación Técnica Completa
-*Última actualización: Septiembre 2025*
+*Última actualización: Enero 2025*
