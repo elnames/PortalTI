@@ -113,9 +113,18 @@ namespace PortalTi.Api.Controllers
                 }
 
                 // Crear directorio seguro si no existe
-                var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+                var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                if (!Path.IsPathRooted(storageRoot))
+                {
+                    storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
+                }
                 string uploadsDir = Path.Combine(storageRoot, "pazysalvo");
                 Directory.CreateDirectory(uploadsDir);
+                
+                // Log de debug
+                Console.WriteLine($"PazYSalvo - storageRoot: {storageRoot}");
+                Console.WriteLine($"PazYSalvo - uploadsDir: {uploadsDir}");
+                Console.WriteLine($"PazYSalvo - Directory exists: {Directory.Exists(uploadsDir)}");
 
                 // Generar nombre único para el archivo
                 string fileName = $"PazYSalvo_{usuario.Nombre}_{usuario.Apellido}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
@@ -127,6 +136,11 @@ namespace PortalTi.Api.Controllers
                 {
                     await dto.Archivo.CopyToAsync(stream);
                 }
+                
+                // Log de debug después de guardar
+                Console.WriteLine($"PazYSalvo - Archivo guardado: {filePath}");
+                Console.WriteLine($"PazYSalvo - Archivo existe: {System.IO.File.Exists(filePath)}");
+                Console.WriteLine($"PazYSalvo - Tamaño archivo: {new FileInfo(filePath).Length} bytes");
 
                 // Procesar activos devueltos si se proporcionan
                 var activosDevueltosInfo = new List<object>();
@@ -197,7 +211,11 @@ namespace PortalTi.Api.Controllers
             }
 
             // Eliminar archivo físico
-            var storageRoot = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+            var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+            if (!Path.IsPathRooted(storageRoot))
+            {
+                storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
+            }
             var filePath = Path.Combine(storageRoot, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
             if (System.IO.File.Exists(filePath))
             {
@@ -223,7 +241,11 @@ namespace PortalTi.Api.Controllers
                 }
 
                 // Eliminar archivo físico
-                var storageRoot4 = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+                var storageRoot4 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+                if (!Path.IsPathRooted(storageRoot4))
+                {
+                    storageRoot4 = Path.Combine(Directory.GetCurrentDirectory(), storageRoot4);
+                }
                 var filePath = Path.Combine(storageRoot4, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
                 if (System.IO.File.Exists(filePath))
                 {
@@ -251,7 +273,11 @@ namespace PortalTi.Api.Controllers
                 return NotFound();
             }
 
-            var storageRoot2 = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+            var storageRoot2 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+            if (!Path.IsPathRooted(storageRoot2))
+            {
+                storageRoot2 = Path.Combine(Directory.GetCurrentDirectory(), storageRoot2);
+            }
             var filePath = Path.Combine(storageRoot2, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
             if (!System.IO.File.Exists(filePath))
             {
@@ -274,7 +300,11 @@ namespace PortalTi.Api.Controllers
                 return NotFound();
             }
 
-            var storageRoot3 = _configuration["Storage:Root"] ?? Path.Combine(_environment.ContentRootPath, "Storage");
+            var storageRoot3 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+            if (!Path.IsPathRooted(storageRoot3))
+            {
+                storageRoot3 = Path.Combine(Directory.GetCurrentDirectory(), storageRoot3);
+            }
             var filePath = Path.Combine(storageRoot3, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
             if (!System.IO.File.Exists(filePath))
             {
