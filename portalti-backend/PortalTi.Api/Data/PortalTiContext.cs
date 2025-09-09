@@ -20,15 +20,10 @@ namespace PortalTi.Api.Data
         public DbSet<ArchivoTicket> ArchivosTickets { get; set; }
         public DbSet<Notificacion> Notificaciones { get; set; }
         public DbSet<Acta> Actas { get; set; }
-        public DbSet<ChatConversacion> ChatConversaciones { get; set; }
-        public DbSet<ChatMensaje> ChatMensajes { get; set; }
-        public DbSet<ChatArchivo> ChatArchivos { get; set; }
         public DbSet<Software> Software { get; set; }
         public DbSet<ProgramaSeguridad> ProgramasSeguridad { get; set; }
         public DbSet<Licencia> Licencias { get; set; }
         public DbSet<PazYSalvo> PazYSalvos { get; set; }
-        public DbSet<CalendarEvent> CalendarEvents { get; set; }
-        public DbSet<CalendarEventAssignee> CalendarEventAssignees { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<SystemConfiguration> SystemConfigurations { get; set; }
         public DbSet<ProgramaEstandar> ProgramasEstandar { get; set; }
@@ -162,57 +157,6 @@ namespace PortalTi.Api.Data
             modelBuilder.Entity<ArchivoTicket>()
                 .HasIndex(a => new { a.TicketId, a.FechaSubida });
 
-            // Configurar relaciones para ChatConversacion
-            modelBuilder.Entity<ChatConversacion>()
-                .HasOne(c => c.Usuario)
-                .WithMany()
-                .HasForeignKey(c => c.UsuarioId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ChatConversacion>()
-                .HasOne(c => c.Soporte)
-                .WithMany()
-                .HasForeignKey(c => c.SoporteId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<ChatConversacion>()
-                .HasOne(c => c.Ticket)
-                .WithMany()
-                .HasForeignKey(c => c.TicketId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // Configurar relaciones para ChatMensaje
-            modelBuilder.Entity<ChatMensaje>()
-                .HasOne(m => m.Conversacion)
-                .WithMany(c => c.Mensajes)
-                .HasForeignKey(m => m.ConversacionId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ChatMensaje>()
-                .HasOne(m => m.CreadoPor)
-                .WithMany()
-                .HasForeignKey(m => m.CreadoPorId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // Configurar índices para ChatConversacion
-            modelBuilder.Entity<ChatConversacion>()
-                .HasIndex(c => c.Estado);
-
-            modelBuilder.Entity<ChatConversacion>()
-                .HasIndex(c => c.FechaCreacion);
-
-            modelBuilder.Entity<ChatConversacion>()
-                .HasIndex(c => c.UsuarioId);
-
-            modelBuilder.Entity<ChatConversacion>()
-                .HasIndex(c => c.SoporteId);
-
-            // Configurar índices para ChatMensaje
-            modelBuilder.Entity<ChatMensaje>()
-                .HasIndex(m => new { m.ConversacionId, m.FechaCreacion });
-
-            modelBuilder.Entity<ChatMensaje>()
-                .HasIndex(m => m.EsLeido);
 
             // Configurar relaciones para Notificacion
             modelBuilder.Entity<Notificacion>()
@@ -248,33 +192,6 @@ namespace PortalTi.Api.Data
             modelBuilder.Entity<PazYSalvo>()
                 .HasIndex(p => p.UsuarioId);
 
-            // Calendario
-            modelBuilder.Entity<CalendarEvent>()
-                .HasOne(e => e.CreatedBy)
-                .WithMany()
-                .HasForeignKey(e => e.CreatedById)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<CalendarEvent>()
-                .HasIndex(e => e.Start);
-
-            modelBuilder.Entity<CalendarEvent>()
-                .HasIndex(e => e.CreatedAt);
-
-            modelBuilder.Entity<CalendarEventAssignee>()
-                .HasKey(a => new { a.EventId, a.UserId });
-
-            modelBuilder.Entity<CalendarEventAssignee>()
-                .HasOne(a => a.Event)
-                .WithMany(e => e.Assignees)
-                .HasForeignKey(a => a.EventId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<CalendarEventAssignee>()
-                .HasOne(a => a.User)
-                .WithMany()
-                .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
 
             // Configurar relaciones para AuditLog
             modelBuilder.Entity<AuditLog>()

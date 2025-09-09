@@ -320,6 +320,5 @@ app.MapControllers();
 
 // Mapear SignalR Hubs
 app.MapHub<NotificationsHub>("/hubs/notifications");
-app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

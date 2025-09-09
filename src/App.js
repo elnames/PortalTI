@@ -30,10 +30,8 @@ import Actas from './pages/Actas';
 
 import GestionActas from './pages/GestionActas';
 import ActaDetail from './pages/ActaDetail';
-import Chat from './pages/Chat';
 import PrevisualizarActa from './pages/PrevisualizarActa';
 import PazYSalvo from './pages/PazYSalvo';
-import Calendario from './pages/Calendario';
 import MicrosoftCallback from './pages/MicrosoftCallback';
 import Documentacion from './pages/Documentacion';
 import Contacto from './pages/Contacto';
@@ -205,18 +203,6 @@ export default function App() {
             }
           />
 
-          {/* Calendario - Solo admin y soporte */}
-          <Route
-            path="calendario"
-            element={
-              <RequireRole roles={['admin', 'soporte']}>
-                <Calendario />
-              </RequireRole>
-            }
-          />
-
-          {/* Chat - Todos los usuarios */}
-          <Route path="chat" element={<Chat />} />
 
           {/* Páginas de usuario */}
           <Route path="perfil" element={<Perfil />} />

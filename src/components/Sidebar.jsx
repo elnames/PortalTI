@@ -10,8 +10,6 @@ import {
   BarChart2,
   Shield,
   FileText,
-  MessageCircle,
-  CheckSquare,
   BadgeCheck
 } from 'lucide-react';
 
@@ -38,11 +36,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     // Enlaces para administradores
     links = [
       { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
-      { to: '/calendario', icon: CheckSquare, label: 'Calendario' },
       { to: '/usuarios', icon: Users, label: 'Usuarios' },
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
-      { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
       { to: '/pazysalvo', icon: BadgeCheck, label: 'Paz y Salvo' },
       { to: '/reportes', icon: BarChart2, label: 'Reportes' },
@@ -52,11 +48,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     // Enlaces para soporte técnico
     links = [
       { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
-      { to: '/calendario', icon: CheckSquare, label: 'Calendario' },
       { to: '/usuarios', icon: Users, label: 'Usuarios' },
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
-      { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
       { to: '/pazysalvo', icon: BadgeCheck, label: 'Paz y Salvo' }
     ];
@@ -65,8 +59,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     links = [
       { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
       { to: '/actas', icon: FileText, label: 'Actas' },
-      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
-      { to: '/chat', icon: MessageCircle, label: 'Chat Soporte' }
+      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' }
     ];
   }
 
