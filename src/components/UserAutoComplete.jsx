@@ -18,10 +18,16 @@ export default function UserAutoComplete({
     useEffect(() => {
         // Si hay un valor inicial, buscar el usuario correspondiente
         if (value && usuarios && usuarios.length > 0) {
-            const user = usuarios.find(u => u.id === value);
+            // Buscar por ID numérico o string
+            const user = usuarios.find(u => u.id == value || u.id === value);
             if (user) {
-                setInputValue(`${user.nombre || ''} ${user.apellido || ''} - ${user.departamento || ''}`);
+                const displayValue = `${user.nombre || ''} ${user.apellido || ''} - ${user.departamento || ''}`;
+                setInputValue(displayValue);
+            } else {
             }
+        } else if (!value) {
+            // Si no hay valor, limpiar el input
+            setInputValue('');
         }
     }, [value, usuarios]);
 
@@ -67,8 +73,11 @@ export default function UserAutoComplete({
     };
 
     const handleUserSelect = (usuario) => {
-        setInputValue(`${usuario.nombre || ''} ${usuario.apellido || ''} - ${usuario.departamento || ''}`);
-        onChange(usuario.id);
+        const displayValue = `${usuario.nombre || ''} ${usuario.apellido || ''} - ${usuario.departamento || ''}`;
+        setInputValue(displayValue);
+        // Convertir a número si es necesario
+        const userId = typeof usuario.id === 'string' ? parseInt(usuario.id, 10) : usuario.id;
+        onChange(userId);
         setIsOpen(false);
     };
 

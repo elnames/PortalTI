@@ -11,10 +11,8 @@ export default function useNotifications() {
 
   const load = useCallback(async () => {
     try {
-      console.log("DEBUG: Cargando notificaciones...");
       // Traer últimas notificaciones (leídas y no leídas) para no perder historial reciente
       const { data } = await api.get("/notifications?take=" + MAX_ITEMS);
-      console.log("DEBUG: Notificaciones cargadas:", data);
       setItems(Array.isArray(data) ? data : []);
       setUnread((Array.isArray(data) ? data : []).filter(n => !n.isRead).length);
     } catch (error) {
@@ -83,7 +81,7 @@ export default function useNotifications() {
       const overflow = list.length - MAX_ITEMS;
       const toDelete = readOldest.slice(0, Math.min(overflow, 10)); // borrar como máximo 10 por ciclo
       for (const n of toDelete) {
-        try { await api.delete(`/notifications/${n.id}`); } catch {}
+        try { await api.delete(`/notifications/${n.id}`); } catch { }
       }
       // Refrescar lista después de limpiar
       load();
@@ -95,13 +93,19 @@ export default function useNotifications() {
   useEffect(() => {
     load();
 
-    // Configurar SignalR (idéntico al patrón de chat): conexión global + reconexión
+    // Configurar SignalR con manejo simplificado
     const token = localStorage.getItem("token");
     if (!token) return;
 
+    // Evitar múltiples conexiones
+    if (window.notificationsHubConnection) {
+      setConnection(window.notificationsHubConnection);
+      return;
+    }
+
     const conn = new HubConnectionBuilder()
       .withUrl(`${getApiBaseUrl()}/hubs/notifications?access_token=${token}`, {
-        skipNegotiation: false,
+        skipNegotiation: true,
         transport: 1,
         headers: {
           'ngrok-skip-browser-warning': 'true'
@@ -114,33 +118,37 @@ export default function useNotifications() {
           return 10000;
         }
       })
-      .configureLogging("warn")
+      .configureLogging("error")
       .build();
 
     const startConnection = async () => {
       try {
-        console.log("DEBUG: Intentando conectar NotificationsHub...");
+        if (conn.state === "Connected" || conn.state === "Connecting") {
+          return;
+        }
+
         await conn.start();
-        console.log("NotificationsHub conectado");
         setConnection(conn);
-        // Exponer global para depuración y listeners externos (mismo patrón que chat)
         window.notificationsHubConnection = conn;
-        // Refrescar lista al conectar (patrón chat)
         load();
       } catch (err) {
-        console.error("Error conectando NotificationsHub:", err);
-        setTimeout(() => {
-          if (conn.state === "Disconnected") startConnection();
-        }, 3000);
+        // Solo mostrar errores que no sean de conexión
+        if (!err.message?.includes('connection was stopped') &&
+          !err.message?.includes('negotiation') &&
+          !err.message?.includes('AbortError') &&
+          !err.message?.includes('Failed to start the HttpConnection before stop()')) {
+          console.error("Error conectando NotificationsHub:", err);
+        }
       }
     };
 
-    startConnection();
+    // Intentar conectar con delay para evitar conflictos
+    const connectTimeout = setTimeout(() => {
+      startConnection();
+    }, 1000);
 
     const handleReceive = (notification) => {
-      console.log("DEBUG: Notificación recibida en frontend:", notification);
       setItems(prev => {
-        // evitar duplicados
         const filtered = prev.filter(n => n.id !== notification.id);
         const next = [notification, ...filtered].slice(0, MAX_ITEMS);
         setUnread(next.filter(n => !n.isRead).length);
@@ -151,14 +159,20 @@ export default function useNotifications() {
     conn.on("ReceiveNotification", handleReceive);
 
     conn.onclose(() => {
-      console.log("NotificationsHub desconectado");
       setConnection(null);
       window.notificationsHubConnection = null;
     });
 
     return () => {
-      try { conn.off("ReceiveNotification", handleReceive); } catch {}
-      try { conn.stop(); } catch {}
+      clearTimeout(connectTimeout);
+      try {
+        conn.off("ReceiveNotification", handleReceive);
+      } catch { }
+      try {
+        if (conn.state === "Connected") {
+          conn.stop();
+        }
+      } catch { }
     };
   }, [load]);
 

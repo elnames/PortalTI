@@ -54,7 +54,7 @@ export const SearchProvider = ({ children }) => {
     const addToSearchHistory = (query, result = null) => {
         setSearchHistory(prev => {
             let historyItem;
-            
+
             if (result) {
                 // Guardar información completa del resultado para navegación directa
                 historyItem = {
@@ -67,7 +67,7 @@ export const SearchProvider = ({ children }) => {
                 // Para búsquedas manuales, solo guardar el texto
                 historyItem = query;
             }
-            
+
             const newHistory = [historyItem, ...prev.filter(item => {
                 if (typeof item === 'string') {
                     return item !== query;
@@ -75,7 +75,7 @@ export const SearchProvider = ({ children }) => {
                     return item.titulo !== query;
                 }
             })].slice(0, 10);
-            
+
             localStorage.setItem('searchHistory', JSON.stringify(newHistory));
             return newHistory;
         });
@@ -112,14 +112,13 @@ export const SearchProvider = ({ children }) => {
     // Cargar historial al inicializar
     useEffect(() => {
         loadSearchHistory();
-        
-        // Debug: agregar datos de ejemplo si no hay historial
+
+        // Agregar datos de ejemplo si no hay historial
         const saved = localStorage.getItem('searchHistory');
         if (!saved || JSON.parse(saved).length === 0) {
             const exampleHistory = ['EQUIPO-278', 'Exequiel Valenzuela', 'Ticket 123'];
             setSearchHistory(exampleHistory);
             localStorage.setItem('searchHistory', JSON.stringify(exampleHistory));
-            console.log('Historial de ejemplo agregado:', exampleHistory);
         }
     }, []);
 

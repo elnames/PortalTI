@@ -16,10 +16,6 @@ export default function Header({ toggleSidebar }) {
     const [showSearchResults, setShowSearchResults] = useState(false)
     const searchRef = useRef(null)
 
-    // Debug: verificar historial
-    useEffect(() => {
-        console.log('Historial de búsquedas:', searchHistory)
-    }, [searchHistory])
 
     const handleLogout = () => {
         logout()
@@ -66,7 +62,7 @@ export default function Header({ toggleSidebar }) {
 
     const handleHistoryClick = (historyItem) => {
         console.log('Clic en historial:', historyItem)
-        
+
         // Si es un objeto con información completa, navegar directamente
         if (typeof historyItem === 'object' && historyItem.tipo) {
             switch (historyItem.tipo) {
@@ -217,7 +213,7 @@ export default function Header({ toggleSidebar }) {
                                                             default: return '🔍';
                                                         }
                                                     };
-                                                    
+
                                                     return (
                                                         <div
                                                             key={index}

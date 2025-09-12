@@ -8,8 +8,6 @@ export default function NotificationBell() {
   const { items, unread, markAllRead, markAsRead, deleteNotification, deleteAll } = useNotifications();
   const navigate = useNavigate();
 
-  // Debug logging
-  console.log("DEBUG: NotificationBell render - items:", items.length, "unread:", unread);
 
   const handleNotificationClick = (notification) => {
     let target = notification.ruta || '/dashboard';

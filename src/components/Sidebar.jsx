@@ -2,6 +2,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
+import { useUserSubroles } from '../hooks/useUserSubroles';
 import {
   Menu,
   HardDrive,
@@ -10,15 +11,15 @@ import {
   BarChart2,
   Shield,
   FileText,
-  BadgeCheck
+  BadgeCheck,
+  Settings
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const { hasSubrole, getActiveSubroles } = useUserSubroles();
 
-  // Debug: mostrar el estado del sidebar
-  console.log('Sidebar isOpen:', isOpen);
 
   // Overlay para móviles cuando el sidebar está abierto
   const overlay = (
@@ -40,7 +41,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
-      { to: '/pazysalvo', icon: BadgeCheck, label: 'Paz y Salvo' },
+      // Paz y Salvo se maneja con subroles más abajo
       { to: '/reportes', icon: BarChart2, label: 'Reportes' },
       { to: '/configuracion', icon: Shield, label: 'Configuración Admin' }
     ];
@@ -51,16 +52,104 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/usuarios', icon: Users, label: 'Usuarios' },
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
-      { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
-      { to: '/pazysalvo', icon: BadgeCheck, label: 'Paz y Salvo' }
+      { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' }
+      // Paz y Salvo se maneja con subroles más abajo
+    ];
+  } else if (user?.role === 'jefe_directo') {
+    // Enlaces para jefe directo
+    links = [
+      { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
+      { to: '/actas', icon: FileText, label: 'Actas' },
+      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
+      { to: '/pazysalvo/jefe-directo', icon: BadgeCheck, label: 'Paz y Salvo' }
+    ];
+  } else if (user?.role === 'rrhh') {
+    // Enlaces para RRHH
+    links = [
+      { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
+      { to: '/actas', icon: FileText, label: 'Actas' },
+      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
+      { to: '/pazysalvo/rrhh', icon: BadgeCheck, label: 'Paz y Salvo' }
+    ];
+  } else if (user?.role === 'ti') {
+    // Enlaces para TI
+    links = [
+      { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
+      { to: '/actas', icon: FileText, label: 'Actas' },
+      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
+      { to: '/pazysalvo/ti', icon: BadgeCheck, label: 'Paz y Salvo' }
+    ];
+  } else if (user?.role === 'contabilidad') {
+    // Enlaces para Contabilidad
+    links = [
+      { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
+      { to: '/actas', icon: FileText, label: 'Actas' },
+      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
+      { to: '/pazysalvo/contabilidad', icon: BadgeCheck, label: 'Paz y Salvo' }
+    ];
+  } else if (user?.role === 'gerencia_finanzas') {
+    // Enlaces para Gerencia de Finanzas
+    links = [
+      { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
+      { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
+      { to: '/actas', icon: FileText, label: 'Actas' },
+      { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
+      { to: '/pazysalvo/gerencia-finanzas', icon: BadgeCheck, label: 'Paz y Salvo' }
     ];
   } else {
-    // Enlaces para usuarios regulares
+    // Enlaces para usuarios regulares (SIN Dashboard)
     links = [
       { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
       { to: '/actas', icon: FileText, label: 'Actas' },
       { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' }
     ];
+  }
+
+  // Agregar enlaces de subroles de Paz y Salvo dinámicamente
+  const activeSubroles = getActiveSubroles();
+  if (activeSubroles && activeSubroles.length > 0) {
+    activeSubroles.forEach(subrole => {
+      let pazySalvoRoute = '';
+      let pazySalvoLabel = 'Paz y Salvo';
+
+      switch (subrole.rol) {
+        case 'Jefatura Directa':
+          pazySalvoRoute = '/pazysalvo/jefe-directo';
+          pazySalvoLabel = 'Paz y Salvo - Jefatura';
+          break;
+        case 'RRHH':
+          pazySalvoRoute = '/pazysalvo';
+          pazySalvoLabel = 'Paz y Salvo - Gestión';
+          break;
+        case 'TI':
+          pazySalvoRoute = '/pazysalvo/ti';
+          pazySalvoLabel = 'Paz y Salvo - TI';
+          break;
+        case 'Contabilidad':
+          pazySalvoRoute = '/pazysalvo/contabilidad';
+          pazySalvoLabel = 'Paz y Salvo - Contabilidad';
+          break;
+        case 'Gerencia Finanzas':
+          pazySalvoRoute = '/pazysalvo/gerencia-finanzas';
+          pazySalvoLabel = 'Paz y Salvo - Finanzas';
+          break;
+        default:
+          return; // No agregar si no es un rol reconocido
+      }
+
+      // Verificar que no exista ya el enlace (evitar duplicados)
+      if (!links.find(link => link.to === pazySalvoRoute)) {
+        links.push({
+          to: pazySalvoRoute,
+          icon: BadgeCheck,
+          label: pazySalvoLabel
+        });
+      }
+    });
   }
 
   return (

@@ -12,15 +12,9 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
-        console.log('API INTERCEPTOR - Token encontrado:', !!token);
-        console.log('API INTERCEPTOR - URL:', config.url);
-        console.log('API INTERCEPTOR - Method:', config.method);
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log('API INTERCEPTOR - Authorization header agregado');
-        } else {
-            console.log('API INTERCEPTOR - No hay token, petición sin autenticación');
         }
 
         // Agregar header para evitar warning de ngrok
@@ -288,18 +282,37 @@ export const programasEstandarAPI = {
     verificarInstalacion: (data) => api.post('/programasestandar/verificar-instalacion', data)
 };
 
-// Métodos para Paz y Salvo
+// Métodos para Paz y Salvo - Nuevo Sistema de Flujo de Firmas
 export const pazYSalvoAPI = {
-    getAll: () => api.get('/pazysalvo'),
+    // CRUD básico
+    getAll: (params = {}) => api.get('/pazysalvo', { params }),
     getById: (id) => api.get(`/pazysalvo/${id}`),
-    create: (formData) => api.post('/pazysalvo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+    create: (data) => api.post('/pazysalvo', data),
     update: (id, data) => api.put(`/pazysalvo/${id}`, data),
     delete: (id) => api.delete(`/pazysalvo/${id}`),
-    eliminar: (id) => api.delete(`/pazysalvo/${id}/eliminar`),
-    download: (id) => api.get(`/pazysalvo/download/${id}`, { responseType: 'blob' }),
-    preview: (id) => api.get(`/pazysalvo/preview/${id}`),
+
+    // Flujo de firmas
+    enviarAFirma: (id) => api.post(`/pazysalvo/${id}/send`),
+    firmar: (id, rol, data) => api.post(`/pazysalvo/${id}/firmas/${rol}/sign`, data),
+    observar: (id, rol, data) => api.post(`/pazysalvo/${id}/firmas/${rol}/observe`, data),
+    rechazar: (id, rol, data) => api.post(`/pazysalvo/${id}/firmas/${rol}/reject`, data),
+    solicitarFirma: (id, rol) => api.post(`/pazysalvo/${id}/solicitar-firma/${rol}`),
+    cerrar: (id) => api.post(`/pazysalvo/${id}/cerrar`),
+
+    // Excepciones y adjuntos
+    crearExcepcion: (id, data) => api.post(`/pazysalvo/${id}/excepciones`, data),
+    subirAdjunto: (id, formData) => api.post(`/pazysalvo/${id}/adjuntos`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+    // Descarga y verificación
+    descargarPdf: (id) => api.get(`/pazysalvo/${id}/pdf`, { responseType: 'blob' }),
+    verificar: (hash) => api.get(`/pazysalvo/verify`, { params: { hash } }),
+
+    // Métodos legacy (para compatibilidad)
+    eliminar: (id) => api.delete(`/pazysalvo/${id}`),
+    download: (id) => api.get(`/pazysalvo/${id}/pdf`, { responseType: 'blob' }),
+    preview: (id) => api.get(`/pazysalvo/${id}/pdf`, { responseType: 'blob' }),
     getActivosPendientes: (usuarioId) => api.get(`/pazysalvo/activos-pendientes/${usuarioId}`),
     getActivosPendientesTodos: () => api.get('/pazysalvo/activos-pendientes-todos'),
     marcarActivoDevuelto: (data) => api.post('/pazysalvo/marcar-activo-devuelto', data)
