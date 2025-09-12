@@ -2,15 +2,9 @@
 
 ## ✅ **Tareas Completadas Recientemente**
 
-### **📅 Calendario y Filtrado**
-- [x] **Filtrado inteligente** por categorías y búsqueda implementado
-- [x] **Corrección de bucles infinitos** en fetchEvents
-- [x] **Optimización de rendimiento** sin saturar el servidor
-- [x] **Diseño responsivo** para móviles y escritorio
 
 ### **📱 Notificaciones y UX**
 - [x] **Diseño móvil optimizado** sin corte en pantallas pequeñas
-- [x] **Contador de eventos** filtrados vs totales
 - [x] **Transiciones suaves** y mejor experiencia visual
 - [x] **Posicionamiento inteligente** del popover
 

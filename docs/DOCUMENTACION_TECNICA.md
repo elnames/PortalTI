@@ -12,12 +12,10 @@
 7. [Configuración y Despliegue](#configuración-y-despliegue)
 8. [Guías de Desarrollo](#guías-de-desarrollo)
 9. [Integración RustDesk](#integración-rustdesk)
-10. [Sistema de Chat en Tiempo Real](#sistema-de-chat-en-tiempo-real)
-11. [Sistema de Paz y Salvo](#sistema-de-paz-y-salvo)
-12. [Calendario de TI](#calendario-de-ti)
-13. [Sistema de Programas Estándar](#sistema-de-programas-estándar)
-14. [Sistema de Reportes](#sistema-de-reportes)
-15. [Mejoras Recientes](#mejoras-recientes)
+10. [Sistema de Paz y Salvo](#sistema-de-paz-y-salvo)
+11. [Sistema de Programas Estándar](#sistema-de-programas-estándar)
+12. [Sistema de Reportes](#sistema-de-reportes)
+13. [Mejoras Recientes](#mejoras-recientes)
 
 ---
 
@@ -36,7 +34,7 @@
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   RustDesk      │    │   SignalR Hub   │    │   Archivos      │
-│   Integration   │    │   (Chat)        │    │   (Storage)     │
+│   Integration   │    │   (Notificaciones) │   │   (Storage)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -45,7 +43,7 @@
 - **Backend**: ASP.NET Core 8 + Entity Framework Core + SignalR
 - **Base de Datos**: SQL Server 2019+
 - **Autenticación**: JWT Bearer Tokens
-- **Comunicación**: REST API + SignalR (para chat en tiempo real)
+- **Comunicación**: REST API + SignalR (para notificaciones en tiempo real)
 - **Control Remoto**: RustDesk Integration
 - **Archivos**: Sistema de archivos privado en `Storage` + endpoints seguros
 
@@ -579,132 +577,6 @@ const rustDeskAPI = {
 
 ---
 
-## 💬 Sistema de Chat en Tiempo Real
-
-### **Arquitectura SignalR**
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Cliente 1     │    │   SignalR Hub   │    │   Cliente 2     │
-│   (Usuario)     │◄──►│   (ChatHub)     │◄──►│   (Soporte)     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   Base de       │
-                    │   Datos         │
-                    │   (SQL Server)  │
-                    └─────────────────┘
-```
-
-### **Componentes del Sistema**
-
-#### **1. ChatHub (Backend)**
-```csharp
-public class ChatHub : Hub
-{
-    // Gestión de conexiones
-    public override async Task OnConnectedAsync()
-    public override async Task OnDisconnectedAsync(Exception exception)
-    
-    // Grupos de usuarios
-    await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
-    await Groups.AddToGroupAsync(Context.ConnectionId, $"role_{role}");
-    
-    // Envío de mensajes
-    await Clients.Group($"user_{userId}").SendAsync("ReceiveChatMessage", conversacionId, mensaje);
-}
-```
-
-#### **2. useChatSignalR (Frontend)**
-```javascript
-const useChatSignalR = () => {
-    // Conexión automática
-    useEffect(() => {
-        const connection = new HubConnectionBuilder()
-            .withUrl("/hubs/chat", { accessTokenFactory: () => token })
-            .build();
-            
-        // Reconexión automática
-        connection.onclose(() => {
-            setTimeout(() => connection.start(), 5000);
-        });
-    }, []);
-    
-    // Escucha de mensajes
-    connection.on("ReceiveChatMessage", (conversacionId, mensaje) => {
-        // Actualizar estado del chat
-            });
-        };
-```
-
-#### **3. FloatingChatIcon**
-```javascript
-// Icono flotante con contador
-const FloatingChatIcon = () => {
-    const [totalNoLeidos, setTotalNoLeidos] = useState(0);
-    
-    // Actualización automática del contador
-    useEffect(() => {
-        // Cargar conversaciones y calcular no leídos
-    }, []);
-
-    return (
-        <div className="fixed bottom-4 right-4 z-[9999]">
-            <button onClick={toggleChat}>
-                <span className="badge">{totalNoLeidos}</span>
-            </button>
-        </div>
-    );
-};
-```
-
-### **Funcionalidades del Chat**
-
-#### **1. Conversaciones Archivadas**
-```javascript
-// Tabs para conversaciones activas y archivadas
-const [activeTab, setActiveTab] = useState('activas');
-
-// Filtrado de conversaciones
-const conversacionesActivas = conversaciones.filter(c => !c.archivada);
-const conversacionesArchivadas = conversaciones.filter(c => c.archivada);
-```
-
-#### **2. Eliminación de Mensajes**
-```javascript
-// Solo admin y soporte pueden eliminar
-const canDeleteMessage = userRole === 'admin' || userRole === 'soporte';
-
-const eliminarMensaje = async (mensajeId) => {
-    if (!canDeleteMessage) return;
-    await chatAPI.eliminarMensaje(mensajeId);
-};
-```
-
-#### **3. Estados de Usuario**
-```javascript
-// Indicador online/offline
-const UserStatus = ({ userId }) => {
-    const [isOnline, setIsOnline] = useState(false);
-    
-    useEffect(() => {
-        // Verificar estado del usuario
-        const checkStatus = async () => {
-            const status = await ChatHub.IsUserOnline(userId);
-            setIsOnline(status);
-        };
-    }, [userId]);
-    
-    return (
-        <div className={`status-indicator ${isOnline ? 'online' : 'offline'}`}>
-            {isOnline ? '🟢' : '🔴'}
-        </div>
-    );
-};
-```
-
----
 
 ## 📄 Sistema de Paz y Salvo Unificado
 
@@ -908,89 +780,6 @@ public async Task<IActionResult> GetActivosPendientes(int usuarioId)
 
 ---
 
-## 🗓️ Calendario de TI
-
-### **Modelos y Relaciones (Backend)**
-```csharp
-public class CalendarEvent
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DateTimeOffset Start { get; set; }
-    public DateTimeOffset End { get; set; }
-    public bool AllDay { get; set; }
-    public string? Color { get; set; }
-    public int CreatedById { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
-    public ICollection<CalendarEventAssignee> Assignees { get; set; } = new List<CalendarEventAssignee>();
-}
-
-public class CalendarEventAssignee
-{
-    public int EventId { get; set; }
-    public int UserId { get; set; } // AuthUser.Id
-    public CalendarEvent Event { get; set; } = null!;
-    public AuthUser User { get; set; } = null!;
-}
-```
-
-### **DbContext y Configuración**
-```csharp
-// PortalTiContext.cs (OnModelCreating)
-modelBuilder.Entity<CalendarEventAssignee>()
-    .HasKey(ea => new { ea.EventId, ea.UserId });
-modelBuilder.Entity<CalendarEventAssignee>()
-    .HasOne(ea => ea.Event)
-    .WithMany(e => e.Assignees)
-    .HasForeignKey(ea => ea.EventId);
-modelBuilder.Entity<CalendarEventAssignee>()
-    .HasOne(ea => ea.User)
-    .WithMany()
-    .HasForeignKey(ea => ea.UserId);
-```
-
-### **Endpoints (Backend)**
-```http
-GET    /api/calendario/events                   // Listar (admin/soporte). Incluye Assignees
-GET    /api/calendario/events/{id}              // Detalle
-POST   /api/calendario/events                   // Crear { title, description, start, end, allDay, color, assigneeAuthIds[] }
-PUT    /api/calendario/events/{id}              // Actualizar (mismo DTO)
-DELETE /api/calendario/events/{id}              // Eliminar
-```
-
-Notas:
-- Autorización: `[Authorize(Roles = "admin,soporte")]`
-- Notificaciones: en Create/Update se notifica a `assigneeAuthIds` usando `INotificationsService`
-
-### **Frontend (Calendario.jsx)**
-```jsx
-// FullCalendar: dayGrid, timeGrid, interaction, locale ES
-// Modal de creación/edición: título, descripción, color, fechas auto 09:00–18:00
-// Asignados: UserAutoComplete con lista de AuthUsers (roles admin/soporte)
-// Detalle: ver información, botones Editar y Eliminar (confirmación)
-// Tema: estilos adaptativos a dark/light con Tailwind sobre clases de FullCalendar
-// CSS: se carga vía CDN en public/index.html debido a exports de CSS en v6
-```
-
-### **Selección de Usuarios Asignables**
-- Backend `AuthController.GetUsuarios`: devuelve solo `admin/soporte` activos con `authId` (AuthUser.Id), nombre, email, departamento
-- Frontend: usa `UserAutoComplete` para búsqueda y selección múltiple; envía `assigneeAuthIds`
-
-### **Reglas UX de Fechas**
-- Selección de un día: 09:00–18:00 del mismo día
-- Selección de varios días: inicio 09:00 del primer día, fin 18:00 del último día
-
-### **Notificaciones de Calendario**
-- Mensajes: "Nuevo evento asignado" (create), "Evento actualizado" (update)
-- Receptor: cada usuario en `assigneeAuthIds`
-- UI: aparece en campana y persiste en BD
-
-### **Sidebar**
-- Nueva entrada `Calendario` visible para `admin/soporte` con icono `Calendar`
-- Cambio de icono de "Paz y Salvo" a `BadgeCheck` para evitar duplicidad
-
----
 
 ## 🎨 Mejoras de UI/UX
 

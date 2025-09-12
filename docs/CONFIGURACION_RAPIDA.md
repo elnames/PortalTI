@@ -25,106 +25,42 @@ El sistema incluye roles predefinidos:
 
 ---
 
-## ⚡ **Configuración de Microsoft Teams**
+## ⚡ **Configuración Adicional**
 
-### **Solución al Error AADSTS700016**
-
-El error que estás viendo significa que necesitas configurar Azure AD correctamente.
-
-## 📋 **Pasos Rápidos (5 minutos)**
-
-### **1. Crear archivo .env**
-Crea un archivo `.env` en la raíz del proyecto:
+### **Variables de Entorno**
+Si necesitas configurar variables de entorno adicionales, crea un archivo `.env` en la raíz del proyecto:
 
 ```env
-# Configuración de Microsoft Graph
-REACT_APP_MICROSOFT_CLIENT_ID=tu-client-id-real-aqui
-REACT_APP_MICROSOFT_TENANT_ID=common
-REACT_APP_MICROSOFT_REDIRECT_URI=http://localhost:3000/auth/microsoft/callback
+# Configuración del sistema
+REACT_APP_API_URL=http://localhost:5000
+REACT_APP_SIGNALR_URL=http://localhost:5000/hubs/notifications
 ```
 
-### **2. Registrar aplicación en Azure AD**
+### **Configuración de Base de Datos**
+Asegúrate de que la cadena de conexión en `appsettings.json` sea correcta:
 
-1. **Ve a [Azure Portal](https://portal.azure.com)**
-2. **Azure Active Directory** → **Registros de aplicaciones**
-3. **Nuevo registro**
-4. **Configura:**
-   - **Nombre**: `Portal TI Calendar`
-   - **Tipos de cuenta**: `Cuentas en cualquier directorio organizacional`
-   - **URI de redirección**: `http://localhost:3000/auth/microsoft/callback`
-
-### **3. Obtener Client ID**
-
-1. **Copia el "ID de aplicación (cliente)"**
-2. **Pégalo en el archivo .env** reemplazando `tu-client-id-real-aqui`
-
-### **4. Configurar Permisos**
-
-1. **Ve a "Permisos de API"**
-2. **Agregar permisos** → **Microsoft Graph**
-3. **Agregar estos permisos:**
-   - `Calendars.ReadWrite` (Aplicación)
-   - `User.Read` (Delegado)
-   - `OnlineMeetings.ReadWrite` (Aplicación)
-
-### **5. Reiniciar la aplicación**
-
-```bash
-npm start
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=PortalTi;Trusted_Connection=true;TrustServerCertificate=true;"
+  }
+}
 ```
 
-## ✅ **Verificación**
+## ✅ **Verificación del Sistema**
 
-Una vez configurado correctamente:
-- El botón "Conectar con Microsoft" funcionará
-- Podrás crear reuniones reales de Teams
-- Los enlaces se generarán automáticamente
+1. **Abre** `http://localhost:3000`
+2. **Inicia sesión** con las credenciales de admin
+3. **Verifica** que todas las funcionalidades estén disponibles:
+   - Gestión de activos
+   - Sistema de tickets
+   - Sistema de Paz y Salvo
+   - Notificaciones
 
-## 🔧 **Solución Temporal (Sin Azure AD)**
+## 📞 **Soporte**
 
-Si quieres probar el calendario sin Teams por ahora:
-
-1. **Comenta la sección de Microsoft** en el sidebar
-2. **Usa solo las funcionalidades básicas** del calendario
-3. **Las reuniones se crearán con enlaces de fallback**
-
-## 📞 **¿Necesitas Ayuda?**
-
-- **Error persistente**: Verifica que el Client ID sea correcto
-- **Permisos**: Asegúrate de que el administrador apruebe los permisos
-- **Tenant**: Verifica que estés en el tenant correcto
-
-¡Con estos pasos tendrás Teams funcionando en 5 minutos! 🎉
-
----
-
-## 🆕 **Mejoras Recientes del Sistema**
-
-### **📅 Calendario Mejorado**
-- ✅ **Filtrado inteligente** por categorías y búsqueda
-- ✅ **Sin bucles infinitos** - Rendimiento optimizado
-- ✅ **Responsive design** - Funciona perfecto en móviles
-
-### **📱 Notificaciones Optimizadas**
-- ✅ **Diseño móvil** - Sin corte en pantallas pequeñas
-- ✅ **Contador de eventos** - Muestra filtrados vs totales
-- ✅ **Transiciones suaves** - Mejor experiencia visual
-
-### **📄 Actas de Entrega**
-- ✅ **Firmas digitales** - Sin texto SHA256 molesto
-- ✅ **Previsualización temporal** - Para imprimir sin guardar
-- ✅ **Rutas portables** - Funciona en cualquier equipo
-
-### **💾 Gestión de Archivos**
-- ✅ **Paz y salvo** - Subida de archivos corregida
-- ✅ **Storage robusto** - Rutas relativas portables
-- ✅ **Logs de debug** - Para troubleshooting fácil
-
-### **🗄️ Base de Datos**
-- ✅ **Script genérico** - Sin usuarios autenticados automáticos
-- ✅ **Solo datos de prueba** - Activos, tickets, actas
-- ✅ **Preserva admins** - Mantiene usuarios existentes
-
----
-
-**¡El sistema está más estable y funcional que nunca!** 🚀
+Si tienes problemas:
+1. **Verifica** que el backend esté ejecutándose en el puerto 5000
+2. **Reinicia** tanto el frontend como el backend
+3. **Limpia** la caché del navegador
+4. **Contacta** al desarrollador si persiste el problema

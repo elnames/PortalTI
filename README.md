@@ -55,12 +55,6 @@
 - **Análisis de rendimiento** por agente
 - **Tendencias y estadísticas** detalladas
 
-### 📅 **Calendario Integrado**
-- **Vista estilo Outlook** con múltiples vistas
-- **Filtrado inteligente** por categorías y búsqueda
-- **Integración con Microsoft Teams**
-- **Creación de reuniones** automática
-- **Gestión de eventos** empresariales
 
 ---
 
@@ -141,7 +135,6 @@ Ejecuta los scripts en orden:
 - [x] **Gestión de subroles y delegaciones** temporales
 - [x] **Firmas digitales** con validación y trazabilidad
 - [x] **Seguimiento en tiempo real** del progreso de firmas
-- [x] Filtrado inteligente en calendario
 - [x] Notificaciones móviles optimizadas
 - [x] Resolución robusta de rutas de Storage
 - [x] Separación de funcionalidades de actas

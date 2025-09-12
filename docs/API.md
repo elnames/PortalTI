@@ -61,9 +61,3 @@
 - `DELETE /api/notifications/{id}`
 - `DELETE /api/notifications`
 
-## Calendario (resumen)
-- `GET    /api/calendario/events`
-- `GET    /api/calendario/events/{id}`
-- `POST   /api/calendario/events`
-- `PUT    /api/calendario/events/{id}`
-- `DELETE /api/calendario/events/{id}`
