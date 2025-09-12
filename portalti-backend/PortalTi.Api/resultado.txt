@@ -1,0 +1,2 @@
+Msg 102, Level 15, State 1, Server EQUIPO-133, Line 148
+Incorrect syntax near '±'.
