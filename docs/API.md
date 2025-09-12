@@ -24,14 +24,36 @@
 - `GET /api/securefile/download/{tipo}/{archivo}`
 - `POST /api/securefile/verify`
 
-## Paz y Salvo
-- `GET    /api/pazysalvo`
-- `GET    /api/pazysalvo/{id}`
-- `POST   /api/pazysalvo`
-- `PUT    /api/pazysalvo/{id}`
-- `DELETE /api/pazysalvo/{id}`
-- `GET    /api/pazysalvo/{id}/download`
-- `GET    /api/pazysalvo/activos-pendientes/{usuarioId}`
+## Paz y Salvo (Sistema Unificado)
+### Documentos
+- `GET    /api/pazysalvo`                    // Listar documentos
+- `GET    /api/pazysalvo/{id}`               // Obtener documento
+- `POST   /api/pazysalvo`                    // Crear documento
+- `PUT    /api/pazysalvo/{id}`               // Actualizar documento
+- `DELETE /api/pazysalvo/{id}`               // Eliminar documento
+
+### Flujo de Firmas
+- `POST   /api/pazysalvo/{id}/send`          // Enviar a firma
+- `POST   /api/pazysalvo/{id}/firmas/{rol}/sign`    // Firmar documento
+- `POST   /api/pazysalvo/{id}/firmas/{rol}/reject`  // Rechazar documento
+- `POST   /api/pazysalvo/{id}/firmas/{rol}/observe` // Agregar observación
+
+### Gestión de Roles
+- `GET    /api/pazysalvo/roles`              // Listar roles
+- `POST   /api/pazysalvo/roles`              // Crear rol
+- `PUT    /api/pazysalvo/roles/{id}`         // Actualizar rol
+- `DELETE /api/pazysalvo/roles/{id}`         // Eliminar rol
+
+### Delegaciones
+- `GET    /api/pazysalvo/delegations`        // Listar delegaciones
+- `POST   /api/pazysalvo/delegations`        // Crear delegación
+- `PUT    /api/pazysalvo/delegations/{id}`   // Actualizar delegación
+- `DELETE /api/pazysalvo/delegations/{id}`   // Eliminar delegación
+
+### Archivos y Descarga
+- `GET    /api/pazysalvo/{id}/pdf`           // Descargar PDF final
+- `POST   /api/pazysalvo/{id}/adjuntos`      // Subir adjunto
+- `GET    /api/pazysalvo/activos-pendientes/{usuarioId}` // Activos pendientes
 
 ## Notificaciones (resumen)
 - `GET /api/notifications`

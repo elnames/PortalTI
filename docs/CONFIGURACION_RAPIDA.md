@@ -1,6 +1,33 @@
-# 🚀 Configuración Rápida de Microsoft Teams
+# 🚀 Configuración Rápida - PortalTI
 
-## ⚡ **Solución al Error AADSTS700016**
+## 📋 **Configuración del Sistema de Paz y Salvo**
+
+### **1. Base de Datos**
+Ejecuta el script actualizado para crear las tablas del sistema unificado:
+
+```sql
+-- Ejecutar en SQL Server Management Studio
+-- Archivo: portalti-backend/PortalTi.Api/Scripts/CREAR_BD_COMPLETA.sql
+```
+
+### **2. Configuración de Roles**
+El sistema incluye roles predefinidos:
+- **JefeInmediato**: Jefe directo del empleado
+- **Contabilidad**: Departamento de contabilidad
+- **Informatica**: Departamento de TI
+- **GerenciaFinanzas**: Gerencia de finanzas
+
+### **3. Flujo de Trabajo**
+1. **Crear documento** de Paz y Salvo
+2. **Enviar a firma** automáticamente
+3. **Firmas por roles** en orden específico
+4. **Generar PDF final** con todas las firmas
+
+---
+
+## ⚡ **Configuración de Microsoft Teams**
+
+### **Solución al Error AADSTS700016**
 
 El error que estás viendo significa que necesitas configurar Azure AD correctamente.
 

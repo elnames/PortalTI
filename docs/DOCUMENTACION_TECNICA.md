@@ -706,72 +706,181 @@ const UserStatus = ({ userId }) => {
 
 ---
 
-## 📄 Sistema de Paz y Salvo
+## 📄 Sistema de Paz y Salvo Unificado
 
 ### **Arquitectura del Sistema**
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend       │    │   Sistema de    │
-│   React         │◄──►│   API           │    │   Archivos      │
-│                 │    │                 │    │   (Storage)     │
+│   Frontend      │    │   Backend       │    │   Base de       │
+│   React         │◄──►│   API + SignalR │◄──►│   Datos         │
+│   + Roles       │    │   + Servicios   │    │   SQL Server    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Flujo de      │    │   Gestión de    │    │   Sistema de    │
+│   Firmas        │    │   Subroles      │    │   Archivos      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-### **Modelo de Datos**
+### **Modelo de Datos Unificado**
 ```csharp
 public class PazYSalvo
 {
     public int Id { get; set; }
     public int UsuarioId { get; set; }
+    public int SolicitadoPorId { get; set; }
     public string UsuarioNombre { get; set; }
-    public string ArchivoPath { get; set; }
-    public string Estado { get; set; } // Pendiente, Aprobado, Rechazado
-    public string ActivosPendientes { get; set; }
-    public string Notas { get; set; }
-    public DateTime FechaCreacion { get; set; }
-    public DateTime FechaSubida { get; set; }
+    public string UsuarioRut { get; set; }
+    public DateTime FechaSalida { get; set; }
+    public string MotivoSalida { get; set; }
+    public string Estado { get; set; } // Borrador, EnFirma, Aprobado, Rechazado, Cerrado
+    
+    // Datos JSON para flexibilidad
+    public string? FirmasJson { get; set; }        // Lista de firmas
+    public string? HistorialJson { get; set; }     // Historial de cambios
+    public string? AdjuntosJson { get; set; }      // Archivos adjuntos
+    public string? ExcepcionesJson { get; set; }   // Excepciones aprobadas
+    public string? ActivosSnapshotJson { get; set; } // Snapshot de activos
+    
+    // Control de concurrencia
+    [Timestamp]
+    public byte[] RowVersion { get; set; }
     
     // Relaciones
-    public virtual NominaUsuario Usuario { get; set; }
+    public virtual NominaUsuario? Usuario { get; set; }
+    public virtual AuthUser? SolicitadoPor { get; set; }
 }
 ```
 
-### **Gestión de Archivos**
+### **Sistema de Roles y Subroles**
 ```csharp
-// Subida de archivos
-public async Task<IActionResult> Create([FromForm] PazYSalvoCreateDto dto)
+public class PazYSalvoSubRole
 {
-    var fileName = $"{Guid.NewGuid()}_{dto.Archivo.FileName}";
-    var filePath = Path.Combine(_storageRoot, "pazysalvo", fileName);
-    
-    using (var stream = new FileStream(filePath, FileMode.Create))
-    {
-        await dto.Archivo.CopyToAsync(stream);
-    }
-    
-    // Guardar en base de datos
-    var pazYSalvo = new PazYSalvo
-    {
-        UsuarioId = dto.UsuarioId,
-        ArchivoPath = fileName,
-        Estado = "Pendiente"
-    };
+    public int Id { get; set; }
+    public string Nombre { get; set; }           // JefeInmediato, Contabilidad, etc.
+    public string Descripcion { get; set; }
+    public int Orden { get; set; }               // Orden de firma
+    public bool Obligatorio { get; set; }        // Si es obligatorio
+    public bool PermiteDelegacion { get; set; }  // Si permite delegación
+    public bool IsActive { get; set; }
 }
 
-// Descarga de archivos
-public async Task<IActionResult> Download(int id)
+public class PazYSalvoRoleAssignment
 {
-    var pazYSalvo = await _db.PazYSalvos.FindAsync(id);
-    var filePath = Path.Combine(_storageRoot, "pazysalvo", pazYSalvo.ArchivoPath);
-    
-    var memory = new MemoryStream();
-    using (var stream = new FileStream(filePath, FileMode.Open))
-    {
-        await stream.CopyToAsync(memory);
-    }
-    
-    return File(memory.ToArray(), "application/octet-stream", pazYSalvo.ArchivoPath);
+    public int Id { get; set; }
+    public string Departamento { get; set; }     // Departamento del usuario
+    public string Rol { get; set; }              // Rol asignado
+    public int UserId { get; set; }              // Usuario asignado
+    public bool IsActive { get; set; }
 }
+
+public class PazYSalvoDelegation
+{
+    public int Id { get; set; }
+    public int UsuarioPrincipalId { get; set; }  // Usuario original
+    public int UsuarioDelegadoId { get; set; }   // Usuario delegado
+    public string SubRole { get; set; }          // Subrol delegado
+    public DateTime FechaInicio { get; set; }
+    public DateTime FechaFin { get; set; }
+    public bool IsActive { get; set; }
+}
+```
+
+### **Flujo de Firmas**
+```csharp
+public class FirmaData
+{
+    public string Rol { get; set; }              // JefeInmediato, Contabilidad, etc.
+    public int? FirmanteUserId { get; set; }
+    public string? FirmanteNombre { get; set; }
+    public string Estado { get; set; }           // Pendiente, Firmado, Rechazado
+    public DateTime? FechaFirma { get; set; }
+    public string? Comentario { get; set; }
+    public string? FirmaHash { get; set; }
+    public int Orden { get; set; }               // Orden de firma
+    public bool Obligatorio { get; set; }        // Si es obligatorio
+}
+```
+
+### **API Endpoints**
+```csharp
+// Controlador principal
+GET    /api/pazysalvo                    // Listar documentos
+GET    /api/pazysalvo/{id}               // Obtener documento
+POST   /api/pazysalvo                    // Crear documento
+PUT    /api/pazysalvo/{id}               // Actualizar documento
+DELETE /api/pazysalvo/{id}               // Eliminar documento
+
+// Flujo de firmas
+POST   /api/pazysalvo/{id}/send          // Enviar a firma
+POST   /api/pazysalvo/{id}/firmas/{rol}/sign    // Firmar documento
+POST   /api/pazysalvo/{id}/firmas/{rol}/reject  // Rechazar documento
+POST   /api/pazysalvo/{id}/firmas/{rol}/observe // Agregar observación
+
+// Gestión de roles
+GET    /api/pazysalvo/roles              // Listar roles
+POST   /api/pazysalvo/roles              // Crear rol
+PUT    /api/pazysalvo/roles/{id}         // Actualizar rol
+DELETE /api/pazysalvo/roles/{id}         // Eliminar rol
+
+// Delegaciones
+GET    /api/pazysalvo/delegations        // Listar delegaciones
+POST   /api/pazysalvo/delegations        // Crear delegación
+PUT    /api/pazysalvo/delegations/{id}   // Actualizar delegación
+DELETE /api/pazysalvo/delegations/{id}   // Eliminar delegación
+
+// Archivos y descarga
+GET    /api/pazysalvo/{id}/pdf           // Descargar PDF final
+POST   /api/pazysalvo/{id}/adjuntos      // Subir adjunto
+```
+
+### **Servicios Especializados**
+```csharp
+public class PazYSalvoServiceUnificado
+{
+    // Crear documento con validaciones
+    public async Task<PazYSalvoResponse> CrearAsync(CrearPazYSalvoRequest request, int solicitadoPorId)
+    
+    // Enviar a firma con notificaciones
+    public async Task<PazYSalvoResponse> EnviarAFirmaAsync(int pazYSalvoId)
+    
+    // Firmar documento con validaciones
+    public async Task<PazYSalvoResponse> FirmarAsync(int pazYSalvoId, string rol, FirmarRequest request)
+    
+    // Rechazar documento
+    public async Task<PazYSalvoResponse> RechazarAsync(int pazYSalvoId, string rol, RechazarRequest request)
+    
+    // Generar PDF final
+    public async Task<byte[]> GenerarPdfFinalAsync(int pazYSalvoId)
+}
+
+public class PazYSalvoPdfService
+{
+    // Generar PDF con firmas
+    public async Task<byte[]> GenerarPdfConFirmasAsync(PazYSalvo pazYSalvo)
+    
+    // Agregar firma digital al PDF
+    public async Task<byte[]> AgregarFirmaDigitalAsync(byte[] pdfBytes, string firmaPath, int pagina)
+}
+```
+
+### **Componentes Frontend**
+```jsx
+// Componentes principales
+<PazYSalvoCreate />           // Crear documento
+<PazYSalvoDetail />           // Ver detalles
+<PazYSalvoSignatureModal />   // Modal de firma
+<PazYSalvoRoleView />         // Vista por rol
+<PazYSalvoRoleManager />      // Gestión de roles
+
+// Páginas por rol
+<PazYSalvoRRHH />             // Vista RRHH
+<PazYSalvoTI />               // Vista TI
+<PazYSalvoContabilidad />     // Vista Contabilidad
+<PazYSalvoGerenciaFinanzas /> // Vista Gerencia
+<PazYSalvoJefeDirecto />      // Vista Jefe Directo
 ```
 
 ### **Validación de Activos Pendientes**

@@ -25,7 +25,16 @@
 - **Software & Seguridad** integrado con programas estándar
 - **Conexión remota** y control de acceso
 - **Actas de entrega** con firmas digitales
-- **Paz y salvo** para devolución de activos
+- **Sistema de Paz y Salvo** con flujo de firmas por roles
+
+### 📋 **Sistema de Paz y Salvo**
+- **Flujo de firmas unificado** con roles específicos (RRHH, TI, Contabilidad, Gerencia)
+- **Gestión de subroles** y delegaciones temporales
+- **Firmas digitales** con validación y trazabilidad
+- **Seguimiento en tiempo real** del progreso de firmas
+- **Excepciones y observaciones** con aprobación
+- **Adjuntos y evidencias** integrados
+- **Historial completo** de cambios y acciones
 
 ### 🎫 **Sistema de Tickets**
 - **Creación intuitiva** de tickets de soporte
@@ -128,7 +137,10 @@ Ejecuta los scripts en orden:
 - [x] Integración con Microsoft Teams
 - [x] Sistema de programas estándar
 - [x] Actas de entrega con firmas digitales
-- [x] Sistema de paz y salvo
+- [x] **Sistema de Paz y Salvo unificado** con flujo de firmas por roles
+- [x] **Gestión de subroles y delegaciones** temporales
+- [x] **Firmas digitales** con validación y trazabilidad
+- [x] **Seguimiento en tiempo real** del progreso de firmas
 - [x] Filtrado inteligente en calendario
 - [x] Notificaciones móviles optimizadas
 - [x] Resolución robusta de rutas de Storage

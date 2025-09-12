@@ -315,19 +315,74 @@ CREATE TABLE [ProgramasEstandar] (
 )
 GO
 
--- Tabla de paz y salvo
+-- Tabla de paz y salvo (Sistema Unificado)
 CREATE TABLE [PazYSalvos] (
     [Id] int IDENTITY(1,1) NOT NULL,
     [UsuarioId] int NOT NULL,
+    [SolicitadoPorId] int NOT NULL,
     [UsuarioNombre] nvarchar(200) NOT NULL,
-    [FechaSubida] datetime2 NOT NULL,
-    [ArchivoPath] nvarchar(500) NOT NULL,
-    [Estado] nvarchar(50) NOT NULL DEFAULT 'Pendiente',
-    [ActivosPendientes] int NOT NULL DEFAULT 0,
-    [Notas] nvarchar(1000) NULL,
+    [UsuarioRut] nvarchar(20) NOT NULL,
+    [FechaSalida] datetime2 NOT NULL,
+    [MotivoSalida] nvarchar(200) NOT NULL,
+    [Estado] nvarchar(50) NOT NULL DEFAULT 'Borrador',
+    [Observaciones] nvarchar(2000) NULL,
+    [HashFinal] nvarchar(255) NULL,
+    [PdfFinalPath] nvarchar(500) NULL,
     [FechaCreacion] datetime2 NOT NULL DEFAULT GETDATE(),
     [FechaActualizacion] datetime2 NULL,
+    [FechaEnvioFirma] datetime2 NULL,
+    [FechaAprobacion] datetime2 NULL,
+    [FechaCierre] datetime2 NULL,
+    [RowVersion] rowversion NOT NULL,
+    [FirmasJson] nvarchar(4000) NULL,
+    [HistorialJson] nvarchar(4000) NULL,
+    [AdjuntosJson] nvarchar(2000) NULL,
+    [ExcepcionesJson] nvarchar(1000) NULL,
+    [ActivosSnapshotJson] nvarchar(2000) NULL,
     CONSTRAINT [PK_PazYSalvos] PRIMARY KEY ([Id])
+)
+GO
+
+-- Tabla de subroles de paz y salvo
+CREATE TABLE [PazYSalvoSubRoles] (
+    [Id] int IDENTITY(1,1) NOT NULL,
+    [Nombre] nvarchar(50) NOT NULL,
+    [Descripcion] nvarchar(200) NULL,
+    [Orden] int NOT NULL,
+    [Obligatorio] bit NOT NULL,
+    [PermiteDelegacion] bit NOT NULL,
+    [IsActive] bit NOT NULL DEFAULT 1,
+    [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+    [UpdatedAt] datetime2 NULL,
+    CONSTRAINT [PK_PazYSalvoSubRoles] PRIMARY KEY ([Id])
+)
+GO
+
+-- Tabla de asignaciones de roles de paz y salvo
+CREATE TABLE [PazYSalvoRoleAssignments] (
+    [Id] int IDENTITY(1,1) NOT NULL,
+    [Departamento] nvarchar(100) NOT NULL,
+    [Rol] nvarchar(100) NOT NULL,
+    [UserId] int NOT NULL,
+    [IsActive] bit NOT NULL DEFAULT 1,
+    [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT [PK_PazYSalvoRoleAssignments] PRIMARY KEY ([Id])
+)
+GO
+
+-- Tabla de delegaciones de paz y salvo
+CREATE TABLE [PazYSalvoDelegations] (
+    [Id] int IDENTITY(1,1) NOT NULL,
+    [UsuarioPrincipalId] int NOT NULL,
+    [UsuarioDelegadoId] int NOT NULL,
+    [SubRole] nvarchar(50) NOT NULL,
+    [Motivo] nvarchar(200) NULL,
+    [FechaInicio] datetime2 NOT NULL,
+    [FechaFin] datetime2 NOT NULL,
+    [IsActive] bit NOT NULL DEFAULT 1,
+    [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
+    [UpdatedAt] datetime2 NULL,
+    CONSTRAINT [PK_PazYSalvoDelegations] PRIMARY KEY ([Id])
 )
 GO
 
@@ -520,6 +575,24 @@ GO
 -- Foreign keys para PazYSalvos
 ALTER TABLE [PazYSalvos] ADD CONSTRAINT [FK_PazYSalvos_NominaUsuarios_UsuarioId] 
     FOREIGN KEY ([UsuarioId]) REFERENCES [NominaUsuarios] ([Id]) ON DELETE CASCADE
+GO
+
+ALTER TABLE [PazYSalvos] ADD CONSTRAINT [FK_PazYSalvos_AuthUsers_SolicitadoPorId] 
+    FOREIGN KEY ([SolicitadoPorId]) REFERENCES [AuthUsers] ([Id]) ON DELETE NO ACTION
+GO
+
+-- Foreign keys para PazYSalvoRoleAssignments
+ALTER TABLE [PazYSalvoRoleAssignments] ADD CONSTRAINT [FK_PazYSalvoRoleAssignments_AuthUsers_UserId] 
+    FOREIGN KEY ([UserId]) REFERENCES [AuthUsers] ([Id]) ON DELETE CASCADE
+GO
+
+-- Foreign keys para PazYSalvoDelegations
+ALTER TABLE [PazYSalvoDelegations] ADD CONSTRAINT [FK_PazYSalvoDelegations_NominaUsuarios_UsuarioPrincipalId] 
+    FOREIGN KEY ([UsuarioPrincipalId]) REFERENCES [NominaUsuarios] ([Id]) ON DELETE CASCADE
+GO
+
+ALTER TABLE [PazYSalvoDelegations] ADD CONSTRAINT [FK_PazYSalvoDelegations_NominaUsuarios_UsuarioDelegadoId] 
+    FOREIGN KEY ([UsuarioDelegadoId]) REFERENCES [NominaUsuarios] ([Id]) ON DELETE CASCADE
 GO
 
 -- Foreign keys para UserActivityLogs
@@ -745,7 +818,58 @@ GO
 CREATE INDEX [IX_PazYSalvos_UsuarioId] ON [PazYSalvos] ([UsuarioId])
 GO
 
+CREATE INDEX [IX_PazYSalvos_SolicitadoPorId] ON [PazYSalvos] ([SolicitadoPorId])
+GO
+
 CREATE INDEX [IX_PazYSalvos_Estado] ON [PazYSalvos] ([Estado])
+GO
+
+CREATE INDEX [IX_PazYSalvos_FechaCreacion] ON [PazYSalvos] ([FechaCreacion])
+GO
+
+CREATE INDEX [IX_PazYSalvos_FechaSalida] ON [PazYSalvos] ([FechaSalida])
+GO
+
+-- Índices para PazYSalvoSubRoles
+CREATE INDEX [IX_PazYSalvoSubRoles_Nombre] ON [PazYSalvoSubRoles] ([Nombre])
+GO
+
+CREATE INDEX [IX_PazYSalvoSubRoles_Orden] ON [PazYSalvoSubRoles] ([Orden])
+GO
+
+CREATE INDEX [IX_PazYSalvoSubRoles_IsActive] ON [PazYSalvoSubRoles] ([IsActive])
+GO
+
+-- Índices para PazYSalvoRoleAssignments
+CREATE INDEX [IX_PazYSalvoRoleAssignments_Departamento] ON [PazYSalvoRoleAssignments] ([Departamento])
+GO
+
+CREATE INDEX [IX_PazYSalvoRoleAssignments_Rol] ON [PazYSalvoRoleAssignments] ([Rol])
+GO
+
+CREATE INDEX [IX_PazYSalvoRoleAssignments_UserId] ON [PazYSalvoRoleAssignments] ([UserId])
+GO
+
+CREATE INDEX [IX_PazYSalvoRoleAssignments_IsActive] ON [PazYSalvoRoleAssignments] ([IsActive])
+GO
+
+-- Índices para PazYSalvoDelegations
+CREATE INDEX [IX_PazYSalvoDelegations_UsuarioPrincipalId] ON [PazYSalvoDelegations] ([UsuarioPrincipalId])
+GO
+
+CREATE INDEX [IX_PazYSalvoDelegations_UsuarioDelegadoId] ON [PazYSalvoDelegations] ([UsuarioDelegadoId])
+GO
+
+CREATE INDEX [IX_PazYSalvoDelegations_SubRole] ON [PazYSalvoDelegations] ([SubRole])
+GO
+
+CREATE INDEX [IX_PazYSalvoDelegations_IsActive] ON [PazYSalvoDelegations] ([IsActive])
+GO
+
+CREATE INDEX [IX_PazYSalvoDelegations_FechaInicio] ON [PazYSalvoDelegations] ([FechaInicio])
+GO
+
+CREATE INDEX [IX_PazYSalvoDelegations_FechaFin] ON [PazYSalvoDelegations] ([FechaFin])
 GO
 
 -- Índices para UserActivityLogs
@@ -877,11 +1001,12 @@ PRINT '====================================================='
 PRINT 'CREACIÓN DE BASE DE DATOS COMPLETADA'
 PRINT '====================================================='
 PRINT 'Base de datos: PortalTi'
-PRINT 'Tablas creadas: 24'
-PRINT 'Foreign keys: 25'
-PRINT 'Índices: 55+'
+PRINT 'Tablas creadas: 27 (incluye sistema Paz y Salvo unificado)'
+PRINT 'Foreign keys: 30+'
+PRINT 'Índices: 70+'
 PRINT 'Usuario admin: admin (password: admin123)'
 PRINT 'Configuraciones: 10'
+PRINT 'Sistema Paz y Salvo: Completamente funcional'
 PRINT '====================================================='
 
 -- Verificar estructura creada

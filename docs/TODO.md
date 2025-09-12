@@ -31,6 +31,20 @@
 - [x] **Preservación de admins** existentes
 - [x] **Datos de prueba completos** para desarrollo
 
+### **📋 Sistema de Paz y Salvo Unificado**
+- [x] **Sistema completo de Paz y Salvo** con flujo de firmas por roles
+- [x] **Gestión de subroles** y delegaciones temporales
+- [x] **Firmas digitales** con validación y trazabilidad
+- [x] **Seguimiento en tiempo real** del progreso de firmas
+- [x] **Excepciones y observaciones** con aprobación
+- [x] **Adjuntos y evidencias** integrados
+- [x] **Historial completo** de cambios y acciones
+- [x] **Modelo de datos unificado** con campos JSON flexibles
+- [x] **API endpoints** para flujo completo de firmas
+- [x] **Componentes React** para interfaz de usuario
+- [x] **Páginas específicas** por rol (RRHH, TI, Contabilidad, Gerencia)
+- [x] **Script SQL actualizado** con nuevas tablas y relaciones
+
 ---
 
 ## Seguridad y control de acceso
