@@ -100,7 +100,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("RechazadoPorId");
 
-                    b.ToTable("Actas");
+                    b.ToTable("Actas", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Activo", b =>
@@ -195,7 +195,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Activos");
+                    b.ToTable("Activos", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ArchivoTicket", b =>
@@ -243,7 +243,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("TicketId", "FechaSubida");
 
-                    b.ToTable("ArchivosTickets");
+                    b.ToTable("ArchivosTickets", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.AsignacionActivo", b =>
@@ -285,7 +285,7 @@ namespace PortalTi.Api.Migrations
                         .IsUnique()
                         .HasFilter("\"Estado\" = 'Activa'");
 
-                    b.ToTable("AsignacionesActivos");
+                    b.ToTable("AsignacionesActivos", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.AuditLog", b =>
@@ -337,7 +337,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UserId", "Timestamp");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.AuthUser", b =>
@@ -381,7 +381,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AuthUsers");
+                    b.ToTable("AuthUsers", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.CalendarEvent", b =>
@@ -428,7 +428,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("Start");
 
-                    b.ToTable("CalendarEvents");
+                    b.ToTable("CalendarEvents", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.CalendarEventAssignee", b =>
@@ -443,7 +443,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CalendarEventAssignees");
+                    b.ToTable("CalendarEventAssignees", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatArchivo", b =>
@@ -469,7 +469,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("ChatArchivos");
+                    b.ToTable("ChatArchivos", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatConversacion", b =>
@@ -518,7 +518,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("ChatConversaciones");
+                    b.ToTable("ChatConversaciones", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ChatMensaje", b =>
@@ -559,7 +559,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ConversacionId", "FechaCreacion");
 
-                    b.ToTable("ChatMensajes");
+                    b.ToTable("ChatMensajes", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ComentarioTicket", b =>
@@ -601,7 +601,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("TicketId", "FechaCreacion");
 
-                    b.ToTable("ComentariosTickets");
+                    b.ToTable("ComentariosTickets", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Licencia", b =>
@@ -659,7 +659,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ActivoId");
 
-                    b.ToTable("Licencias");
+                    b.ToTable("Licencias", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.NominaUsuario", b =>
@@ -696,7 +696,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NominaUsuarios");
+                    b.ToTable("NominaUsuarios", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Notificacion", b =>
@@ -750,7 +750,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UserId", "IsRead", "CreatedAt");
 
-                    b.ToTable("Notificaciones");
+                    b.ToTable("Notificaciones", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.PazYSalvo", b =>
@@ -804,7 +804,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("PazYSalvos");
+                    b.ToTable("PazYSalvos", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ProgramaEstandar", b =>
@@ -855,7 +855,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProgramasEstandar");
+                    b.ToTable("ProgramasEstandar", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.ProgramaSeguridad", b =>
@@ -904,7 +904,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ActivoId");
 
-                    b.ToTable("ProgramasSeguridad");
+                    b.ToTable("ProgramasSeguridad", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Software", b =>
@@ -955,7 +955,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ActivoId");
 
-                    b.ToTable("Software");
+                    b.ToTable("Software", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.SystemConfiguration", b =>
@@ -996,7 +996,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("ModifiedByUserId");
 
-                    b.ToTable("SystemConfigurations");
+                    b.ToTable("SystemConfigurations", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Ticket", b =>
@@ -1087,7 +1087,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("Prioridad");
 
-                    b.ToTable("Tickets");
+                    b.ToTable("Tickets", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.UserActivityLog", b =>
@@ -1129,7 +1129,7 @@ namespace PortalTi.Api.Migrations
 
                     b.HasIndex("UserId", "Timestamp");
 
-                    b.ToTable("UserActivityLogs");
+                    b.ToTable("UserActivityLogs", (string)null);
                 });
 
             modelBuilder.Entity("PortalTi.Api.Models.Acta", b =>

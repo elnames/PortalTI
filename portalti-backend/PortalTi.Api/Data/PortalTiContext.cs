@@ -27,6 +27,9 @@ namespace PortalTi.Api.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<SystemConfiguration> SystemConfigurations { get; set; }
         public DbSet<ProgramaEstandar> ProgramasEstandar { get; set; }
+        public DbSet<PazYSalvoSubRole> PazYSalvoSubRoles { get; set; }
+        public DbSet<PazYSalvoDelegation> PazYSalvoDelegations { get; set; }
+        public DbSet<PazYSalvoRoleAssignment> PazYSalvoRoleAssignments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -175,22 +178,49 @@ namespace PortalTi.Api.Data
             modelBuilder.Entity<Notificacion>()
                 .HasIndex(n => n.CreatedAt);
 
-            // Configurar relaciones para PazYSalvo
-            modelBuilder.Entity<PazYSalvo>()
-                .HasOne(p => p.Usuario)
-                .WithMany()
-                .HasForeignKey(p => p.UsuarioId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Configurar PazYSalvo unificado
+            modelBuilder.Entity<PazYSalvo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UsuarioNombre).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.UsuarioRut).HasMaxLength(20).IsRequired();
+                entity.Property(e => e.MotivoSalida).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Estado).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Observaciones).HasMaxLength(2000);
+                entity.Property(e => e.HashFinal).HasMaxLength(64);
+                entity.Property(e => e.PdfFinalPath).HasMaxLength(500);
+                entity.Property(e => e.RowVersion).IsRowVersion();
+                
+                // Campos JSON
+                entity.Property(e => e.FirmasJson).HasMaxLength(4000);
+                entity.Property(e => e.HistorialJson).HasMaxLength(4000);
+                entity.Property(e => e.AdjuntosJson).HasMaxLength(2000);
+                entity.Property(e => e.ExcepcionesJson).HasMaxLength(1000);
+                entity.Property(e => e.ActivosSnapshotJson).HasMaxLength(2000);
+
+                entity.HasOne(e => e.Usuario)
+                    .WithMany()
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.SolicitadoPor)
+                    .WithMany()
+                    .HasForeignKey(e => e.SolicitadoPorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // Configurar índices para PazYSalvo
             modelBuilder.Entity<PazYSalvo>()
                 .HasIndex(p => p.Estado);
 
             modelBuilder.Entity<PazYSalvo>()
-                .HasIndex(p => p.FechaSubida);
+                .HasIndex(p => p.FechaCreacion);
 
             modelBuilder.Entity<PazYSalvo>()
                 .HasIndex(p => p.UsuarioId);
+
+            modelBuilder.Entity<PazYSalvo>()
+                .HasIndex(p => p.SolicitadoPorId);
 
 
             // Configurar relaciones para AuditLog

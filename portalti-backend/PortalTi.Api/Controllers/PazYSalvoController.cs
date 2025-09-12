@@ -1,460 +1,437 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
 using PortalTi.Api.Data;
-using PortalTi.Api.Models;
-using PortalTi.Api.Filters;
+using PortalTi.Api.Models.DTOs;
+using PortalTi.Api.Services;
 using System.Security.Claims;
-using System.Text.Json;
 
 namespace PortalTi.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Policy = "CanManagePazYSalvo")]
+    [Authorize]
     public class PazYSalvoController : ControllerBase
     {
+        private readonly PazYSalvoServiceUnificado _pazYSalvoService;
         private readonly PortalTiContext _context;
-        private readonly IWebHostEnvironment _environment;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<PazYSalvoController> _logger;
 
-        public PazYSalvoController(PortalTiContext context, IWebHostEnvironment environment, IConfiguration configuration)
+        public PazYSalvoController(
+            PazYSalvoServiceUnificado pazYSalvoService,
+            PortalTiContext context,
+            IConfiguration configuration,
+            ILogger<PazYSalvoController> logger)
         {
+            _pazYSalvoService = pazYSalvoService;
             _context = context;
-            _environment = environment;
             _configuration = configuration;
+            _logger = logger;
         }
 
-        // GET: api/pazysalvo
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetPazYSalvos()
-        {
-            var pazYSalvos = await _context.PazYSalvos
-                .Include(p => p.Usuario)
-                .OrderByDescending(p => p.FechaSubida)
-                .ToListAsync();
-
-            var result = new List<object>();
-
-            foreach (var pazYSalvo in pazYSalvos)
-            {
-                // Calcular activos pendientes reales
-                var activosPendientes = await _context.AsignacionesActivos
-                    .Where(aa => aa.UsuarioId == pazYSalvo.UsuarioId && aa.Estado == "Activa")
-                    .CountAsync();
-
-                result.Add(new
-                {
-                    pazYSalvo.Id,
-                    pazYSalvo.UsuarioId,
-                    UsuarioNombre = pazYSalvo.UsuarioNombre,
-                    pazYSalvo.FechaSubida,
-                    pazYSalvo.ArchivoPath,
-                    pazYSalvo.Estado,
-                    pazYSalvo.Notas,
-                    ActivosPendientes = activosPendientes
-                });
-            }
-
-            return result;
-        }
-
-        // GET: api/pazysalvo/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<PazYSalvo>> GetPazYSalvo(int id)
-        {
-            var pazYSalvo = await _context.PazYSalvos
-                .Include(p => p.Usuario)
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (pazYSalvo == null)
-            {
-                return NotFound();
-            }
-
-            return pazYSalvo;
-        }
-
-        // POST: api/pazysalvo
+        /// <summary>
+        /// Crear un nuevo Paz y Salvo
+        /// </summary>
         [HttpPost]
-        [AuditAction("crear_pazysalvo", "PazYSalvo", true, true)]
-        public async Task<ActionResult<PazYSalvo>> CreatePazYSalvo([FromForm] PazYSalvoCreateDto dto)
+        [Authorize(Policy = "RequireRRHHOrAdmin")]
+        public async Task<IActionResult> Crear([FromBody] CrearPazYSalvoRequest request)
         {
             try
             {
-                if (dto.Archivo == null || dto.Archivo.Length == 0)
+                // Obtener el ID del usuario autenticado
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int solicitadoPorId))
                 {
-                    return BadRequest("Archivo requerido");
+                    return Unauthorized(new { message = "Usuario no autenticado" });
                 }
 
-                // Validar que sea un PDF
-                if (dto.Archivo.ContentType != "application/pdf")
-                {
-                    return BadRequest("Solo se permiten archivos PDF");
-                }
+                var result = await _pazYSalvoService.CrearAsync(request, solicitadoPorId);
+                return CreatedAtAction(nameof(ObtenerDetalle), new { id = result.Id }, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear Paz y Salvo");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
 
-                // Validar tamaño del archivo (máximo 10MB)
-                if (dto.Archivo.Length > 10 * 1024 * 1024)
-                {
-                    return BadRequest("El archivo no puede ser mayor a 10MB");
-                }
+        /// <summary>
+        /// Enviar documento a firma
+        /// </summary>
+        [HttpPost("{id}/send")]
+        [Authorize(Policy = "RequireRRHHOrAdmin")]
+        public async Task<IActionResult> EnviarAFirma(int id)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.EnviarAFirmaAsync(id);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al enviar Paz y Salvo a firma");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
 
-                // Validar usuario
-                if (dto.UsuarioId <= 0)
-                {
-                    return BadRequest("Usuario requerido");
-                }
+        /// <summary>
+        /// Firmar documento
+        /// </summary>
+        [HttpPost("{id}/firmas/{rol}/sign")]
+        [Authorize]
+        public async Task<IActionResult> Firmar(int id, string rol, [FromBody] FirmarRequest request)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.FirmarAsync(id, rol, request);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al firmar Paz y Salvo");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
 
-                // Verificar que el usuario existe
-                var usuario = await _context.NominaUsuarios.FindAsync(dto.UsuarioId);
-                if (usuario == null)
-                {
-                    return BadRequest("Usuario no encontrado");
-                }
+        /// <summary>
+        /// Agregar observación al documento
+        /// </summary>
+        [HttpPost("{id}/firmas/{rol}/observe")]
+        [Authorize]
+        public async Task<IActionResult> Observar(int id, string rol, [FromBody] RechazarRequest request)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.RechazarAsync(id, rol, request);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al agregar observación");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
 
-                // Crear directorio seguro si no existe
-                var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
+        /// <summary>
+        /// Rechazar documento
+        /// </summary>
+        [HttpPost("{id}/firmas/{rol}/reject")]
+        [Authorize]
+        public async Task<IActionResult> Rechazar(int id, string rol, [FromBody] RechazarRequest request)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.RechazarAsync(id, rol, request);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al rechazar Paz y Salvo");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Crear excepción para cierre con activos pendientes
+        /// </summary>
+        [HttpPost("{id}/excepciones")]
+        [Authorize(Policy = "RequireTIOrAdmin")]
+        public async Task<IActionResult> CrearExcepcion(int id, [FromBody] CrearExcepcionRequest request)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.CrearExcepcionAsync(id, request);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear excepción");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Subir adjunto
+        /// </summary>
+        [HttpPost("{id}/adjuntos")]
+        [Authorize]
+        public async Task<IActionResult> SubirAdjunto(int id, IFormFile archivo)
+        {
+            try
+            {
+                if (archivo == null || archivo.Length == 0)
+                    return BadRequest(new { message = "No se ha proporcionado ningún archivo" });
+
+                // TODO: Implementar subida de archivos
+                // Por ahora, retornar error
+                return BadRequest(new { message = "Funcionalidad de adjuntos no implementada aún" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al subir adjunto");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Obtener detalle del documento
+        /// </summary>
+        [HttpGet("{id}")]
+        [Authorize]
+        public async Task<IActionResult> ObtenerDetalle(int id)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.ObtenerDetalleAsync(id);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener detalle del Paz y Salvo");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Listar documentos con filtros y paginación
+        /// </summary>
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Listar(
+            [FromQuery] string? estado = null, 
+            [FromQuery] string? rol = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.ListarAsync(estado, page, pageSize);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar Paz y Salvo");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Endpoint de prueba sin autenticación para debuggear
+        /// </summary>
+        [HttpGet("test")]
+        [AllowAnonymous]
+        public IActionResult Test()
+        {
+            try
+            {
+                return Ok(new { 
+                    success = true, 
+                    message = "Test básico exitoso - sin base de datos",
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en test de Paz y Salvo: {Message}", ex.Message);
+                return StatusCode(500, new { 
+                    success = false, 
+                    error = ex.Message, 
+                    stackTrace = ex.StackTrace 
+                });
+            }
+        }
+
+        /// <summary>
+        /// Descargar PDF final
+        /// </summary>
+        [HttpGet("{id}/pdf")]
+        [Authorize]
+        public async Task<IActionResult> DescargarPdf(int id)
+        {
+            try
+            {
+                var detalle = await _pazYSalvoService.ObtenerDetalleAsync(id);
+                
+                if (string.IsNullOrEmpty(detalle.PdfFinalPath))
+                    return NotFound(new { message = "PDF no disponible" });
+
+                // Obtener ruta completa del archivo
+                var storageRoot = _configuration["Storage:Root"] ?? "Storage";
                 if (!Path.IsPathRooted(storageRoot))
                 {
                     storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
                 }
-                string uploadsDir = Path.Combine(storageRoot, "pazysalvo");
-                Directory.CreateDirectory(uploadsDir);
-                
-                // Log de debug
-                Console.WriteLine($"PazYSalvo - storageRoot: {storageRoot}");
-                Console.WriteLine($"PazYSalvo - uploadsDir: {uploadsDir}");
-                Console.WriteLine($"PazYSalvo - Directory exists: {Directory.Exists(uploadsDir)}");
 
-                // Generar nombre único para el archivo
-                string fileName = $"PazYSalvo_{usuario.Nombre}_{usuario.Apellido}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
-                fileName = fileName.Replace(" ", "_");
-                string filePath = Path.Combine(uploadsDir, fileName);
+                var filePath = detalle.PdfFinalPath.StartsWith("/storage/")
+                    ? Path.Combine(storageRoot, detalle.PdfFinalPath.Replace("/storage/", string.Empty))
+                    : Path.Combine(storageRoot, detalle.PdfFinalPath.TrimStart('/'));
 
-                // Guardar archivo en almacenamiento privado
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await dto.Archivo.CopyToAsync(stream);
-                }
-                
-                // Log de debug después de guardar
-                Console.WriteLine($"PazYSalvo - Archivo guardado: {filePath}");
-                Console.WriteLine($"PazYSalvo - Archivo existe: {System.IO.File.Exists(filePath)}");
-                Console.WriteLine($"PazYSalvo - Tamaño archivo: {new FileInfo(filePath).Length} bytes");
+                if (!System.IO.File.Exists(filePath))
+                    return NotFound(new { message = "Archivo PDF no encontrado" });
 
-                // Procesar activos devueltos si se proporcionan
-                var activosDevueltosInfo = new List<object>();
-                if (!string.IsNullOrEmpty(dto.ActivosDevueltos))
-                {
-                    try
-                    {
-                        activosDevueltosInfo = JsonSerializer.Deserialize<List<object>>(dto.ActivosDevueltos);
-                    }
-                    catch (JsonException)
-                    {
-                        // Si no se puede deserializar, continuar sin activos devueltos
-                    }
-                }
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                var fileName = $"PazYSalvo_{detalle.UsuarioRut}_{detalle.FechaSalida:yyyyMMdd}.pdf";
 
-                // Crear registro en base de datos
-                var pazYSalvo = new PazYSalvo
-                {
-                    UsuarioId = dto.UsuarioId,
-                    UsuarioNombre = dto.UsuarioNombre ?? $"{usuario.Nombre} {usuario.Apellido}",
-                    FechaSubida = DateTime.Now,
-                    ArchivoPath = $"/storage/pazysalvo/{fileName}",
-                    Estado = "Pendiente",
-                    ActivosPendientes = dto.ActivosPendientes,
-                    Notas = dto.Notas ?? ""
-                };
-
-                _context.PazYSalvos.Add(pazYSalvo);
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction(nameof(GetPazYSalvo), new { id = pazYSalvo.Id }, pazYSalvo);
+                return File(fileBytes, "application/pdf", fileName);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                // Log del error para debugging
-                Console.WriteLine($"Error al crear Paz y Salvo: {ex.Message}");
-                return StatusCode(500, "Error interno del servidor al procesar el archivo");
+                _logger.LogError(ex, "Error al descargar PDF");
+                return StatusCode(500, new { message = "Error interno del servidor" });
             }
         }
 
-        // PUT: api/pazysalvo/{id}
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdatePazYSalvo(int id, PazYSalvoUpdateDto dto)
-        {
-            var pazYSalvo = await _context.PazYSalvos.FindAsync(id);
-            if (pazYSalvo == null)
-            {
-                return NotFound();
-            }
-
-            pazYSalvo.Estado = dto.Estado;
-            pazYSalvo.Notas = dto.Notas;
-            pazYSalvo.FechaActualizacion = DateTime.Now;
-
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        // DELETE: api/pazysalvo/{id}
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeletePazYSalvo(int id)
-        {
-            var pazYSalvo = await _context.PazYSalvos.FindAsync(id);
-            if (pazYSalvo == null)
-            {
-                return NotFound();
-            }
-
-            // Eliminar archivo físico
-            var storageRoot = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
-            if (!Path.IsPathRooted(storageRoot))
-            {
-                storageRoot = Path.Combine(Directory.GetCurrentDirectory(), storageRoot);
-            }
-            var filePath = Path.Combine(storageRoot, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
-            if (System.IO.File.Exists(filePath))
-            {
-                System.IO.File.Delete(filePath);
-            }
-
-            _context.PazYSalvos.Remove(pazYSalvo);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        // DELETE: api/pazysalvo/{id}/eliminar
-        [HttpDelete("{id}/eliminar")]
-        public async Task<IActionResult> EliminarPazYSalvo(int id)
+        /// <summary>
+        /// Cerrar documento (generar PDF final)
+        /// </summary>
+        [HttpPost("{id}/cerrar")]
+        [Authorize(Policy = "RequireTIOrAdmin")]
+        public async Task<IActionResult> Cerrar(int id)
         {
             try
             {
-                var pazYSalvo = await _context.PazYSalvos.FindAsync(id);
-                if (pazYSalvo == null)
-                {
-                    return NotFound("Documento no encontrado");
-                }
-
-                // Eliminar archivo físico
-                var storageRoot4 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
-                if (!Path.IsPathRooted(storageRoot4))
-                {
-                    storageRoot4 = Path.Combine(Directory.GetCurrentDirectory(), storageRoot4);
-                }
-                var filePath = Path.Combine(storageRoot4, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
-                if (System.IO.File.Exists(filePath))
-                {
-                    System.IO.File.Delete(filePath);
-                }
-
-                _context.PazYSalvos.Remove(pazYSalvo);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Documento eliminado exitosamente" });
+                var result = await _pazYSalvoService.CerrarAsync(id);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error al cerrar Paz y Salvo");
+                return StatusCode(500, new { message = "Error interno del servidor" });
             }
         }
 
-        // GET: api/pazysalvo/download/{id}
-        [HttpGet("download/{id}")]
-        public async Task<IActionResult> DownloadPazYSalvo(int id)
-        {
-            var pazYSalvo = await _context.PazYSalvos.FindAsync(id);
-            if (pazYSalvo == null)
-            {
-                return NotFound();
-            }
-
-            var storageRoot2 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
-            if (!Path.IsPathRooted(storageRoot2))
-            {
-                storageRoot2 = Path.Combine(Directory.GetCurrentDirectory(), storageRoot2);
-            }
-            var filePath = Path.Combine(storageRoot2, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
-            if (!System.IO.File.Exists(filePath))
-            {
-                return NotFound("Archivo no encontrado");
-            }
-
-            var fileName = Path.GetFileName(pazYSalvo.ArchivoPath);
-            var contentType = "application/pdf";
-
-            return PhysicalFile(filePath, contentType, fileName);
-        }
-
-        // GET: api/pazysalvo/preview/{id}
-        [HttpGet("preview/{id}")]
-        public async Task<IActionResult> PreviewPazYSalvo(int id)
-        {
-            var pazYSalvo = await _context.PazYSalvos.FindAsync(id);
-            if (pazYSalvo == null)
-            {
-                return NotFound();
-            }
-
-            var storageRoot3 = _configuration["Storage:Root"] ?? Directory.GetCurrentDirectory();
-            if (!Path.IsPathRooted(storageRoot3))
-            {
-                storageRoot3 = Path.Combine(Directory.GetCurrentDirectory(), storageRoot3);
-            }
-            var filePath = Path.Combine(storageRoot3, pazYSalvo.ArchivoPath.Replace("/storage/", string.Empty));
-            if (!System.IO.File.Exists(filePath))
-            {
-                return NotFound("Archivo no encontrado");
-            }
-
-            var contentType = "application/pdf";
-            
-            // Para previsualización, no incluir el nombre del archivo para evitar descarga
-            return PhysicalFile(filePath, contentType);
-        }
-
-        // GET: api/pazysalvo/activos-pendientes/{usuarioId}
+        /// <summary>
+        /// Obtener activos pendientes de un usuario
+        /// </summary>
         [HttpGet("activos-pendientes/{usuarioId}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetActivosPendientes(int usuarioId)
+        [Authorize]
+        public async Task<IActionResult> GetActivosPendientes(int usuarioId)
         {
-            var activosPendientes = await _context.AsignacionesActivos
-                .Include(aa => aa.Activo)
-                .Where(aa => aa.UsuarioId == usuarioId && aa.Estado == "Activa")
-                .Select(aa => new
-                {
-                    aa.Activo.Id,
-                    aa.Activo.Codigo,
-                    aa.Activo.Nombre,
-                    aa.Activo.Categoria,
-                    aa.Activo.NombreEquipo,
-                    aa.FechaAsignacion,
-                    aa.Estado
-                })
-                .ToListAsync();
-
-            return activosPendientes;
-        }
-
-        // GET: api/pazysalvo/activos-pendientes-todos
-        [HttpGet("activos-pendientes-todos")]
-        public async Task<ActionResult<IEnumerable<object>>> GetActivosPendientesTodos()
-        {
-            // Obtener todos los usuarios que tienen documentos de paz y salvo pendientes
-            var usuariosConPazYSalvo = await _context.PazYSalvos
-                .Where(p => p.Estado == "Pendiente")
-                .Select(p => p.UsuarioId)
-                .Distinct()
-                .ToListAsync();
-
-            var activosPendientes = new List<object>();
-
-            foreach (var usuarioId in usuariosConPazYSalvo)
+            try
             {
-                var activosUsuario = await _context.AsignacionesActivos
+                _logger.LogInformation("Buscando activos para usuario {UsuarioId}", usuarioId);
+                
+                // Obtener activos asignados al usuario
+                var asignaciones = await _context.AsignacionesActivos
                     .Include(aa => aa.Activo)
-                    .Include(aa => aa.Usuario)
                     .Where(aa => aa.UsuarioId == usuarioId && aa.Estado == "Activa")
-                    .Select(aa => new
-                    {
-                        aa.Activo.Id,
-                        aa.Activo.Codigo,
-                        aa.Activo.Nombre,
-                        aa.Activo.Categoria,
-                        aa.Activo.NombreEquipo,
-                        aa.FechaAsignacion,
-                        aa.Estado,
-                        UsuarioId = aa.UsuarioId,
-                        UsuarioNombre = $"{aa.Usuario.Nombre} {aa.Usuario.Apellido}",
-                        PazYSalvoId = _context.PazYSalvos
-                            .Where(p => p.UsuarioId == aa.UsuarioId && p.Estado == "Pendiente")
-                            .Select(p => p.Id)
-                            .FirstOrDefault()
-                    })
                     .ToListAsync();
 
-                activosPendientes.AddRange(activosUsuario);
-            }
+                _logger.LogInformation("Encontradas {Count} asignaciones para usuario {UsuarioId}", asignaciones.Count, usuarioId);
 
-            return activosPendientes;
-        }
-
-        // POST: api/pazysalvo/marcar-activo-devuelto
-        [HttpPost("marcar-activo-devuelto")]
-        public async Task<IActionResult> MarcarActivoDevuelto([FromBody] MarcarActivoDevueltoDto dto)
-        {
-            try
-            {
-                // Buscar la asignación del activo
-                var asignacion = await _context.AsignacionesActivos
-                    .Include(aa => aa.Activo)
-                    .Include(aa => aa.Usuario)
-                    .FirstOrDefaultAsync(aa => aa.ActivoId == dto.ActivoId && aa.UsuarioId == dto.UsuarioId && aa.Estado == "Activa");
-
-                if (asignacion == null)
+                var activos = asignaciones.Select(aa => new
                 {
-                    return NotFound("Asignación no encontrada");
-                }
+                    Id = aa.ActivoId,
+                    Descripcion = $"{aa.Activo.Categoria} - {aa.Activo.Marca} {aa.Activo.Modelo}",
+                    EstadoActivo = "Pendiente",
+                    Observacion = "Pendiente de devolución",
+                    FechaCorte = DateTime.Now
+                }).ToList();
 
-                // Marcar la asignación como devuelta
-                asignacion.Estado = "Devuelto";
-                asignacion.FechaDevolucion = DateTime.Now;
-                asignacion.Observaciones = dto.Observaciones ?? "Devuelto por Paz y Salvo";
-
-                await _context.SaveChangesAsync();
-
-                // Verificar si todos los activos del usuario han sido devueltos
-                var activosPendientes = await _context.AsignacionesActivos
-                    .Where(aa => aa.UsuarioId == dto.UsuarioId && aa.Estado == "Activa")
-                    .CountAsync();
-
-                if (activosPendientes == 0)
-                {
-                    // Si no hay más activos pendientes, marcar el paz y salvo como completado
-                    var pazYSalvo = await _context.PazYSalvos
-                        .Where(p => p.UsuarioId == dto.UsuarioId && p.Estado == "Pendiente")
-                        .FirstOrDefaultAsync();
-
-                    if (pazYSalvo != null)
-                    {
-                        pazYSalvo.Estado = "Completado";
-                        pazYSalvo.FechaActualizacion = DateTime.Now;
-                        await _context.SaveChangesAsync();
-                    }
-                }
-
-                return Ok(new { message = "Activo marcado como devuelto exitosamente" });
+                _logger.LogInformation("Retornando {Count} activos para usuario {UsuarioId}", activos.Count, usuarioId);
+                return Ok(activos);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error al obtener activos pendientes para usuario {UsuarioId}", usuarioId);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
-    }
 
-    public class PazYSalvoCreateDto
-    {
-        public int UsuarioId { get; set; }
-        public string? UsuarioNombre { get; set; }
-        public IFormFile Archivo { get; set; } = null!;
-        public int ActivosPendientes { get; set; }
-        public string? Notas { get; set; }
-        public string? ActivosDevueltos { get; set; } // JSON string con información de activos devueltos
-    }
+        /// <summary>
+        /// Verificar integridad del documento mediante hash
+        /// </summary>
+        [HttpGet("verify")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerificarHash([FromQuery] int id, [FromQuery] string h)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(h))
+                    return BadRequest(new { message = "Hash requerido" });
 
-    public class PazYSalvoUpdateDto
-    {
-        public string Estado { get; set; } = string.Empty;
-        public string Notas { get; set; } = string.Empty;
-    }
-
-    public class MarcarActivoDevueltoDto
-    {
-        public int UsuarioId { get; set; }
-        public int ActivoId { get; set; }
-        public string? Observaciones { get; set; }
+                var result = await _pazYSalvoService.VerificarHashAsync(id);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al verificar hash");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
     }
 }

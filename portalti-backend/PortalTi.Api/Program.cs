@@ -98,6 +98,12 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("CanManagePazYSalvo", policy =>
         policy.RequireRole("admin", "soporte"));
     
+    options.AddPolicy("RequireRRHHOrAdmin", policy =>
+        policy.RequireRole("admin", "rrhh"));
+    
+    options.AddPolicy("RequireTIOrAdmin", policy =>
+        policy.RequireRole("admin", "ti"));
+    
     // Políticas para Software Security
     options.AddPolicy("CanManageSoftwareSecurity", policy =>
         policy.RequireRole("admin"));
@@ -179,6 +185,8 @@ builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddScoped<PdfService>();
 builder.Services.AddScoped<ActaValidationService>();
 builder.Services.AddScoped<ISystemConfigurationService, SystemConfigurationService>();
+builder.Services.AddScoped<PazYSalvoPdfService>();
+builder.Services.AddScoped<PazYSalvoServiceUnificado>();
 
 // Servicios de integridad de datos
 builder.Services.AddScoped<IActaValidationService, ActaValidationService>();
