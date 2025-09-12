@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import RequireRole from './components/RequireRole';
+import RequireSubrole from './components/RequireSubrole';
 import MainLayout from './layouts/MainLayout';
 import { useResponsiveSidebar } from './hooks/useResponsiveSidebar';
 
@@ -32,6 +33,11 @@ import GestionActas from './pages/GestionActas';
 import ActaDetail from './pages/ActaDetail';
 import PrevisualizarActa from './pages/PrevisualizarActa';
 import PazYSalvo from './pages/PazYSalvo';
+import PazYSalvoJefeDirecto from './pages/PazYSalvoJefeDirecto';
+import PazYSalvoRRHH from './pages/PazYSalvoRRHH';
+import PazYSalvoTI from './pages/PazYSalvoTI';
+import PazYSalvoContabilidad from './pages/PazYSalvoContabilidad';
+import PazYSalvoGerenciaFinanzas from './pages/PazYSalvoGerenciaFinanzas';
 import MicrosoftCallback from './pages/MicrosoftCallback';
 import Documentacion from './pages/Documentacion';
 import Contacto from './pages/Contacto';
@@ -51,8 +57,8 @@ export default function App() {
       <Route path="/privacy" element={<Privacidad />} />
       <Route path="/auth/microsoft/callback" element={<MicrosoftCallback />} />
 
-      {/* Redirección de la ruta raíz al dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Redirección de la ruta raíz según el rol del usuario */}
+      <Route path="/" element={<Navigate to="/mis-activos" replace />} />
 
       {/* Privadas */}
       <Route element={<ProtectedRoute />}>
@@ -193,15 +199,58 @@ export default function App() {
             }
           />
 
-          {/* Paz y Salvo - Solo admin y soporte */}
+          {/* Paz y Salvo - Solo RRHH (gestión completa) */}
           <Route
             path="pazysalvo"
             element={
-              <RequireRole roles={['admin', 'soporte']}>
+              <RequireSubrole subroles={['RRHH']}>
                 <PazYSalvo />
-              </RequireRole>
+              </RequireSubrole>
             }
           />
+
+          {/* Paz y Salvo - Subroles específicos */}
+          <Route
+            path="pazysalvo/jefe-directo"
+            element={
+              <RequireSubrole subroles={['Jefatura Directa']}>
+                <PazYSalvoJefeDirecto />
+              </RequireSubrole>
+            }
+          />
+          <Route
+            path="pazysalvo/rrhh"
+            element={
+              <RequireSubrole subroles={['RRHH']}>
+                <PazYSalvoRRHH />
+              </RequireSubrole>
+            }
+          />
+          <Route
+            path="pazysalvo/ti"
+            element={
+              <RequireSubrole subroles={['TI']}>
+                <PazYSalvoTI />
+              </RequireSubrole>
+            }
+          />
+          <Route
+            path="pazysalvo/contabilidad"
+            element={
+              <RequireSubrole subroles={['Contabilidad']}>
+                <PazYSalvoContabilidad />
+              </RequireSubrole>
+            }
+          />
+          <Route
+            path="pazysalvo/gerencia-finanzas"
+            element={
+              <RequireSubrole subroles={['Gerencia Finanzas']}>
+                <PazYSalvoGerenciaFinanzas />
+              </RequireSubrole>
+            }
+          />
+
 
 
           {/* Páginas de usuario */}
