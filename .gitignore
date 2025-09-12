@@ -456,3 +456,8 @@ appsettings.Staging.json
 
 # Local development files
 *.local
+
+# Scripts con datos sensibles de la empresa
+**/Scripts/*VICSA*.sql
+**/Scripts/*vicsa*.sql
+**/Scripts/bd*vicsa*.csv

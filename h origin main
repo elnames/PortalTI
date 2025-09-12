@@ -1,7 +1,0 @@
-[33md3a0601[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m feat: Simplificar gestor de conexiones remotas
-[33m282b748[m feat: Mejorar modal de configuración con soporte dinámico para AnyDesk y RustDesk
-[33mdc2b91f[m feat: Rediseñar modal de control remoto con soporte para AnyDesk y RustDesk
-[33m54f96a5[m feat: Agregar métodos API para gestión de credenciales remotas
-[33m8b7e47c[m feat: Agregar endpoints para actualizar credenciales de conexión remota
-[33mf711f9d[m feat: Agregar migración para campos de conexión remota
-[33m5242bf6[m feat: Agregar campos de conexión remota al modelo Activo
