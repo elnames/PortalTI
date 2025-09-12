@@ -115,7 +115,7 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
             console.log('Datos del activo:', activoData);
             console.log('ID del activo:', activoId);
             console.log('Campo a guardar:', field, 'Valor:', value);
-            
+
             if (!activoId) {
                 showToast('Error: ID de activo no encontrado', 'error');
                 return;
@@ -323,7 +323,7 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
                             🔧 RustDesk
                         </h5>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
+                            <div>
                                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     ID de RustDesk:
                                 </label>
@@ -372,8 +372,8 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
                                         </button>
                                     )}
                                 </div>
-                        </div>
-                        <div>
+                            </div>
+                            <div>
                                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Contraseña:
                                 </label>
@@ -471,17 +471,17 @@ export default function RemoteConnectionManager({ activoData, onDataUpdated }) {
 
                                     {/* Botón de copiar */}
                                     {id && (
-                                    <button
-                                        onClick={() => copyToClipboard(url, config.protocol)}
-                                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                                        title="Copiar URL"
-                                    >
-                                        {copiedProtocol === config.protocol ? (
-                                            <CheckCircle className="h-4 w-4 text-green-500" />
-                                        ) : (
-                                            <Copy className="h-4 w-4" />
-                                        )}
-                                    </button>
+                                        <button
+                                            onClick={() => copyToClipboard(url, config.protocol)}
+                                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                            title="Copiar URL"
+                                        >
+                                            {copiedProtocol === config.protocol ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <Copy className="h-4 w-4" />
+                                            )}
+                                        </button>
                                     )}
                                 </div>
                             </div>

@@ -4,6 +4,7 @@ import DataTable from '../components/DataTable';
 import EditAuthUserModal from '../components/EditAuthUserModal';
 import CreateAuthUserModal from '../components/CreateAuthUserModal';
 import EvidencePermissionsManager from '../components/EvidencePermissionsManager';
+import PazYSalvoRoleManager from '../components/PazYSalvoRoleManager';
 import {
     Settings,
     Users,
@@ -23,7 +24,8 @@ import {
     Save,
     AlertTriangle,
     BarChart3,
-    RefreshCw
+    RefreshCw,
+    BadgeCheck
 } from 'lucide-react';
 import api, { systemConfigAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -383,6 +385,7 @@ export default function ConfiguracionAdmin() {
     const tabs = [
         { id: 'users', name: 'Usuarios Autenticados', icon: Users },
         { id: 'activity', name: 'Log de Actividades', icon: Activity },
+        { id: 'pazysalvo-roles', name: 'Roles Paz y Salvo', icon: BadgeCheck },
         { id: 'system', name: 'Configuración del Sistema', icon: Settings }
     ];
 
@@ -537,6 +540,12 @@ export default function ConfiguracionAdmin() {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {activeTab === 'pazysalvo-roles' && (
+                <div className="space-y-6">
+                    <PazYSalvoRoleManager showHeader={false} />
                 </div>
             )}
 

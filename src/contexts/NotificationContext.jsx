@@ -137,7 +137,109 @@ export const NotificationProvider = ({ children }) => {
         });
     };
 
-    // Nueva función para notificaciones de Paz y Salvo
+    // ===== FUNCIONES PARA NOTIFICACIONES DE PAZ Y SALVO =====
+    const notifyPazYSalvoCreated = (pazYSalvo) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo creado',
+            mensaje: `Se ha creado un nuevo Paz y Salvo para ${pazYSalvo.usuarioNombre}`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    const notifyPazYSalvoEnviadoAFirma = (pazYSalvo) => {
+        // Notificar a todos los firmantes
+        pazYSalvo.firmas?.forEach(firma => {
+            if (firma.firmanteUserId) {
+                createNotification({
+                    userId: firma.firmanteUserId,
+                    tipo: 'pazysalvo',
+                    titulo: 'Paz y Salvo enviado a firma',
+                    mensaje: `Se requiere tu firma para el Paz y Salvo de ${pazYSalvo.usuarioNombre}`,
+                    refTipo: 'PazYSalvo',
+                    refId: pazYSalvo.id,
+                    ruta: `/pazysalvo/${pazYSalvo.id}`
+                });
+            }
+        });
+    };
+
+    const notifyPazYSalvoFirmado = (pazYSalvo, firmante) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo firmado',
+            mensaje: `${firmante.nombre} ha firmado el Paz y Salvo de ${pazYSalvo.usuarioNombre}`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    const notifyPazYSalvoAprobado = (pazYSalvo) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo aprobado',
+            mensaje: `El Paz y Salvo de ${pazYSalvo.usuarioNombre} ha sido aprobado`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    const notifyPazYSalvoRechazado = (pazYSalvo, motivo) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo rechazado',
+            mensaje: `El Paz y Salvo de ${pazYSalvo.usuarioNombre} ha sido rechazado. Motivo: ${motivo}`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    const notifyPazYSalvoCerrado = (pazYSalvo) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo cerrado',
+            mensaje: `El Paz y Salvo de ${pazYSalvo.usuarioNombre} ha sido cerrado exitosamente`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    const notifyPazYSalvoObservado = (pazYSalvo, observacion) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Paz y Salvo observado',
+            mensaje: `Se ha agregado una observación al Paz y Salvo de ${pazYSalvo.usuarioNombre}: ${observacion}`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    const notifyPazYSalvoExcepcionCreada = (pazYSalvo, excepcion) => {
+        createNotification({
+            userId: user?.id,
+            tipo: 'pazysalvo',
+            titulo: 'Excepción creada',
+            mensaje: `Se ha creado una excepción para el Paz y Salvo de ${pazYSalvo.usuarioNombre}`,
+            refTipo: 'PazYSalvo',
+            refId: pazYSalvo.id,
+            ruta: `/pazysalvo/${pazYSalvo.id}`
+        });
+    };
+
+    // Función legacy para compatibilidad
     const notifyPazYSalvoUploaded = (usuario, activosPendientes = []) => {
         const message = activosPendientes.length > 0
             ? `Paz y salvo subido para ${usuario.nombre}. ${activosPendientes.length} activos pendientes de devolución.`
@@ -292,8 +394,18 @@ export const NotificationProvider = ({ children }) => {
         notifyTicketUpdated,
         notifyUserCreated,
         notifySystemUpdate,
-        notifyPazYSalvoUploaded,
         notifyActivoReturned,
+
+        // ===== NOTIFICACIONES DE PAZ Y SALVO =====
+        notifyPazYSalvoCreated,
+        notifyPazYSalvoEnviadoAFirma,
+        notifyPazYSalvoFirmado,
+        notifyPazYSalvoAprobado,
+        notifyPazYSalvoRechazado,
+        notifyPazYSalvoCerrado,
+        notifyPazYSalvoObservado,
+        notifyPazYSalvoExcepcionCreada,
+        notifyPazYSalvoUploaded, // Legacy
 
         // ===== NOTIFICACIONES DE ACTAS =====
         notifyActaRechazada,

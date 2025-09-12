@@ -118,6 +118,7 @@ export const AuthProvider = ({ children }) => {
       if (user.role === 'admin' || user.role === 'soporte') {
         window.location.href = '/dashboard';
       } else {
+        // Usuarios normales van a "Mis Activos" en lugar de Dashboard
         window.location.href = '/mis-activos';
       }
     }
