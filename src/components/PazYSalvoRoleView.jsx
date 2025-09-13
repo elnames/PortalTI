@@ -9,10 +9,13 @@ import {
     AlertTriangle,
     Eye,
     Download,
-    UserCheck
+    UserCheck,
+    Search,
+    ChevronDown
 } from 'lucide-react';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import { API_BASE_URL } from '../config';
+import { pazYSalvoAPI } from '../services/api';
 import PazYSalvoSignatureModal from './PazYSalvoSignatureModal';
 
 export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
@@ -22,6 +25,9 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
     const [showModal, setShowModal] = useState(false);
     const [delegations, setDelegations] = useState([]);
     const [showDelegationModal, setShowDelegationModal] = useState(false);
+    const [delegationUsers, setDelegationUsers] = useState([]);
+    const [showUserDropdown, setShowUserDropdown] = useState(false);
+    const [userSearchTerm, setUserSearchTerm] = useState('');
     const [newDelegation, setNewDelegation] = useState({
         usuarioDelegadoId: '',
         motivo: '',
@@ -32,6 +38,23 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
 
     // Configuración específica por rol
     const roleConfig = {
+        'JefeInmediato': {
+            title: 'Paz y Salvo - Jefatura Directa',
+            description: 'Revisar y aprobar solicitudes de Paz y Salvo de su equipo',
+            canApprove: true,
+            canReject: true,
+            canView: true,
+            canGenerate: false,
+            filters: ['Pendiente', 'En Revisión'],
+            checklistItems: [
+                'Verificar que el empleado haya entregado todas las tareas asignadas',
+                'Confirmar que no hay pendientes de trabajo en curso',
+                'Revisar que se haya realizado la transición de responsabilidades',
+                'Validar que no existan compromisos laborales pendientes'
+            ],
+            approvalText: 'Aprobar como Jefe Directo',
+            rejectText: 'Rechazar - Hay pendientes laborales'
+        },
         'Jefatura Directa': {
             title: 'Paz y Salvo - Jefatura Directa',
             description: 'Revisar y aprobar solicitudes de Paz y Salvo de su equipo',
@@ -122,12 +145,31 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
         }
     };
 
-    const config = roleConfig[userRole] || roleConfig['Jefatura Directa'];
+    const config = roleConfig[userRole] || roleConfig['JefeInmediato'];
+
+    const selectUser = (user) => {
+        if (user && user.Id && user.DisplayName) {
+            setNewDelegation({ ...newDelegation, usuarioDelegadoId: user.Id });
+            setUserSearchTerm(user.DisplayName);
+            setShowUserDropdown(false);
+        }
+    };
+
+    const filteredUsers = delegationUsers.filter(user =>
+        user && 
+        user.DisplayName && 
+        user.Email &&
+        (user.DisplayName.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+        user.Email.toLowerCase().includes(userSearchTerm.toLowerCase()))
+    );
 
     useEffect(() => {
         loadPazYSalvos();
         loadDelegations();
-    }, [userRole]);
+        if (showDelegationModal) {
+            loadDelegationUsers();
+        }
+    }, [userRole, showDelegationModal]);
 
     // Manejar el scroll del body cuando el modal esté abierto
     useEffect(() => {
@@ -142,6 +184,20 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
             document.body.style.overflow = 'unset';
         };
     }, [showModal]);
+
+    // Cerrar dropdown cuando se hace clic fuera
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (showUserDropdown && !event.target.closest('.user-dropdown-container')) {
+                setShowUserDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showUserDropdown]);
 
     const loadPazYSalvos = async () => {
         try {
@@ -159,14 +215,22 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
             const data = await response.json();
 
             // El backend devuelve una estructura paginada con 'items'
+            let allPazYSalvos = [];
             if (data.items && Array.isArray(data.items)) {
-                setPazYSalvos(data.items);
+                allPazYSalvos = data.items;
             } else if (Array.isArray(data)) {
-                setPazYSalvos(data);
+                allPazYSalvos = data;
             } else {
                 console.warn('Estructura de datos inesperada:', data);
-                setPazYSalvos([]);
+                allPazYSalvos = [];
             }
+
+            // Mostrar todos los Paz y Salvo sin depender de firmas
+            console.log('Mostrando todos los Paz y Salvo para rol:', userRole);
+            console.log('Total Paz y Salvo cargados:', allPazYSalvos.length);
+            
+            // Para jefatura, mostrar todos los Paz y Salvo
+            setPazYSalvos(allPazYSalvos);
         } catch (error) {
             console.error('Error al cargar Paz y Salvo:', error);
             alertError('Error al cargar los Paz y Salvo');
@@ -178,71 +242,94 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
 
     const loadDelegations = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/pazysalvoroles/delegations`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setDelegations(data);
-            }
+            const response = await pazYSalvoAPI.getDelegations();
+            setDelegations(response.data || []);
         } catch (error) {
             console.error('Error al cargar delegaciones:', error);
         }
     };
 
-    const handleCreateDelegation = async () => {
+    const loadDelegationUsers = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/pazysalvoroles/delegations`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    ...newDelegation,
-                    subRole: userRole
-                })
-            });
+            const response = await pazYSalvoAPI.getDelegationUsers();
+            setDelegationUsers(response.data || []);
+        } catch (error) {
+            console.error('Error al cargar usuarios para delegación:', error);
+            alertError('Error al cargar usuarios disponibles');
+        }
+    };
 
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
+    const handleCreateDelegation = async () => {
+        if (!newDelegation.usuarioDelegadoId) {
+            alertError('Por favor selecciona un usuario');
+            return;
+        }
+
+        if (!newDelegation.motivo.trim()) {
+            alertError('Por favor ingresa el motivo de la delegación');
+            return;
+        }
+
+        if (!newDelegation.fechaFin) {
+            alertError('Por favor selecciona la fecha de fin de la delegación');
+            return;
+        }
+
+        try {
+            const response = await pazYSalvoAPI.createDelegation({
+                ...newDelegation,
+                subRole: userRole,
+                fechaFin: new Date(newDelegation.fechaFin)
+            });
 
             alertSuccess('Delegación creada exitosamente');
             setShowDelegationModal(false);
             setNewDelegation({ usuarioDelegadoId: '', motivo: '', fechaFin: '' });
+            setUserSearchTerm('');
             loadDelegations();
         } catch (error) {
             console.error('Error al crear delegación:', error);
-            alertError('Error al crear la delegación');
+            const errorMessage = error.response?.data?.message || 'Error al crear la delegación';
+            alertError(errorMessage);
         }
     };
 
     const handleRevokeDelegation = async (delegationId) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/pazysalvoroles/delegations/${delegationId}`, {
-                method: 'DELETE',
+            await pazYSalvoAPI.revokeDelegation(delegationId);
+            alertSuccess('Delegación revocada exitosamente');
+            loadDelegations();
+        } catch (error) {
+            console.error('Error al revocar delegación:', error);
+            const errorMessage = error.response?.data?.message || 'Error al revocar la delegación';
+            alertError(errorMessage);
+        }
+    };
+
+    const handlePrevisualizarDocumento = async (pazYSalvoId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvoId}/preview`, {
+                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 
             if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
+                throw new Error('Error al generar la previsualización');
             }
 
-            alertSuccess('Delegación revocada exitosamente');
-            loadDelegations();
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            
+            // Limpiar el objeto URL después de un tiempo
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         } catch (error) {
-            console.error('Error al revocar delegación:', error);
-            alertError('Error al revocar la delegación');
+            console.error('Error al previsualizar documento:', error);
+            alertError('Error al generar la previsualización del documento');
         }
     };
-
-
 
     const getStatusColor = (estado) => {
         switch (estado) {
@@ -474,13 +561,22 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
                                                     Ver Detalles
                                                 </button>
                                             )}
+                                            {/* Botón de Previsualizar Documento */}
+                                            <button
+                                                onClick={() => handlePrevisualizarDocumento(pazYSalvo.id)}
+                                                className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                                            >
+                                                <FileText className="h-4 w-4 mr-1" />
+                                                Previsualizar
+                                            </button>
+                                            
                                             {pazYSalvo.pdfFinalPath && (
                                                 <button
                                                     onClick={() => window.open(pazYSalvo.pdfFinalPath, '_blank')}
                                                     className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all"
                                                 >
                                                     <Download className="h-4 w-4 mr-1" />
-                                                    PDF
+                                                    PDF Final
                                                 </button>
                                             )}
                                         </div>
@@ -536,13 +632,55 @@ export default function PazYSalvoRoleView({ userRole, showHeader = true }) {
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Usuario a Delegar
                                         </label>
-                                        <input
-                                            type="email"
-                                            value={newDelegation.usuarioDelegadoId}
-                                            onChange={(e) => setNewDelegation({ ...newDelegation, usuarioDelegadoId: e.target.value })}
-                                            placeholder="email@vicsa.cl"
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                                        />
+                                        <div className="relative user-dropdown-container">
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={userSearchTerm}
+                                                    onChange={(e) => {
+                                                        setUserSearchTerm(e.target.value);
+                                                        setShowUserDropdown(true);
+                                                        if (!e.target.value) {
+                                                            setNewDelegation({ ...newDelegation, usuarioDelegadoId: '' });
+                                                        }
+                                                    }}
+                                                    onFocus={() => setShowUserDropdown(true)}
+                                                    placeholder="Buscar usuario..."
+                                                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                                />
+                                                <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
+                                            </div>
+                                            
+                                            {showUserDropdown && (
+                                                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                                                    {filteredUsers.length > 0 ? (
+                                                        filteredUsers.map((user) => (
+                                                            user && user.Id ? (
+                                                                <div
+                                                                    key={user.Id}
+                                                                    onClick={() => selectUser(user)}
+                                                                    className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                                                >
+                                                                    <div className="font-medium text-gray-900 dark:text-white">
+                                                                        {user.Nombre || 'Sin nombre'} {user.Apellido || 'Sin apellido'}
+                                                                    </div>
+                                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                                        {user.Email || 'Sin email'}
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                                                        {user.Cargo || 'Sin cargo'} - {user.Departamento || 'Sin departamento'}
+                                                                    </div>
+                                                                </div>
+                                                            ) : null
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-3 py-2 text-gray-500 dark:text-gray-400 text-sm">
+                                                            No se encontraron usuarios
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

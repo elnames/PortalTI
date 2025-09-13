@@ -32,11 +32,11 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
     const { alertSuccess, alertError } = useNotificationContext();
 
     const roles = [
-        'Jefatura Directa',
+        'JefeInmediato',
         'RRHH',
-        'TI',
+        'Informatica',
         'Contabilidad',
-        'Gerencia Finanzas'
+        'GerenciaFinanzas'
     ];
 
     const departamentos = [
@@ -105,7 +105,26 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
 
             const data = await response.json();
             console.log('Usuarios cargados para roles:', data);
-            setUsers(data || []);
+            console.log('Total usuarios:', data?.length);
+            
+            // Debug: mostrar estructura del primer usuario
+            if (data && data.length > 0) {
+                console.log('Estructura del primer usuario:', data[0]);
+                console.log('hasAuthUser del primer usuario:', data[0].hasAuthUser);
+                console.log('authUserId del primer usuario:', data[0].authUserId);
+            }
+            
+            // Eliminar duplicados por ID, manteniendo el primero
+            const uniqueUsers = data?.filter((user, index, arr) => 
+                arr.findIndex(u => u.id === user.id) === index
+            ) || [];
+            
+            console.log('Usuarios únicos después de eliminar duplicados:', uniqueUsers.length);
+            console.log('Usuarios con AuthUser:', uniqueUsers.filter(u => u.hasAuthUser).length);
+            console.log('Usuarios sin AuthUser:', uniqueUsers.filter(u => !u.hasAuthUser).length);
+            console.log('Usuarios duplicados eliminados:', data?.length - uniqueUsers.length);
+            
+            setUsers(uniqueUsers);
         } catch (error) {
             console.error('Error al cargar usuarios:', error);
             setUsers([]); // Inicializar con array vacío en caso de error
@@ -127,11 +146,11 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
                         activo: true,
                         permiteDelegacion: true,
                         firmas: [
-                            { id: 1, rol: 'Jefatura Directa', orden: 1, obligatorio: true },
+                            { id: 1, rol: 'JefeInmediato', orden: 1, obligatorio: true },
                             { id: 2, rol: 'RRHH', orden: 2, obligatorio: true },
-                            { id: 3, rol: 'TI', orden: 3, obligatorio: true },
+                            { id: 3, rol: 'Informatica', orden: 3, obligatorio: true },
                             { id: 4, rol: 'Contabilidad', orden: 4, obligatorio: true },
-                            { id: 5, rol: 'Gerencia Finanzas', orden: 5, obligatorio: true }
+                            { id: 5, rol: 'GerenciaFinanzas', orden: 5, obligatorio: true }
                         ]
                     });
                     return;
@@ -148,18 +167,18 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
                 activo: true,
                 permiteDelegacion: true,
                 firmas: [
-                    { id: 1, rol: 'Jefatura Directa', orden: 1, obligatorio: true },
+                    { id: 1, rol: 'JefeInmediato', orden: 1, obligatorio: true },
                     { id: 2, rol: 'RRHH', orden: 2, obligatorio: true },
-                    { id: 3, rol: 'TI', orden: 3, obligatorio: true },
+                    { id: 3, rol: 'Informatica', orden: 3, obligatorio: true },
                     { id: 4, rol: 'Contabilidad', orden: 4, obligatorio: true },
-                    { id: 5, rol: 'Gerencia Finanzas', orden: 5, obligatorio: true }
+                    { id: 5, rol: 'GerenciaFinanzas', orden: 5, obligatorio: true }
                 ]
             });
         }
     };
 
     const handleUsuarioChange = (userId) => {
-        console.log('DEBUG: Usuario seleccionado:', userId);
+        console.log('DEBUG: Usuario seleccionado (NominaId):', userId);
         setNewAssignment(prev => ({
             ...prev,
             userId: userId
@@ -185,27 +204,27 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
         }
 
         try {
-            // Si el rol es "Jefatura Directa", crear automáticamente el jefe directo
-            if (newAssignment.rol === 'Jefatura Directa') {
-                try {
-                    const jefeResponse = await fetch(`${API_BASE_URL}/pazysalvoroles/create-jefe-directo`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        },
-                        body: JSON.stringify({ UsuarioId: newAssignment.userId })
-                    });
-
-                    if (jefeResponse.ok) {
-                        const jefeData = await jefeResponse.json();
-                        console.log('Jefe directo creado/actualizado:', jefeData);
-                    }
-                } catch (jefeError) {
-                    console.warn('Error al crear jefe directo (continuando):', jefeError);
-                    // Continuar con la creación de la asignación aunque falle la creación del jefe directo
-                }
+            // Obtener el usuario seleccionado
+            const usuario = users.find(u => u.id === newAssignment.userId);
+            if (!usuario) {
+                alertError('Usuario no encontrado');
+                return;
             }
+
+            // Si el usuario no tiene AuthUser, mostrar error
+            if (!usuario.authUserId) {
+                alertError('El usuario seleccionado no tiene cuenta de acceso. Debe registrarse primero en el sistema.');
+                return;
+            }
+
+            const authUserId = usuario.authUserId;
+            console.log('DEBUG: Usando AuthUserId', authUserId, 'para usuario', usuario.nombre);
+
+            // Crear la asignación con el AuthUserId
+            const assignmentData = {
+                ...newAssignment,
+                userId: authUserId
+            };
 
             const response = await fetch(`${API_BASE_URL}/pazysalvoroles/assignments`, {
                 method: 'POST',
@@ -213,7 +232,7 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
-                body: JSON.stringify(newAssignment)
+                body: JSON.stringify(assignmentData)
             });
 
             if (!response.ok) {
@@ -402,6 +421,9 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
                                     Usuario Asignado
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Empresa
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     Rol del Usuario
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -422,7 +444,12 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
                                         {assignment.rol}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                        {assignment.nombre} {assignment.apellido}
+                                        {assignment.apellido ? `${assignment.nombre} ${assignment.apellido}` : assignment.nombre}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            {assignment.empresa || 'Sin empresa'}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                         {assignment.userRole}
@@ -475,14 +502,14 @@ export default function PazYSalvoRoleManager({ showHeader = true }) {
                         </div>
 
                         <div className="space-y-4">
-                            {/* Usuario (Jefe Directo) */}
+                            {/* Usuario */}
                             <div>
                                 <UserAutoComplete
                                     value={newAssignment.userId}
                                     usuarios={users}
                                     onChange={handleUsuarioChange}
                                     placeholder="Buscar usuario por nombre, departamento o email..."
-                                    label="Usuario (Jefe Directo) *"
+                                    label="Usuario *"
                                     required={true}
                                 />
                             </div>

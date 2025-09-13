@@ -16,6 +16,9 @@ namespace PortalTi.Api.Models
         [MaxLength(100)]
         public string Rol { get; set; } = string.Empty;
 
+        [MaxLength(100)]
+        public string? Empresa { get; set; }
+
         [Required]
         public int UserId { get; set; }
 

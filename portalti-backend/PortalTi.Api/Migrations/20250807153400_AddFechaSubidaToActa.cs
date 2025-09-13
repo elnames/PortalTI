@@ -11,19 +11,13 @@ namespace PortalTi.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "FechaSubida",
-                table: "Actas",
-                type: "datetime2",
-                nullable: true);
+            // La columna FechaSubida ya fue creada en la migración AddActasTable
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "FechaSubida",
-                table: "Actas");
+            // La columna FechaSubida ya fue creada en la migración AddActasTable
         }
     }
 }

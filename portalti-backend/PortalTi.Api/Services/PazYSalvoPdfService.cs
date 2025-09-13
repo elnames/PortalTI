@@ -251,35 +251,6 @@ namespace PortalTi.Api.Services
             document.Add(new Paragraph(" "));
         }
 
-        private void GenerarAutorizacionYValorHumano(Document document, Font fontNormal, Font fontNegrita)
-        {
-            // Tabla para autorización y valor humano
-            PdfPTable authTable = new PdfPTable(2);
-            authTable.WidthPercentage = 100;
-            authTable.SetWidths(new float[] { 1f, 1f });
-
-            // Autorizado para pago finiquito
-            PdfPCell authCell = new PdfPCell();
-            authCell.Border = Rectangle.NO_BORDER;
-            authCell.HorizontalAlignment = Element.ALIGN_LEFT;
-            authCell.Phrase = new Phrase("Autorizado para pago finiquito", fontNormal);
-            authTable.AddCell(authCell);
-
-            // Valor Humano
-            PdfPCell valorHumanoCell = new PdfPCell();
-            valorHumanoCell.Border = Rectangle.NO_BORDER;
-            valorHumanoCell.HorizontalAlignment = Element.ALIGN_LEFT;
-            var valorHumanoPhrase = new Phrase();
-            valorHumanoPhrase.Add(new Chunk("(5) VALOR HUMANO\n", fontNegrita));
-            valorHumanoPhrase.Add(new Chunk("Se realizó encuesta ", fontNormal));
-            valorHumanoPhrase.Add(new Chunk("☐ SI", fontNormal));
-            valorHumanoPhrase.Add(new Chunk(" ☐ NO", fontNormal));
-            valorHumanoCell.Phrase = valorHumanoPhrase;
-            authTable.AddCell(valorHumanoCell);
-
-            document.Add(authTable);
-            document.Add(new Paragraph(" "));
-        }
 
         private void GenerarObservaciones(Document document, PazYSalvoResponse pazYSalvo, Font fontNormal, Font fontNegrita)
         {
@@ -545,6 +516,432 @@ namespace PortalTi.Api.Services
             }
 
             document.Add(footer);
+        }
+
+        /// <summary>
+        /// Generar PDF de previsualización sin firmas (formato exacto como se muestra en la imagen)
+        /// </summary>
+        public byte[] GenerarPazYSalvoPdfPrevisualizacion(PazYSalvoResponse pazYSalvo, string? empresaEmpleado = null)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                Document document = new Document(PageSize.A4, 15, 15, 15, 15);
+                PdfWriter writer = PdfWriter.GetInstance(document, ms);
+                document.Open();
+
+                // Configurar fuentes
+                var fontTitulo = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12, new BaseColor(0, 0, 0));
+                var fontNormal = FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(0, 0, 0));
+                var fontNegrita = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(0, 0, 0));
+                var fontPequeno = FontFactory.GetFont(FontFactory.HELVETICA, 6, new BaseColor(0, 0, 0));
+
+                // Encabezado con logos y título
+                GenerarHeaderCompleto(document, fontNormal, fontTitulo, fontPequeno);
+
+                // Datos del empleado (formato exacto de la imagen)
+                GenerarDatosEmpleadoCorrecto(document, pazYSalvo, fontNormal, fontNegrita);
+
+                // Sección de firmas por roles
+                GenerarSeccionFirmasPorRoles(document, fontNormal, fontNegrita);
+
+                // Sección Paz y Salvo con empresas
+                GenerarSeccionPazYSalvoEmpresas(document, fontNormal, fontNegrita, empresaEmpleado);
+
+                // Autorización y Valor Humano
+                GenerarAutorizacionYValorHumano(document, fontNormal, fontNegrita);
+
+                // Observaciones
+                GenerarSeccionObservaciones(document, fontNormal, fontNegrita);
+
+                // Cláusulas
+                GenerarSeccionClausulas(document, fontNormal, fontNegrita);
+
+                // Footer
+                GenerarFooterCorrecto(document, pazYSalvo, fontPequeno);
+
+                // Agregar borde alrededor de toda la página
+                AgregarBordePagina(document, writer);
+
+                document.Close();
+                return ms.ToArray();
+            }
+        }
+
+        private void GenerarHeaderCompleto(Document document, Font fontNormal, Font fontTitulo, Font fontPequeno)
+        {
+            // Tabla principal del encabezado
+            var headerTable = new PdfPTable(3);
+            headerTable.WidthPercentage = 100;
+            headerTable.SetWidths(new float[] { 1.8f, 2f, 1.2f });
+            headerTable.SpacingAfter = 5;
+
+            // Logo izquierdo (BUNZL)
+            var logoCell = new PdfPCell();
+            logoCell.Border = Rectangle.NO_BORDER;
+            logoCell.HorizontalAlignment = Element.ALIGN_LEFT;
+            logoCell.VerticalAlignment = Element.ALIGN_TOP;
+            logoCell.Padding = 0;
+            
+            try
+            {
+                string[] logoPaths = {
+                    Path.Combine("wwwroot", "images", "logo.png"),
+                    Path.Combine("wwwroot", "img", "logo.png"),
+                    Path.Combine("wwwroot", "assets", "logo.png"),
+                    "logo.png"
+                };
+
+                Image logo = null;
+                foreach (var logoPath in logoPaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        logo = Image.GetInstance(logoPath);
+                        break;
+                    }
+                }
+
+                if (logo != null)
+                {
+                    logo.ScaleToFit(80, 40);
+                    logoCell.AddElement(logo);
+                }
+                else
+                {
+                    logoCell.AddElement(new Phrase("LOGO", fontNormal));
+                }
+            }
+            catch (Exception)
+            {
+                logoCell.AddElement(new Phrase("LOGO", fontNormal));
+            }
+            
+            headerTable.AddCell(logoCell);
+
+            // Título central
+            var tituloCell = new PdfPCell();
+            tituloCell.Border = Rectangle.NO_BORDER;
+            tituloCell.HorizontalAlignment = Element.ALIGN_CENTER;
+            tituloCell.VerticalAlignment = Element.ALIGN_TOP;
+            tituloCell.Padding = 0;
+            
+            var titulo = new Paragraph("PAZ Y SALVO", fontTitulo);
+            titulo.Alignment = Element.ALIGN_CENTER;
+            tituloCell.AddElement(titulo);
+            
+            var version = new Paragraph("VERSION:1 Ultima actualizacion 01-07-2024", fontPequeno);
+            version.Alignment = Element.ALIGN_CENTER;
+            tituloCell.AddElement(version);
+            
+            headerTable.AddCell(tituloCell);
+
+            // Logos derechos (empresas) - en fila horizontal
+            var logosDerecha = new PdfPCell();
+            logosDerecha.Border = Rectangle.NO_BORDER;
+            logosDerecha.HorizontalAlignment = Element.ALIGN_RIGHT;
+            logosDerecha.VerticalAlignment = Element.ALIGN_TOP;
+            logosDerecha.Padding = 0;
+            
+            // Crear una tabla horizontal para los logos
+            var logosTable = new PdfPTable(8);
+            logosTable.WidthPercentage = 100;
+            logosTable.SetWidths(new float[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f });
+
+            string[] empresas = {
+                "HOSPITALIA", "VICSA SAFETY", "BEST SHOES", "Tecnoboga",
+                "DPS TU NEGOCIO", "CRECE", "B2BWeb", "eCommerce"
+            };
+
+            foreach (var empresa in empresas)
+            {
+                var empresaCell = new PdfPCell(new Phrase(empresa, fontPequeno));
+                empresaCell.Border = Rectangle.NO_BORDER;
+                empresaCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                empresaCell.Padding = 1;
+                logosTable.AddCell(empresaCell);
+            }
+
+            logosDerecha.AddElement(logosTable);
+            
+            headerTable.AddCell(logosDerecha);
+
+            document.Add(headerTable);
+        }
+
+        private void GenerarDatosEmpleadoCorrecto(Document document, PazYSalvoResponse pazYSalvo, Font fontNormal, Font fontNegrita)
+        {
+            // Texto certificación
+            var certificacion = new Paragraph("Certificamos que el(la) señor(a)", fontNormal);
+            certificacion.SpacingAfter = 1;
+            document.Add(certificacion);
+
+            // Nombre del empleado con línea
+            var nombre = new Paragraph(pazYSalvo.UsuarioNombre ?? "N/A", fontNormal);
+            nombre.SpacingAfter = 2;
+            document.Add(nombre);
+
+            // Línea para subrayar el nombre
+            var line = new Paragraph("_________________________________________________", fontNormal);
+            line.SpacingAfter = 4;
+            document.Add(line);
+
+            // RUT
+            var rutText = new Paragraph("Identificado con el rut", fontNormal);
+            rutText.SpacingAfter = 1;
+            document.Add(rutText);
+
+            var rut = new Paragraph(pazYSalvo.UsuarioRut ?? "N/A", fontNormal);
+            rut.SpacingAfter = 2;
+            document.Add(rut);
+
+            var line2 = new Paragraph("_________________________________________________", fontNormal);
+            line2.SpacingAfter = 4;
+            document.Add(line2);
+
+            // Fecha de salida
+            var fechaSalidaText = new Paragraph("Fecha de Salida", fontNormal);
+            fechaSalidaText.SpacingAfter = 1;
+            document.Add(fechaSalidaText);
+
+            var fechaSalida = new Paragraph(pazYSalvo.FechaSalida.ToString("dd-MM-yyyy"), fontNormal);
+            fechaSalida.SpacingAfter = 2;
+            document.Add(fechaSalida);
+
+            var line3 = new Paragraph("_________________________________________________", fontNormal);
+            line3.SpacingAfter = 4;
+            document.Add(line3);
+
+            // Motivo de salida
+            var motivoText = new Paragraph("Motivo Salida", fontNormal);
+            motivoText.SpacingAfter = 1;
+            document.Add(motivoText);
+
+            var motivo = new Paragraph(pazYSalvo.MotivoSalida?.ToUpper() ?? "N/A", fontNormal);
+            motivo.SpacingAfter = 2;
+            document.Add(motivo);
+
+            var line4 = new Paragraph("_________________________________________________", fontNormal);
+            line4.SpacingAfter = 5;
+            document.Add(line4);
+        }
+
+        private void GenerarSeccionFirmasPorRoles(Document document, Font fontNormal, Font fontNegrita)
+        {
+            // Tabla de firmas por roles
+            var table = new PdfPTable(4);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1f, 1f, 1f, 1f });
+            table.SpacingAfter = 5;
+
+            // Headers de la tabla
+            AddCell(table, "Jefe Inmediato (1)", fontNegrita, Element.ALIGN_CENTER, true);
+            AddCell(table, "Contabilidad (2)", fontNegrita, Element.ALIGN_CENTER, true);
+            AddCell(table, "Informatica (3)", fontNegrita, Element.ALIGN_CENTER, true);
+            AddCell(table, "Gerencia Finanzas (4)", fontNegrita, Element.ALIGN_CENTER, true);
+
+            // Recuadros para firmas (sin contenido)
+            for (int i = 0; i < 4; i++)
+            {
+                var cell = new PdfPCell(new Phrase("", fontNormal));
+                cell.FixedHeight = 40;
+                cell.Border = Rectangle.BOX;
+                cell.BorderColor = new BaseColor(0, 0, 0);
+                cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                cell.Padding = 5;
+                table.AddCell(cell);
+            }
+
+            document.Add(table);
+        }
+
+        private void GenerarSeccionPazYSalvoEmpresas(Document document, Font fontNormal, Font fontNegrita, string? empresaEmpleado = null)
+        {
+            // Título de la sección
+            var titulo = new Paragraph("Se encuentra a PAZ y SALVO con la empresa", fontNegrita);
+            titulo.SpacingAfter = 3;
+            document.Add(titulo);
+
+            // Lista de empresas reales del portal (obtenidas de NominaUsuarios)
+            string[] empresas = {
+                "DPS CHILE COMERCIAL LTDA.",
+                "VICSA SAFETY COMERCIAL LTDA.",
+                "VICSA Shanghai",
+                "VICSA Uruguay",
+                "B2B WEB DISTRIBUCAO DE PRODUCTOS",
+                "TECNO BOGA COMERCIAL LTDA.",
+                "HOSPITALIA"
+            };
+
+            foreach (var empresa in empresas)
+            {
+                // Determinar si esta empresa debe estar marcada
+                bool isMarked = !string.IsNullOrEmpty(empresaEmpleado) && 
+                               empresa.Equals(empresaEmpleado, StringComparison.OrdinalIgnoreCase);
+                
+                // Crear checkbox cuadrado real
+                var empresaLine = new Paragraph();
+                
+                // Agregar checkbox cuadrado (☐ para vacío, ☑ para marcado)
+                var checkbox = isMarked ? "☑" : "☐";
+                empresaLine.Add(new Chunk(checkbox, fontNormal));
+                empresaLine.Add(new Chunk($" {empresa}", fontNormal));
+                
+                empresaLine.SpacingAfter = 1;
+                document.Add(empresaLine);
+            }
+
+            document.Add(new Paragraph(" ", fontNormal)); // Espacio
+        }
+
+        private void GenerarAutorizacionYValorHumano(Document document, Font fontNormal, Font fontNegrita)
+        {
+            // Tabla para autorización y valor humano
+            var table = new PdfPTable(2);
+            table.WidthPercentage = 100;
+            table.SetWidths(new float[] { 1f, 1f });
+            table.SpacingAfter = 5;
+
+            // Lado izquierdo: Autorización para pago finiquito
+            var autorizacionCell = new PdfPCell();
+            autorizacionCell.Border = Rectangle.NO_BORDER;
+            autorizacionCell.HorizontalAlignment = Element.ALIGN_LEFT;
+            autorizacionCell.VerticalAlignment = Element.ALIGN_TOP;
+            autorizacionCell.Padding = 5;
+
+            var autorizacionText = new Paragraph("Autorizado para pago finiquito", fontNormal);
+            autorizacionText.SpacingAfter = 2;
+            autorizacionCell.AddElement(autorizacionText);
+
+            // Línea para firma
+            var lineaAutorizacion = new Paragraph("_________________________________________________", fontNormal);
+            autorizacionCell.AddElement(lineaAutorizacion);
+
+            table.AddCell(autorizacionCell);
+
+            // Lado derecho: Valor Humano
+            var valorHumanoCell = new PdfPCell();
+            valorHumanoCell.Border = Rectangle.NO_BORDER;
+            valorHumanoCell.HorizontalAlignment = Element.ALIGN_LEFT;
+            valorHumanoCell.VerticalAlignment = Element.ALIGN_TOP;
+            valorHumanoCell.Padding = 5;
+
+            var valorHumanoTitulo = new Paragraph("(5) VALOR HUMANO", fontNegrita);
+            valorHumanoTitulo.SpacingAfter = 2;
+            valorHumanoCell.AddElement(valorHumanoTitulo);
+
+            var encuestaText = new Paragraph("Se realizo encuesta", fontNormal);
+            encuestaText.SpacingAfter = 2;
+            valorHumanoCell.AddElement(encuestaText);
+
+            var siText = new Paragraph("☐ SI", fontNormal);
+            siText.SpacingAfter = 0;
+            valorHumanoCell.AddElement(siText);
+
+            var noText = new Paragraph("☐ NO", fontNormal);
+            valorHumanoCell.AddElement(noText);
+
+            table.AddCell(valorHumanoCell);
+
+            document.Add(table);
+            
+            // Línea horizontal que separa las dos secciones
+            var lineaHorizontal = new Paragraph("_____________________________________________________________________________", fontNormal);
+            lineaHorizontal.SpacingAfter = 5;
+            document.Add(lineaHorizontal);
+        }
+
+        private void GenerarSeccionObservaciones(Document document, Font fontNormal, Font fontNegrita)
+        {
+            // Título de observaciones
+            var titulo = new Paragraph("OBSERVACIONES", fontNegrita);
+            titulo.SpacingAfter = 3;
+            document.Add(titulo);
+
+            // Solo las líneas para observaciones adicionales (sin texto de ejemplo)
+
+            // Líneas para observaciones adicionales
+            for (int i = 0; i < 3; i++)
+            {
+                var linea = new Paragraph("_________________________________________________", fontNormal);
+                document.Add(linea);
+                document.Add(new Paragraph(" ", fontNormal)); // Espacio
+            }
+        }
+
+        private void GenerarSeccionClausulas(Document document, Font fontNormal, Font fontNegrita)
+        {
+            // Título de cláusulas
+            var titulo = new Paragraph("CLAUSULAS:", fontNegrita);
+            titulo.SpacingAfter = 3;
+            document.Add(titulo);
+
+            // Lista de cláusulas
+            string[] clausulas = {
+                "(1) INFORMES, TRABAJOS PENDIENTES, DOCUMENTOS CONFIDENCIALES",
+                "(2) ANTICIPOS, CAJAS CHICAS, PRESTAMOS, ETC",
+                "(3) HERRAMIENTAS DE COMPUTACION, CELULARES, CONTRASEÑAS, BAJAS DE SISTEMA, ENTRE OTROS",
+                "(4) INFORMES PENDIENTES , DAR DE BAJA EN INDICADORES Y BANCOS",
+                "(5)DADO DE BAJA EN ERP NOMINA, ENCUESTA DE SALIDA"
+            };
+
+            foreach (var clausula in clausulas)
+            {
+                var clausulaText = new Paragraph(clausula, fontNormal);
+                clausulaText.SpacingAfter = 1;
+                document.Add(clausulaText);
+            }
+
+            document.Add(new Paragraph(" ", fontNormal)); // Espacio
+        }
+
+        private void AgregarBordePagina(Document document, PdfWriter writer)
+        {
+            // Obtener el contenido de la página
+            var pageSize = document.PageSize;
+            
+            // Crear un rectángulo que cubra toda la página con un margen pequeño
+            var rect = new iTextSharp.text.Rectangle(
+                pageSize.Left + 10, 
+                pageSize.Bottom + 10, 
+                pageSize.Right - 10, 
+                pageSize.Top - 10
+            );
+            
+            // Agregar el borde usando el canvas del writer
+            var canvas = writer.DirectContent;
+            canvas.SetLineWidth(1.5f);
+            canvas.SetColorStroke(new BaseColor(0, 0, 0));
+            canvas.Rectangle(rect.Left, rect.Bottom, rect.Width, rect.Height);
+            canvas.Stroke();
+        }
+
+        private void GenerarFooterCorrecto(Document document, PazYSalvoResponse pazYSalvo, Font fontPequeno)
+        {
+            var footer = new Paragraph();
+            footer.Add(new Chunk($"Paz y Salvo #{pazYSalvo.Id} – Previsualización", fontPequeno));
+            footer.Add(new Chunk($"\nFecha de generación: {DateTime.Now:dd/MM/yyyy HH:mm}", fontPequeno));
+            document.Add(footer);
+        }
+
+        private void AddCell(PdfPTable table, string text, Font font, int alignment, bool hasBorder)
+        {
+            var cell = new PdfPCell(new Phrase(text, font));
+            cell.HorizontalAlignment = alignment;
+            cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+            cell.Padding = 5;
+            
+            if (hasBorder)
+            {
+                cell.Border = Rectangle.BOX;
+                cell.BorderColor = new BaseColor(0, 0, 0);
+            }
+            else
+            {
+                cell.Border = Rectangle.NO_BORDER;
+            }
+            
+            table.AddCell(cell);
         }
     }
 }

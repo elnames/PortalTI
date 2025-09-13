@@ -23,11 +23,6 @@ GO
 PRINT 'Eliminando tablas existentes...'
 
 -- Tablas dependientes primero
-IF OBJECT_ID('ChatArchivos', 'U') IS NOT NULL DROP TABLE [ChatArchivos]
-IF OBJECT_ID('ChatMensajes', 'U') IS NOT NULL DROP TABLE [ChatMensajes]
-IF OBJECT_ID('ChatConversaciones', 'U') IS NOT NULL DROP TABLE [ChatConversaciones]
-IF OBJECT_ID('CalendarEventAssignees', 'U') IS NOT NULL DROP TABLE [CalendarEventAssignees]
-IF OBJECT_ID('CalendarEvents', 'U') IS NOT NULL DROP TABLE [CalendarEvents]
 IF OBJECT_ID('ArchivosTickets', 'U') IS NOT NULL DROP TABLE [ArchivosTickets]
 IF OBJECT_ID('ComentariosTickets', 'U') IS NOT NULL DROP TABLE [ComentariosTickets]
 IF OBJECT_ID('Actas', 'U') IS NOT NULL DROP TABLE [Actas]
@@ -207,44 +202,6 @@ CREATE TABLE [ArchivosTickets] (
 )
 GO
 
--- Tabla de conversaciones de chat
-CREATE TABLE [ChatConversaciones] (
-    [Id] int IDENTITY(1,1) NOT NULL,
-    [Titulo] nvarchar(200) NOT NULL,
-    [Descripcion] nvarchar(500) NULL,
-    [Estado] nvarchar(20) NOT NULL DEFAULT 'Activa',
-    [FechaCreacion] datetime2 NOT NULL DEFAULT GETDATE(),
-    [FechaCierre] datetime2 NULL,
-    [UsuarioId] int NOT NULL,
-    [SoporteId] int NULL,
-    [TicketId] int NULL,
-    CONSTRAINT [PK_ChatConversaciones] PRIMARY KEY ([Id])
-)
-GO
-
--- Tabla de mensajes de chat
-CREATE TABLE [ChatMensajes] (
-    [Id] int IDENTITY(1,1) NOT NULL,
-    [ConversacionId] int NOT NULL,
-    [Contenido] nvarchar(max) NOT NULL,
-    [FechaCreacion] datetime2 NOT NULL DEFAULT GETDATE(),
-    [EsInterno] bit NOT NULL DEFAULT 0,
-    [EsLeido] bit NOT NULL DEFAULT 0,
-    [FechaLectura] datetime2 NULL,
-    [CreadoPorId] int NULL,
-    CONSTRAINT [PK_ChatMensajes] PRIMARY KEY ([Id])
-)
-GO
-
--- Tabla de archivos de chat
-CREATE TABLE [ChatArchivos] (
-    [Id] int IDENTITY(1,1) NOT NULL,
-    [UsuarioId] int NOT NULL,
-    [ConversacionId] int NOT NULL,
-    [FechaArchivo] datetime2 NOT NULL DEFAULT GETDATE(),
-    CONSTRAINT [PK_ChatArchivos] PRIMARY KEY ([Id])
-)
-GO
 
 -- Tabla de software
 CREATE TABLE [Software] (
@@ -444,28 +401,6 @@ CREATE TABLE [SystemConfigurations] (
 )
 GO
 
--- Tabla de eventos de calendario
-CREATE TABLE [CalendarEvents] (
-    [Id] int IDENTITY(1,1) NOT NULL,
-    [Title] nvarchar(150) NOT NULL,
-    [Description] nvarchar(1000) NULL,
-    [Start] datetime2 NOT NULL,
-    [End] datetime2 NULL,
-    [AllDay] bit NOT NULL DEFAULT 0,
-    [Color] nvarchar(20) NULL,
-    [CreatedById] int NOT NULL,
-    [CreatedAt] datetime2 NOT NULL DEFAULT GETDATE(),
-    CONSTRAINT [PK_CalendarEvents] PRIMARY KEY ([Id])
-)
-GO
-
--- Tabla de asignados a eventos de calendario
-CREATE TABLE [CalendarEventAssignees] (
-    [EventId] int NOT NULL,
-    [UserId] int NOT NULL,
-    CONSTRAINT [PK_CalendarEventAssignees] PRIMARY KEY ([EventId], [UserId])
-)
-GO
 
 -- =====================================================
 -- 3. CREAR FOREIGN KEYS
@@ -526,36 +461,6 @@ ALTER TABLE [ArchivosTickets] ADD CONSTRAINT [FK_ArchivosTickets_AuthUsers_Subid
     FOREIGN KEY ([SubidoPorId]) REFERENCES [AuthUsers] ([Id]) ON DELETE SET NULL
 GO
 
--- Foreign keys para ChatConversaciones
-ALTER TABLE [ChatConversaciones] ADD CONSTRAINT [FK_ChatConversaciones_AuthUsers_UsuarioId] 
-    FOREIGN KEY ([UsuarioId]) REFERENCES [AuthUsers] ([Id]) ON DELETE CASCADE
-GO
-
-ALTER TABLE [ChatConversaciones] ADD CONSTRAINT [FK_ChatConversaciones_AuthUsers_SoporteId] 
-    FOREIGN KEY ([SoporteId]) REFERENCES [AuthUsers] ([Id]) ON DELETE NO ACTION
-GO
-
-ALTER TABLE [ChatConversaciones] ADD CONSTRAINT [FK_ChatConversaciones_Tickets_TicketId] 
-    FOREIGN KEY ([TicketId]) REFERENCES [Tickets] ([Id]) ON DELETE SET NULL
-GO
-
--- Foreign keys para ChatMensajes
-ALTER TABLE [ChatMensajes] ADD CONSTRAINT [FK_ChatMensajes_ChatConversaciones_ConversacionId] 
-    FOREIGN KEY ([ConversacionId]) REFERENCES [ChatConversaciones] ([Id]) ON DELETE CASCADE
-GO
-
-ALTER TABLE [ChatMensajes] ADD CONSTRAINT [FK_ChatMensajes_AuthUsers_CreadoPorId] 
-    FOREIGN KEY ([CreadoPorId]) REFERENCES [AuthUsers] ([Id]) ON DELETE NO ACTION
-GO
-
--- Foreign keys para ChatArchivos
-ALTER TABLE [ChatArchivos] ADD CONSTRAINT [FK_ChatArchivos_AuthUsers_UsuarioId] 
-    FOREIGN KEY ([UsuarioId]) REFERENCES [AuthUsers] ([Id]) ON DELETE CASCADE
-GO
-
-ALTER TABLE [ChatArchivos] ADD CONSTRAINT [FK_ChatArchivos_ChatConversaciones_ConversacionId] 
-    FOREIGN KEY ([ConversacionId]) REFERENCES [ChatConversaciones] ([Id]) ON DELETE NO ACTION
-GO
 
 -- Foreign keys para Software
 ALTER TABLE [Software] ADD CONSTRAINT [FK_Software_Activos_ActivoId] 
@@ -615,19 +520,6 @@ ALTER TABLE [SystemConfigurations] ADD CONSTRAINT [FK_SystemConfigurations_AuthU
     FOREIGN KEY ([ModifiedByUserId]) REFERENCES [AuthUsers] ([Id]) ON DELETE SET NULL
 GO
 
--- Foreign keys para CalendarEvents
-ALTER TABLE [CalendarEvents] ADD CONSTRAINT [FK_CalendarEvents_AuthUsers_CreatedById] 
-    FOREIGN KEY ([CreatedById]) REFERENCES [AuthUsers] ([Id]) ON DELETE CASCADE
-GO
-
--- Foreign keys para CalendarEventAssignees
-ALTER TABLE [CalendarEventAssignees] ADD CONSTRAINT [FK_CalendarEventAssignees_CalendarEvents_EventId] 
-    FOREIGN KEY ([EventId]) REFERENCES [CalendarEvents] ([Id]) ON DELETE CASCADE
-GO
-
-ALTER TABLE [CalendarEventAssignees] ADD CONSTRAINT [FK_CalendarEventAssignees_AuthUsers_UserId] 
-    FOREIGN KEY ([UserId]) REFERENCES [AuthUsers] ([Id]) ON DELETE NO ACTION
-GO
 
 -- =====================================================
 -- 4. CREAR ÍNDICES PARA OPTIMIZACIÓN
@@ -744,35 +636,6 @@ GO
 CREATE INDEX [IX_ArchivosTickets_SubidoPorId] ON [ArchivosTickets] ([SubidoPorId])
 GO
 
--- Índices para ChatConversaciones
-CREATE INDEX [IX_ChatConversaciones_UsuarioId] ON [ChatConversaciones] ([UsuarioId])
-GO
-
-CREATE INDEX [IX_ChatConversaciones_SoporteId] ON [ChatConversaciones] ([SoporteId])
-GO
-
-CREATE INDEX [IX_ChatConversaciones_Estado] ON [ChatConversaciones] ([Estado])
-GO
-
-CREATE INDEX [IX_ChatConversaciones_TicketId] ON [ChatConversaciones] ([TicketId])
-GO
-
--- Índices para ChatMensajes
-CREATE INDEX [IX_ChatMensajes_ConversacionId] ON [ChatMensajes] ([ConversacionId])
-GO
-
-CREATE INDEX [IX_ChatMensajes_CreadoPorId] ON [ChatMensajes] ([CreadoPorId])
-GO
-
-CREATE INDEX [IX_ChatMensajes_FechaCreacion] ON [ChatMensajes] ([FechaCreacion])
-GO
-
-CREATE INDEX [IX_ChatMensajes_EsLeido] ON [ChatMensajes] ([EsLeido])
-GO
-
--- Índice compuesto específico del DbContext
-CREATE INDEX [IX_ChatMensajes_ConversacionId_FechaCreacion] ON [ChatMensajes] ([ConversacionId], [FechaCreacion])
-GO
 
 -- Índices para Software
 CREATE INDEX [IX_Software_ActivoId] ON [Software] ([ActivoId])
@@ -929,15 +792,6 @@ GO
 CREATE INDEX [IX_SystemConfigurations_Category] ON [SystemConfigurations] ([Category])
 GO
 
--- Índices para CalendarEvents
-CREATE INDEX [IX_CalendarEvents_CreatedById] ON [CalendarEvents] ([CreatedById])
-GO
-
-CREATE INDEX [IX_CalendarEvents_Start] ON [CalendarEvents] ([Start])
-GO
-
-CREATE INDEX [IX_CalendarEvents_End] ON [CalendarEvents] ([End])
-GO
 
 -- =====================================================
 -- 5. CREAR USUARIO ADMIN INICIAL
@@ -1001,9 +855,9 @@ PRINT '====================================================='
 PRINT 'CREACIÓN DE BASE DE DATOS COMPLETADA'
 PRINT '====================================================='
 PRINT 'Base de datos: PortalTi'
-PRINT 'Tablas creadas: 27 (incluye sistema Paz y Salvo unificado)'
-PRINT 'Foreign keys: 30+'
-PRINT 'Índices: 70+'
+PRINT 'Tablas creadas: 22 (incluye sistema Paz y Salvo unificado)'
+PRINT 'Foreign keys: 24+'
+PRINT 'Índices: 60+'
 PRINT 'Usuario admin: admin (password: admin123)'
 PRINT 'Configuraciones: 10'
 PRINT 'Sistema Paz y Salvo: Completamente funcional'

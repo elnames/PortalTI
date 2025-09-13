@@ -315,7 +315,13 @@ export const pazYSalvoAPI = {
     preview: (id) => api.get(`/pazysalvo/${id}/pdf`, { responseType: 'blob' }),
     getActivosPendientes: (usuarioId) => api.get(`/pazysalvo/activos-pendientes/${usuarioId}`),
     getActivosPendientesTodos: () => api.get('/pazysalvo/activos-pendientes-todos'),
-    marcarActivoDevuelto: (data) => api.post('/pazysalvo/marcar-activo-devuelto', data)
+    marcarActivoDevuelto: (data) => api.post('/pazysalvo/marcar-activo-devuelto', data),
+
+    // Delegaciones
+    getDelegations: () => api.get('/pazysalvoroles/delegations'),
+    createDelegation: (data) => api.post('/pazysalvoroles/delegations', data),
+    revokeDelegation: (delegationId) => api.delete(`/pazysalvoroles/delegations/${delegationId}`),
+    getDelegationUsers: () => api.get('/pazysalvoroles/delegation-users')
 };
 
 export const systemConfigAPI = {

@@ -39,6 +39,7 @@ export default function PazYSalvoSignatureModal({
         return mapping[role] || role;
     };
 
+
     // Inicializar estado del checklist
     useEffect(() => {
         if (config?.checklistItems && isOpen) {
@@ -78,6 +79,13 @@ export default function PazYSalvoSignatureModal({
         try {
             const token = localStorage.getItem('token');
             const backendRole = mapRoleToBackend(userRole);
+            
+            // Obtener el userId del objeto user almacenado
+            const storedUser = localStorage.getItem('user');
+            const userId = storedUser ? JSON.parse(storedUser).id : 0;
+            
+            console.log('Enviando firma con userId:', userId);
+            
             const response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvo.id}/firmas/${backendRole}/sign`, {
                 method: 'POST',
                 headers: {
@@ -85,13 +93,30 @@ export default function PazYSalvoSignatureModal({
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    comentario: observations.trim() || undefined
+                    ActorUserId: userId,
+                    Comentario: observations.trim() || undefined
                 })
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al firmar el documento');
+                let errorMessage = 'Error al firmar el documento';
+                try {
+                    // Clonar la respuesta antes de leer el cuerpo
+                    const responseClone = response.clone();
+                    const errorData = await responseClone.json();
+                    errorMessage = errorData.message || errorMessage;
+                } catch (jsonError) {
+                    // Si no se puede parsear como JSON, usar el texto de respuesta
+                    try {
+                        const responseText = await response.text();
+                        console.error('Error response (not JSON):', responseText);
+                        errorMessage = `Error del servidor: ${response.status} - ${response.statusText}`;
+                    } catch (textError) {
+                        console.error('Error reading response text:', textError);
+                        errorMessage = `Error del servidor: ${response.status} - ${response.statusText}`;
+                    }
+                }
+                throw new Error(errorMessage);
             }
 
             alertSuccess(`Documento firmado exitosamente como ${userRole}`);
@@ -115,15 +140,20 @@ export default function PazYSalvoSignatureModal({
         try {
             const token = localStorage.getItem('token');
             const backendRole = mapRoleToBackend(userRole);
-            const response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvo.id}/rechazar`, {
+            
+            // Obtener el userId del objeto user almacenado
+            const storedUser = localStorage.getItem('user');
+            const userId = storedUser ? JSON.parse(storedUser).id : 0;
+            
+            const response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvo.id}/firmas/${backendRole}/reject`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    rol: backendRole,
-                    comentario: observations.trim()
+                    ActorUserId: userId,
+                    Motivo: observations.trim()
                 })
             });
 
@@ -147,15 +177,52 @@ export default function PazYSalvoSignatureModal({
         try {
             const token = localStorage.getItem('token');
             const backendRole = mapRoleToBackend(userRole);
-            const response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvo.id}/pdf`, {
+            
+            // Verificar si el documento ya está firmado por este rol
+            const firmas = pazYSalvo.firmas || [];
+            const firmaActual = firmas.find(f => f.rol === backendRole);
+            
+            if (!firmaActual || firmaActual.estado !== 'Firmado') {
+                alertError('Debe firmar el documento antes de poder descargar el PDF');
+                return;
+            }
+
+            // Primero intentar descargar PDF final si está disponible
+            let response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvo.id}/pdf`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
 
+            // Si no está disponible el PDF final, generar PDF firmado por rol
+            if (!response.ok && response.status === 404) {
+                response = await fetch(`${API_BASE_URL}/pazysalvo/${pazYSalvo.id}/pdf/${backendRole}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            }
+
             if (!response.ok) {
-                throw new Error('Error al generar el PDF firmado');
+                let errorMessage = 'Error al generar el PDF firmado';
+                try {
+                    // Clonar la respuesta antes de leer el cuerpo
+                    const responseClone = response.clone();
+                    const errorData = await responseClone.json();
+                    errorMessage = errorData.message || errorMessage;
+                } catch (jsonError) {
+                    try {
+                        const responseText = await response.text();
+                        console.error('Error response (not JSON):', responseText);
+                        errorMessage = `Error del servidor: ${response.status} - ${response.statusText}`;
+                    } catch (textError) {
+                        console.error('Error reading response text:', textError);
+                        errorMessage = `Error del servidor: ${response.status} - ${response.statusText}`;
+                    }
+                }
+                throw new Error(errorMessage);
             }
 
             const blob = await response.blob();
@@ -171,7 +238,7 @@ export default function PazYSalvoSignatureModal({
             alertSuccess('PDF firmado descargado exitosamente');
         } catch (error) {
             console.error('Error al descargar PDF:', error);
-            alertError('Error al descargar el PDF firmado');
+            alertError(`Error al descargar el PDF firmado: ${error.message}`);
         }
     };
 
@@ -356,7 +423,8 @@ export default function PazYSalvoSignatureModal({
                             {/* Botón de descarga PDF firmado */}
                             <button
                                 onClick={handleDownloadSignedPdf}
-                                className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                                disabled={!allChecked || loading}
+                                className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Download className="h-4 w-4" />
                                 <span>Descargar PDF Firmado</span>

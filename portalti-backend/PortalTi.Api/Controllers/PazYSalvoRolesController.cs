@@ -36,19 +36,28 @@ namespace PortalTi.Api.Controllers
                             pra.Id,
                             pra.Departamento,
                             pra.Rol,
+                            pra.Empresa,
                             pra.UserId,
                             au.Username,
                             au.Username as Email,
-                            au.Username as Nombre,
-                            au.Username as Apellido,
+                            COALESCE(nu.Nombre, au.Username) as Nombre,
+                            COALESCE(nu.Apellido, '') as Apellido,
                             au.Role as UserRole,
                             pra.IsActive,
                             pra.CreatedAt
                         FROM PazYSalvoRoleAssignments pra
                         INNER JOIN AuthUsers au ON pra.UserId = au.Id
+                        LEFT JOIN NominaUsuarios nu ON au.Username = nu.Email
                         WHERE pra.IsActive = 1 AND au.IsActive = 1
                         ORDER BY pra.Departamento, pra.Rol")
                     .ToListAsync();
+
+                _logger.LogInformation("Asignaciones obtenidas: {Count}", assignments.Count);
+                foreach (var assignment in assignments.Take(3))
+                {
+                    _logger.LogInformation("Assignment: Id={Id}, Empresa={Empresa}, Nombre={Nombre}, Apellido={Apellido}", 
+                        assignment.Id, assignment.Empresa, assignment.Nombre, assignment.Apellido);
+                }
 
                 return Ok(assignments);
             }
@@ -104,39 +113,92 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
-                var users = await _context.NominaUsuarios
+                // Obtener todos los usuarios de nómina que tengan email
+                var nominaUsers = await _context.NominaUsuarios
+                    .Where(u => !string.IsNullOrEmpty(u.Email))
                     .Select(u => new
                     {
-                        // Usar el ID del AuthUser en lugar del NominaUsuario
-                        Id = _context.AuthUsers
-                            .Where(au => au.Username == u.Email && au.IsActive)
-                            .Select(au => au.Id)
-                            .FirstOrDefault(),
+                        NominaId = u.Id,
                         u.Nombre,
                         u.Apellido,
                         u.Email,
                         u.Departamento,
-                        Cargo = "Empleado", // Valor por defecto ya que no existe en NominaUsuario
-                        u.Rut,
-                        // Obtener el rol del AuthUser correspondiente
-                        Role = _context.AuthUsers
-                            .Where(au => au.Username == u.Email)
-                            .Select(au => au.Role)
-                            .FirstOrDefault() ?? "usuario"
-                    })
-                    .Where(u => u.Id > 0) // Solo incluir usuarios que tienen AuthUser
-                    .Select(u => new
-                    {
-                        Id = u.Id, // Ya es int
-                        u.Nombre,
-                        u.Apellido,
-                        u.Email,
-                        u.Departamento,
-                        u.Cargo,
-                        u.Rut,
-                        u.Role
+                        u.Rut
                     })
                     .ToListAsync();
+
+                _logger.LogInformation("Usuarios de nómina encontrados: {Count}", nominaUsers.Count);
+                
+                // Obtener todos los AuthUsers activos
+                var authUsers = await _context.AuthUsers
+                    .Where(au => au.IsActive)
+                    .Select(au => new
+                    {
+                        au.Id,
+                        au.Username,
+                        au.Role
+                    })
+                    .ToListAsync();
+
+                _logger.LogInformation("=== RESUMEN ===");
+                _logger.LogInformation("Usuarios de nómina: {Count}", nominaUsers.Count);
+                _logger.LogInformation("AuthUsers activos: {Count}", authUsers.Count);
+                
+                // Mostrar algunos ejemplos
+                _logger.LogInformation("=== EJEMPLOS NÓMINA ===");
+                foreach (var nu in nominaUsers.Take(3))
+                {
+                    _logger.LogInformation("Nómina - Email: '{Email}', Nombre: {Nombre}", nu.Email, nu.Nombre);
+                }
+                
+                _logger.LogInformation("=== EJEMPLOS AUTHUSERS ===");
+                foreach (var au in authUsers.Take(3))
+                {
+                    _logger.LogInformation("AuthUser - Username: '{Username}', Role: {Role}", au.Username, au.Role);
+                }
+
+                // Combinar los datos - usar solo NominaId como ID principal para evitar conflictos
+                var users = nominaUsers.Select(nu => 
+                {
+                    var authUser = authUsers.FirstOrDefault(au => au.Username == nu.Email);
+                    
+                    // Logging detallado para debugging
+                    if (authUser == null)
+                    {
+                        _logger.LogWarning("NO MATCH - Email nómina: '{Email}' no tiene AuthUser correspondiente", nu.Email);
+                        _logger.LogWarning("AuthUsers disponibles: {AuthUsernames}", string.Join(", ", authUsers.Select(au => au.Username)));
+                    }
+                    else
+                    {
+                        _logger.LogInformation("MATCH ENCONTRADO - Email nómina: '{Email}' -> AuthUser ID: {AuthUserId}", nu.Email, authUser.Id);
+                    }
+                    
+                    return new
+                    {
+                        Id = nu.NominaId, // Usar siempre NominaId como ID principal
+                        authUserId = authUser?.Id, // ID del AuthUser separado (minúscula)
+                        nominaId = nu.NominaId,
+                        nombre = nu.Nombre,
+                        apellido = nu.Apellido,
+                        email = nu.Email,
+                        departamento = nu.Departamento,
+                        cargo = "Empleado",
+                        rut = nu.Rut,
+                        role = authUser?.Role ?? "usuario",
+                        hasAuthUser = authUser != null // minúscula para consistencia
+                    };
+                })
+                .OrderBy(u => u.nombre)
+                .ThenBy(u => u.apellido)
+                .ToList();
+
+                var usersWithAuth = users.Count(u => u.hasAuthUser);
+                var usersWithoutAuth = users.Count - usersWithAuth;
+                
+                _logger.LogInformation("=== RESULTADO FINAL ===");
+                _logger.LogInformation("Total usuarios: {Count}", users.Count);
+                _logger.LogInformation("Con AuthUser: {Count}", usersWithAuth);
+                _logger.LogInformation("Sin AuthUser: {Count}", usersWithoutAuth);
 
                 return Ok(users);
             }
@@ -156,22 +218,20 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
-                _logger.LogInformation("Iniciando creación de asignación de rol. UserId: {UserId}, Departamento: {Departamento}, Rol: {Rol}", 
+                _logger.LogInformation("Iniciando creación de asignación de rol. AuthUserId: {AuthUserId}, Departamento: {Departamento}, Rol: {Rol}", 
                     request.UserId, request.Departamento, request.Rol);
 
-                // Verificar que el usuario existe en AuthUsers
+                // Buscar el AuthUser directamente por ID (el frontend envía authUserId)
                 var authUser = await _context.AuthUsers
                     .FirstOrDefaultAsync(u => u.Id == request.UserId && u.IsActive);
 
                 if (authUser == null)
                 {
-                    _logger.LogWarning("Usuario no tiene cuenta de acceso activa. UserId: {UserId}", request.UserId);
+                    _logger.LogWarning("Usuario no tiene cuenta de acceso activa. AuthUserId: {AuthUserId}", request.UserId);
                     return BadRequest("Usuario no tiene cuenta de acceso activa");
                 }
 
-                _logger.LogInformation("AuthUser encontrado. Id: {AuthUserId}, Username: {Username}", authUser.Id, authUser.Username);
-
-                // Obtener el usuario de nómina correspondiente
+                // Obtener el usuario de nómina por email para validación
                 var nominaUser = await _context.NominaUsuarios
                     .FirstOrDefaultAsync(u => u.Email == authUser.Username);
 
@@ -181,21 +241,23 @@ namespace PortalTi.Api.Controllers
                     return BadRequest("Usuario no encontrado en nómina");
                 }
 
+                _logger.LogInformation("AuthUser encontrado. Id: {AuthUserId}, Username: {Username}", authUser.Id, authUser.Username);
                 _logger.LogInformation("Usuario encontrado en nómina: {Email}, Departamento: {Departamento}", nominaUser.Email, nominaUser.Departamento);
 
-                // Verificar que no existe ya una asignación activa para este rol y departamento
+                // Verificar que no existe ya una asignación activa para este rol, departamento y empresa
                 _logger.LogInformation("Verificando asignaciones existentes...");
                 var existingAssignment = await _context.PazYSalvoRoleAssignments
                     .AnyAsync(a => a.Departamento == request.Departamento && 
                                   a.Rol == request.Rol && 
+                                  a.Empresa == nominaUser.Empresa &&
                                   a.IsActive);
 
                 _logger.LogInformation("Asignaciones existentes encontradas: {Exists}", existingAssignment);
 
                 if (existingAssignment)
                 {
-                    _logger.LogWarning("Ya existe una asignación activa para este rol y departamento");
-                    return BadRequest("Ya existe una asignación activa para este rol y departamento");
+                    _logger.LogWarning("Ya existe una asignación activa para este rol, departamento y empresa");
+                    return BadRequest($"Ya existe una asignación activa para el rol {request.Rol} en el departamento {request.Departamento} para la empresa {nominaUser.Empresa}");
                 }
 
                 // Crear la asignación de subrol (no cambiar el rol principal)
@@ -204,6 +266,7 @@ namespace PortalTi.Api.Controllers
                 {
                     Departamento = request.Departamento,
                     Rol = request.Rol,
+                    Empresa = nominaUser.Empresa, // Asignar empresa del usuario de nómina
                     UserId = request.UserId,
                     IsActive = true,
                     CreatedAt = DateTime.Now
@@ -306,14 +369,33 @@ namespace PortalTi.Api.Controllers
 
                 if (authUser != null)
                 {
-                    // Si ya existe, NO cambiar el rol principal, solo crear la asignación de subrol
-                    // El rol principal se mantiene (admin, soporte, usuario)
-                    return Ok(new { message = "Usuario ya existe, se creará la asignación de subrol", userId = authUser.Id });
+                    // Si ya existe, crear la asignación de subrol de JefeInmediato
+                    var existingAssignment = await _context.PazYSalvoRoleAssignments
+                        .FirstOrDefaultAsync(ra => ra.UserId == authUser.Id && ra.Rol == "JefeInmediato" && ra.IsActive);
+                    
+                    if (existingAssignment == null)
+                    {
+                        var jefeAssignment = new PazYSalvoRoleAssignment
+                        {
+                            UserId = authUser.Id,
+                            Departamento = usuario.Departamento ?? "Sin departamento",
+                            Rol = "JefeInmediato",
+                            IsActive = true,
+                            CreatedAt = DateTime.Now
+                        };
+                        
+                        _context.PazYSalvoRoleAssignments.Add(jefeAssignment);
+                        await _context.SaveChangesAsync();
+                        
+                        _logger.LogInformation("Subrol JefeInmediato asignado al usuario existente {UserId}", authUser.Id);
+                    }
+                    
+                    return Ok(new { message = "Usuario ya existe, subrol JefeInmediato asignado", userId = authUser.Id });
                 }
 
-                // Crear nuevo AuthUser
-                var tempPassword = "TempPassword123!";
-                var passwordHash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(tempPassword));
+                // Crear nuevo AuthUser con contraseña "admin"
+                var defaultPassword = "admin";
+                var passwordHash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(defaultPassword));
                 var passwordSalt = new byte[32]; // Salt aleatorio
                 using (var rng = RandomNumberGenerator.Create())
                 {
@@ -323,7 +405,7 @@ namespace PortalTi.Api.Controllers
                 var newAuthUser = new AuthUser
                 {
                     Username = usuario.Email,
-                    PasswordHash = passwordHash, // Contraseña temporal
+                    PasswordHash = passwordHash, // Contraseña "admin"
                     PasswordSalt = passwordSalt,
                     Role = "usuario", // Rol principal por defecto, no subrol
                     IsActive = true,
@@ -333,7 +415,22 @@ namespace PortalTi.Api.Controllers
                 _context.AuthUsers.Add(newAuthUser);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Jefe directo creado exitosamente", userId = newAuthUser.Id });
+                // Crear asignación de subrol JefeInmediato
+                var newAssignment = new PazYSalvoRoleAssignment
+                {
+                    UserId = newAuthUser.Id,
+                    Departamento = usuario.Departamento ?? "Sin departamento",
+                    Rol = "JefeInmediato",
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+                
+                _context.PazYSalvoRoleAssignments.Add(newAssignment);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Jefe directo creado con subrol JefeInmediato. UserId: {UserId}, Password: admin", newAuthUser.Id);
+
+                return Ok(new { message = "Jefe directo creado exitosamente con subrol JefeInmediato. Contraseña: admin", userId = newAuthUser.Id });
             }
             catch (Exception ex)
             {
@@ -385,8 +482,29 @@ namespace PortalTi.Api.Controllers
             {
                 var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 
-                // Por ahora devolvemos una lista vacía ya que el sistema de delegaciones no está completamente implementado
-                var delegations = new List<object>();
+                var delegations = await _context.PazYSalvoDelegations
+                    .Where(d => d.UsuarioPrincipalId == currentUserId && d.IsActive)
+                    .Include(d => d.UsuarioDelegado)
+                    .Select(d => new
+                    {
+                        Id = d.Id,
+                        UsuarioDelegado = new
+                        {
+                            Id = d.UsuarioDelegado.Id,
+                            Nombre = d.UsuarioDelegado.Nombre,
+                            Apellido = d.UsuarioDelegado.Apellido,
+                            Email = d.UsuarioDelegado.Email,
+                            Cargo = "Usuario", // Valor por defecto
+                            Departamento = d.UsuarioDelegado.Departamento ?? "Sin departamento"
+                        },
+                        SubRole = d.SubRole,
+                        Motivo = d.Motivo,
+                        FechaInicio = d.FechaInicio,
+                        FechaFin = d.FechaFin,
+                        IsActive = d.IsActive,
+                        CreatedAt = d.CreatedAt
+                    })
+                    .ToListAsync();
                 
                 return Ok(delegations);
             }
@@ -396,6 +514,118 @@ namespace PortalTi.Api.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
+
+        /// <summary>
+        /// Crea una nueva delegación
+        /// </summary>
+        [HttpPost("delegations")]
+        [Authorize]
+        public async Task<IActionResult> CreateDelegation([FromBody] CreateDelegationRequest request)
+        {
+            try
+            {
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+                // Validar que el usuario delegado existe
+                var usuarioDelegado = await _context.NominaUsuarios
+                    .FirstOrDefaultAsync(u => u.Id == request.UsuarioDelegadoId && u.Email != null && u.Email != "");
+
+                if (usuarioDelegado == null)
+                {
+                    return BadRequest("El usuario seleccionado no existe o no está activo");
+                }
+
+                // Validar que no se está delegando a sí mismo
+                var currentUser = await _context.NominaUsuarios
+                    .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+                if (currentUser == null)
+                {
+                    return BadRequest("Usuario actual no encontrado");
+                }
+
+                if (request.UsuarioDelegadoId == currentUserId)
+                {
+                    return BadRequest("No puedes delegar a ti mismo");
+                }
+
+                // Validar fecha fin
+                if (request.FechaFin <= DateTime.Now)
+                {
+                    return BadRequest("La fecha fin debe ser posterior a la fecha actual");
+                }
+
+                // Verificar que no hay una delegación activa para el mismo subrol
+                var existingDelegation = await _context.PazYSalvoDelegations
+                    .FirstOrDefaultAsync(d => d.UsuarioPrincipalId == currentUserId && 
+                                            d.SubRole == request.SubRole && 
+                                            d.IsActive && 
+                                            d.FechaFin >= DateTime.Now);
+
+                if (existingDelegation != null)
+                {
+                    // Revocar la delegación anterior
+                    existingDelegation.IsActive = false;
+                    existingDelegation.UpdatedAt = DateTime.Now;
+                }
+
+                // Crear nueva delegación
+                var delegation = new PazYSalvoDelegation
+                {
+                    UsuarioPrincipalId = currentUserId,
+                    UsuarioDelegadoId = request.UsuarioDelegadoId,
+                    SubRole = request.SubRole,
+                    Motivo = request.Motivo,
+                    FechaInicio = DateTime.Now,
+                    FechaFin = request.FechaFin,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.PazYSalvoDelegations.Add(delegation);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Delegación creada exitosamente", delegationId = delegation.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear delegación");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        /// <summary>
+        /// Revoca una delegación
+        /// </summary>
+        [HttpDelete("delegations/{delegationId}")]
+        [Authorize]
+        public async Task<IActionResult> RevokeDelegation(int delegationId)
+        {
+            try
+            {
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+                var delegation = await _context.PazYSalvoDelegations
+                    .FirstOrDefaultAsync(d => d.Id == delegationId && d.UsuarioPrincipalId == currentUserId);
+
+                if (delegation == null)
+                {
+                    return NotFound("Delegación no encontrada");
+                }
+
+                delegation.IsActive = false;
+                delegation.UpdatedAt = DateTime.Now;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Delegación revocada exitosamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al revocar delegación");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
 
         /// <summary>
         /// Endpoint de prueba para verificar conectividad
@@ -460,6 +690,41 @@ namespace PortalTi.Api.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
+
+        /// <summary>
+        /// Obtiene usuarios de nómina disponibles para delegación
+        /// </summary>
+        [HttpGet("delegation-users")]
+        [Authorize]
+        public async Task<IActionResult> GetDelegationUsers()
+        {
+            try
+            {
+                var users = await _context.NominaUsuarios
+                    .Where(u => u.Email != null && u.Email != "")
+                    .OrderBy(u => u.Nombre)
+                    .ThenBy(u => u.Apellido)
+                    .Select(u => new
+                    {
+                        Id = u.Id,
+                        Nombre = u.Nombre,
+                        Apellido = u.Apellido,
+                        Email = u.Email,
+                        Cargo = "Usuario", // Valor por defecto ya que no existe en el modelo
+                        Departamento = u.Departamento ?? "Sin departamento",
+                        Empresa = u.Empresa ?? "Sin empresa",
+                        DisplayName = $"{u.Nombre} {u.Apellido} ({u.Email})"
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener usuarios para delegación");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
     }
 
     // DTOs
@@ -468,6 +733,7 @@ namespace PortalTi.Api.Controllers
         public int Id { get; set; }
         public string Departamento { get; set; } = string.Empty;
         public string Rol { get; set; } = string.Empty;
+        public string? Empresa { get; set; }
         public int UserId { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
@@ -494,5 +760,13 @@ namespace PortalTi.Api.Controllers
     public class CreateJefeDirectoRequest
     {
         public int UsuarioId { get; set; }
+    }
+
+    public class CreateDelegationRequest
+    {
+        public int UsuarioDelegadoId { get; set; }
+        public string SubRole { get; set; } = string.Empty;
+        public string Motivo { get; set; } = string.Empty;
+        public DateTime FechaFin { get; set; }
     }
 }

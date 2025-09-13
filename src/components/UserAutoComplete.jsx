@@ -18,12 +18,15 @@ export default function UserAutoComplete({
     useEffect(() => {
         // Si hay un valor inicial, buscar el usuario correspondiente
         if (value && usuarios && usuarios.length > 0) {
-            // Buscar por ID numérico o string
+            // Buscar por ID numérico o string, asegurando que sea el primero encontrado
             const user = usuarios.find(u => u.id == value || u.id === value);
             if (user) {
                 const displayValue = `${user.nombre || ''} ${user.apellido || ''} - ${user.departamento || ''}`;
                 setInputValue(displayValue);
+                console.log('DEBUG: Usuario encontrado para ID', value, ':', user);
             } else {
+                console.log('DEBUG: Usuario no encontrado para ID', value);
+                setInputValue('');
             }
         } else if (!value) {
             // Si no hay valor, limpiar el input
@@ -73,10 +76,12 @@ export default function UserAutoComplete({
     };
 
     const handleUserSelect = (usuario) => {
+        console.log('DEBUG: Usuario seleccionado:', usuario);
         const displayValue = `${usuario.nombre || ''} ${usuario.apellido || ''} - ${usuario.departamento || ''}`;
         setInputValue(displayValue);
         // Convertir a número si es necesario
         const userId = typeof usuario.id === 'string' ? parseInt(usuario.id, 10) : usuario.id;
+        console.log('DEBUG: ID enviado:', userId);
         onChange(userId);
         setIsOpen(false);
     };
@@ -140,9 +145,9 @@ export default function UserAutoComplete({
 
             {isOpen && filteredUsuarios.length > 0 && (
                 <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {filteredUsuarios.map((usuario) => (
+                    {filteredUsuarios.map((usuario, index) => (
                         <button
-                            key={usuario.id}
+                            key={`user-${usuario.id}-${usuario.email}-${index}`}
                             type="button"
                             onClick={() => handleUserSelect(usuario)}
                             className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
@@ -150,8 +155,19 @@ export default function UserAutoComplete({
                             <div className="flex items-center">
                                 <User className="w-4 h-4 text-blue-600 mr-2" />
                                 <div className="flex-1">
-                                    <div className="font-medium text-gray-900 dark:text-white">
-                                        {usuario.nombre || ''} {usuario.apellido || ''}
+                                    <div className="flex items-center justify-between">
+                                        <div className="font-medium text-gray-900 dark:text-white">
+                                            {usuario.nombre || ''} {usuario.apellido || ''}
+                                        </div>
+                                        {usuario.hasAuthUser ? (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                                Registrado
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                                Sin cuenta
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="text-sm text-gray-500 dark:text-gray-400">
                                         {usuario.departamento || ''} • {usuario.email || ''}

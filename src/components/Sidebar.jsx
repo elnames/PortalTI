@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useUserSubroles } from '../hooks/useUserSubroles';
+import PazYSalvoDropdown from './PazYSalvoDropdown';
 import {
   Menu,
   HardDrive,
@@ -41,7 +42,6 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/activos', icon: HardDrive, label: 'Activos' },
       { to: '/tickets', icon: Clipboard, label: 'Tickets' },
       { to: '/gestion-actas', icon: FileText, label: 'Gestión Actas' },
-      // Paz y Salvo se maneja con subroles más abajo
       { to: '/reportes', icon: BarChart2, label: 'Reportes' },
       { to: '/configuracion', icon: Shield, label: 'Configuración Admin' }
     ];
@@ -71,7 +71,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
       { to: '/mis-activos', icon: HardDrive, label: 'Mis Activos' },
       { to: '/actas', icon: FileText, label: 'Actas' },
       { to: '/mis-tickets', icon: Clipboard, label: 'Mis Tickets' },
-      { to: '/pazysalvo/rrhh', icon: BadgeCheck, label: 'Paz y Salvo' }
+      { to: '/pazysalvo-admin', icon: BadgeCheck, label: 'Paz y Salvo' }
     ];
   } else if (user?.role === 'ti') {
     // Enlaces para TI
@@ -109,15 +109,15 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
     ];
   }
 
-  // Agregar enlaces de subroles de Paz y Salvo dinámicamente
+  // Agregar enlaces de subroles de Paz y Salvo dinámicamente (solo para usuarios no-admin)
   const activeSubroles = getActiveSubroles();
-  if (activeSubroles && activeSubroles.length > 0) {
+  if (user?.role !== 'admin' && activeSubroles && activeSubroles.length > 0) {
     activeSubroles.forEach(subrole => {
       let pazySalvoRoute = '';
       let pazySalvoLabel = 'Paz y Salvo';
 
       switch (subrole.rol) {
-        case 'Jefatura Directa':
+        case 'JefeInmediato':
           pazySalvoRoute = '/pazysalvo/jefe-directo';
           pazySalvoLabel = 'Paz y Salvo - Jefatura';
           break;
@@ -125,7 +125,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           pazySalvoRoute = '/pazysalvo';
           pazySalvoLabel = 'Paz y Salvo - Gestión';
           break;
-        case 'TI':
+        case 'Informatica':
           pazySalvoRoute = '/pazysalvo/ti';
           pazySalvoLabel = 'Paz y Salvo - TI';
           break;
@@ -133,7 +133,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
           pazySalvoRoute = '/pazysalvo/contabilidad';
           pazySalvoLabel = 'Paz y Salvo - Contabilidad';
           break;
-        case 'Gerencia Finanzas':
+        case 'GerenciaFinanzas':
           pazySalvoRoute = '/pazysalvo/gerencia-finanzas';
           pazySalvoLabel = 'Paz y Salvo - Finanzas';
           break;
@@ -206,6 +206,13 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
               {isOpen && <span className="ml-3">{label}</span>}
             </NavLink>
           ))}
+          
+          {/* Dropdown de Paz y Salvo solo para admin */}
+          {user?.role === 'admin' && isOpen && (
+            <div className="px-2 py-2">
+              <PazYSalvoDropdown />
+            </div>
+          )}
         </nav>
 
         {/* Avatar - Fijo abajo */}

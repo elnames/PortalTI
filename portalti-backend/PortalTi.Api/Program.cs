@@ -8,8 +8,10 @@ using System.Text;
 using PortalTi.Api.Services;
 using PortalTi.Api.Hubs;
 using PortalTi.Api.Filters;
+using PortalTi.Api.Handlers;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,6 +103,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireRRHHOrAdmin", policy =>
         policy.RequireRole("admin", "rrhh"));
     
+    // Nueva política que incluye subroles de RRHH
+    options.AddPolicy("RequireRRHHOrAdminWithSubroles", policy =>
+        policy.Requirements.Add(new RRHHOrAdminWithSubrolesRequirement()));
+    
     options.AddPolicy("RequireTIOrAdmin", policy =>
         policy.RequireRole("admin", "ti"));
     
@@ -191,6 +197,9 @@ builder.Services.AddScoped<PazYSalvoServiceUnificado>();
 // Servicios de integridad de datos
 builder.Services.AddScoped<IActaValidationService, ActaValidationService>();
 builder.Services.AddScoped<IFileSecurityService, FileSecurityService>();
+
+// Registrar handlers de autorización personalizados
+builder.Services.AddScoped<IAuthorizationHandler, RRHHOrAdminWithSubrolesHandler>();
 
 // 6) Controllers + Swagger
 builder.Services.AddControllers(options =>

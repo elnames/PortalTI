@@ -140,6 +140,12 @@ namespace PortalTi.Api.Controllers
             var perfilUsuario = await _db.NominaUsuarios
                 .FirstOrDefaultAsync(n => n.Email == user.Username);
 
+            // Obtener subroles de Paz y Salvo con empresa
+            var subroles = await _db.PazYSalvoRoleAssignments
+                .Where(p => p.UserId == user.Id && p.IsActive)
+                .Select(p => new { p.Rol, p.Empresa })
+                .ToListAsync();
+
             return Ok(new { 
                 token, 
                 user = new { 
@@ -147,6 +153,7 @@ namespace PortalTi.Api.Controllers
                     user.Username, 
                     user.Role, 
                     user.SignaturePath,
+                    subroles = subroles,
                     nombre = perfilUsuario?.Nombre ?? "",
                     apellido = perfilUsuario?.Apellido ?? "",
                     empresa = perfilUsuario?.Empresa ?? "Empresa A",

@@ -34,7 +34,6 @@ import ActaDetail from './pages/ActaDetail';
 import PrevisualizarActa from './pages/PrevisualizarActa';
 import PazYSalvo from './pages/PazYSalvo';
 import PazYSalvoJefeDirecto from './pages/PazYSalvoJefeDirecto';
-import PazYSalvoRRHH from './pages/PazYSalvoRRHH';
 import PazYSalvoTI from './pages/PazYSalvoTI';
 import PazYSalvoContabilidad from './pages/PazYSalvoContabilidad';
 import PazYSalvoGerenciaFinanzas from './pages/PazYSalvoGerenciaFinanzas';
@@ -209,27 +208,29 @@ export default function App() {
             }
           />
 
+          {/* Paz y Salvo - Admin (gestión completa) */}
+          <Route
+            path="pazysalvo-admin"
+            element={
+              <RequireRole roles={['admin', 'rrhh']}>
+                <PazYSalvo />
+              </RequireRole>
+            }
+          />
+
           {/* Paz y Salvo - Subroles específicos */}
           <Route
             path="pazysalvo/jefe-directo"
             element={
-              <RequireSubrole subroles={['Jefatura Directa']}>
+              <RequireSubrole subroles={['JefeInmediato']}>
                 <PazYSalvoJefeDirecto />
-              </RequireSubrole>
-            }
-          />
-          <Route
-            path="pazysalvo/rrhh"
-            element={
-              <RequireSubrole subroles={['RRHH']}>
-                <PazYSalvoRRHH />
               </RequireSubrole>
             }
           />
           <Route
             path="pazysalvo/ti"
             element={
-              <RequireSubrole subroles={['TI']}>
+              <RequireSubrole subroles={['Informatica']}>
                 <PazYSalvoTI />
               </RequireSubrole>
             }
@@ -245,7 +246,7 @@ export default function App() {
           <Route
             path="pazysalvo/gerencia-finanzas"
             element={
-              <RequireSubrole subroles={['Gerencia Finanzas']}>
+              <RequireSubrole subroles={['GerenciaFinanzas']}>
                 <PazYSalvoGerenciaFinanzas />
               </RequireSubrole>
             }
