@@ -49,6 +49,74 @@ namespace PortalTi.Api.Services
                 if (authUser == null)
                     throw new ArgumentException("Usuario de autenticación no encontrado");
 
+                // Manejar jefe directo - crear AuthUser si no existe
+                int? jefeDirectoAuthUserId = null;
+                if (request.JefeDirectoId.HasValue)
+                {
+                    // Buscar si ya existe un AuthUser para este jefe directo
+                    var jefeDirectoNomina = await _context.NominaUsuarios
+                        .FirstOrDefaultAsync(nu => nu.Id == request.JefeDirectoId.Value);
+                    
+                    if (jefeDirectoNomina != null)
+                    {
+                        var jefeDirectoAuthUser = await _context.AuthUsers
+                            .FirstOrDefaultAsync(au => au.Username == jefeDirectoNomina.Email);
+                        
+                        if (jefeDirectoAuthUser == null)
+                        {
+                            // Generar hash para contraseña temporal "admin"
+                            var password = "admin";
+                            var salt = GenerateSalt();
+                            var hash = HashPassword(password, salt);
+                            
+                            // Crear AuthUser para el jefe directo
+                            jefeDirectoAuthUser = new AuthUser
+                            {
+                                Username = jefeDirectoNomina.Email,
+                                PasswordHash = hash,
+                                PasswordSalt = salt,
+                                Role = "usuario",
+                                IsActive = true,
+                                CreatedAt = DateTime.Now
+                            };
+                            
+                            _context.AuthUsers.Add(jefeDirectoAuthUser);
+                            await _context.SaveChangesAsync();
+                            
+                            _logger.LogInformation("Creado AuthUser para {Email}", jefeDirectoNomina.Email);
+                        }
+                        
+                        // Verificar si ya tiene el subrol JefeInmediato asignado
+                        var existingAssignment = await _context.PazYSalvoRoleAssignments
+                            .FirstOrDefaultAsync(ra => ra.UserId == jefeDirectoAuthUser.Id && ra.Rol == "JefeInmediato" && ra.IsActive);
+                        
+                        if (existingAssignment == null)
+                        {
+                            // Asignar subrol de JefeInmediato
+                            var jefeAssignment = new PazYSalvoRoleAssignment
+                            {
+                                UserId = jefeDirectoAuthUser.Id,
+                                Rol = "JefeInmediato",
+                                Departamento = jefeDirectoNomina.Departamento,
+                                Empresa = jefeDirectoNomina.Empresa,
+                                IsActive = true,
+                                CreatedAt = DateTime.Now
+                            };
+                            
+                            _context.PazYSalvoRoleAssignments.Add(jefeAssignment);
+                            await _context.SaveChangesAsync();
+                            
+                            _logger.LogInformation("Asignado subrol JefeInmediato para {Email}", jefeDirectoNomina.Email);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Usuario {Email} ya tiene subrol JefeInmediato asignado", jefeDirectoNomina.Email);
+                        }
+                        
+                        jefeDirectoAuthUserId = jefeDirectoAuthUser.Id;
+                    }
+                }
+
                 // Crear Paz y Salvo
                 var pazYSalvo = new PazYSalvo
                 {
@@ -62,8 +130,10 @@ namespace PortalTi.Api.Services
                     Estado = "Borrador"
                 };
 
-                // Configurar firmas por defecto
-                var firmas = CrearFirmasPorDefecto(request.JefeDirectoId);
+                // Configurar firmas por defecto - usar la empresa del usuario
+                _logger.LogInformation("Creando firmas para usuario {UsuarioId} - {Nombre} {Apellido} de empresa: {Empresa}", 
+                    usuario.Id, usuario.Nombre, usuario.Apellido, usuario.Empresa);
+                var firmas = await CrearFirmasPorDefectoAsync(jefeDirectoAuthUserId, usuario.Empresa);
                 pazYSalvo.SetFirmas(firmas);
 
                 // Configurar snapshot de activos si se proporcionan
@@ -118,6 +188,29 @@ namespace PortalTi.Api.Services
             }
         }
 
+        public async Task<PazYSalvoResponse> SolicitarFirmaAsync(int id, string rol)
+        {
+            var pazYSalvo = await _context.PazYSalvos
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (pazYSalvo == null)
+                throw new ArgumentException("Paz y Salvo no encontrado");
+
+            // Obtener las firmas actuales
+            var firmas = pazYSalvo.GetFirmas();
+            var firma = firmas.FirstOrDefault(f => f.Rol == rol);
+
+            if (firma == null)
+                throw new ArgumentException($"Rol {rol} no encontrado en las firmas");
+
+            if (firma.Estado != "Pendiente")
+                throw new InvalidOperationException($"La firma para el rol {rol} no está pendiente");
+
+            // Aquí podrías enviar notificaciones específicas al firmante
+            // Por ahora solo retornamos el estado actual
+            return await ObtenerDetalleAsync(id);
+        }
+
         public async Task<PazYSalvoResponse> EnviarAFirmaAsync(int pazYSalvoId)
         {
             var pazYSalvo = await _context.PazYSalvos
@@ -166,83 +259,238 @@ namespace PortalTi.Api.Services
 
         public async Task<PazYSalvoResponse> FirmarAsync(int pazYSalvoId, string rol, FirmarRequest request)
         {
-            var pazYSalvo = await _context.PazYSalvos
-                .FirstOrDefaultAsync(p => p.Id == pazYSalvoId);
-
-            if (pazYSalvo == null)
-                throw new ArgumentException("Paz y Salvo no encontrado");
-
-            if (!pazYSalvo.EsEnFirma)
-                throw new InvalidOperationException("El documento no está en estado de firma");
-
-            var firmas = pazYSalvo.GetFirmas();
-            var firma = firmas.FirstOrDefault(f => f.Rol == rol);
-            
-            if (firma == null)
-                throw new ArgumentException($"Firma para rol {rol} no encontrada");
-
-            if (firma.Estado != "Pendiente")
-                throw new InvalidOperationException("Esta firma ya fue procesada");
-
-            // Validar que el usuario puede firmar
-            if (!await PuedeFirmarAsync(rol, request.ActorUserId))
-                throw new UnauthorizedAccessException("No tienes permisos para firmar este documento");
-
-            // Obtener información del firmante
-            var firmante = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == request.ActorUserId);
-            if (firmante == null)
-                throw new ArgumentException("Usuario firmante no encontrado");
-
-            // Actualizar firma
-            firma.Estado = "Firmado";
-            firma.FirmanteUserId = request.ActorUserId;
-            firma.FirmanteNombre = firmante.Username; // Capturar nombre del firmante
-            firma.FechaFirma = DateTime.Now;
-            firma.Comentario = request.Comentario;
-            firma.FirmaHash = await CalcularHashFirmaAsync(pazYSalvo, firma, request.ActorUserId);
-
-            pazYSalvo.SetFirmas(firmas);
-
-            // Registrar en historial
-            var historial = pazYSalvo.GetHistorial();
-            historial.Add(new HistorialData
+            try
             {
-                ActorUserId = request.ActorUserId,
-                Accion = "Signed",
-                EstadoDesde = "Pendiente",
-                EstadoHasta = "Firmado",
-                Nota = $"Firmado por {rol}",
-                FechaAccion = DateTime.Now
-            });
+                _logger.LogInformation("Iniciando proceso de firma para Paz y Salvo {PazYSalvoId}, rol {Rol}, usuario {ActorUserId}", 
+                    pazYSalvoId, rol, request.ActorUserId);
 
-            // Verificar si todas las firmas requeridas están completas
-            var firmasRequeridas = firmas.Where(f => f.Obligatorio).ToList();
-            var firmasCompletadas = firmasRequeridas.Count(f => f.Estado == "Firmado");
-            
-            if (firmasCompletadas == firmasRequeridas.Count)
-            {
-                pazYSalvo.Estado = "Aprobado";
-                pazYSalvo.FechaAprobacion = DateTime.Now;
-                pazYSalvo.FechaActualizacion = DateTime.Now;
+                var pazYSalvo = await _context.PazYSalvos
+                    .FirstOrDefaultAsync(p => p.Id == pazYSalvoId);
 
+                if (pazYSalvo == null)
+                {
+                    _logger.LogWarning("Paz y Salvo {PazYSalvoId} no encontrado", pazYSalvoId);
+                    throw new ArgumentException("Paz y Salvo no encontrado");
+                }
+
+                // Validar estado según el rol
+                if (rol == "RRHH")
+                {
+                    // RRHH solo puede firmar cuando el documento está "Aprobado"
+                    if (pazYSalvo.Estado != "Aprobado")
+                    {
+                        _logger.LogWarning("RRHH no puede firmar Paz y Salvo {PazYSalvoId} en estado {Estado}. Debe estar 'Aprobado'", 
+                            pazYSalvoId, pazYSalvo.Estado);
+                        throw new InvalidOperationException("RRHH solo puede firmar cuando el documento está aprobado");
+                    }
+                }
+                else
+                {
+                    // Otros roles solo pueden firmar cuando está "EnFirma"
+                    if (!pazYSalvo.EsEnFirma)
+                    {
+                        _logger.LogWarning("Paz y Salvo {PazYSalvoId} no está en estado de firma. Estado actual: {Estado}", 
+                            pazYSalvoId, pazYSalvo.Estado);
+                        throw new InvalidOperationException("El documento no está en estado de firma");
+                    }
+                }
+
+                var firmas = pazYSalvo.GetFirmas();
+                var firma = firmas.FirstOrDefault(f => f.Rol == rol);
+                
+                // Lógica especial para RRHH: si no existe la firma, crearla automáticamente
+                if (firma == null && rol == "RRHH")
+                {
+                    _logger.LogInformation("Creando firma de RRHH automáticamente para Paz y Salvo {PazYSalvoId}", pazYSalvoId);
+                    
+                    var firmaRRHH = new FirmaData 
+                    { 
+                        Rol = "RRHH", 
+                        Orden = 5, 
+                        Obligatorio = true, 
+                        Estado = "Pendiente" 
+                    };
+                    
+                    // Buscar usuario RRHH asignado
+                    var rrhhUser = await _context.PazYSalvoRoleAssignments
+                        .FirstOrDefaultAsync(ra => ra.Rol == "RRHH" && ra.IsActive);
+                    
+                    if (rrhhUser != null)
+                    {
+                        firmaRRHH.FirmanteUserId = rrhhUser.UserId;
+                        var rrhhAuthUser = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == rrhhUser.UserId);
+                        if (rrhhAuthUser != null)
+                        {
+                            firmaRRHH.FirmanteNombre = rrhhAuthUser.Username;
+                        }
+                    }
+                    
+                    firmas.Add(firmaRRHH);
+                    pazYSalvo.SetFirmas(firmas);
+                    firma = firmaRRHH;
+                    
+                    _logger.LogInformation("Firma de RRHH creada exitosamente para Paz y Salvo {PazYSalvoId}", pazYSalvoId);
+                }
+                else if (firma == null)
+                {
+                    _logger.LogWarning("Firma para rol {Rol} no encontrada en Paz y Salvo {PazYSalvoId}", rol, pazYSalvoId);
+                    throw new ArgumentException($"Firma para rol {rol} no encontrada");
+                }
+
+                if (firma.Estado != "Pendiente")
+                {
+                    _logger.LogWarning("Firma para rol {Rol} ya fue procesada. Estado actual: {Estado}", rol, firma.Estado);
+                    throw new InvalidOperationException("Esta firma ya fue procesada");
+                }
+
+                // Validar que el usuario puede firmar
+                var puedeFirmar = await PuedeFirmarAsync(rol, request.ActorUserId);
+                if (!puedeFirmar)
+                {
+                    _logger.LogWarning("Usuario {ActorUserId} no tiene permisos para firmar como {Rol}", request.ActorUserId, rol);
+                    throw new UnauthorizedAccessException("No tienes permisos para firmar este documento");
+                }
+
+                // Obtener información del firmante
+                var firmante = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == request.ActorUserId);
+                if (firmante == null)
+                {
+                    _logger.LogWarning("Usuario firmante {ActorUserId} no encontrado", request.ActorUserId);
+                    throw new ArgumentException("Usuario firmante no encontrado");
+                }
+
+                _logger.LogInformation("Procesando firma para usuario {Username} como {Rol}", firmante.Username, rol);
+
+                // Actualizar firma
+                firma.Estado = "Firmado";
+                firma.FirmanteUserId = request.ActorUserId;
+                firma.FirmanteNombre = firmante.Username; // Capturar nombre del firmante
+                firma.FechaFirma = DateTime.Now;
+                firma.Comentario = request.Comentario;
+                
+                try
+                {
+                    firma.FirmaHash = await CalcularHashFirmaAsync(pazYSalvo, firma, request.ActorUserId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al calcular hash de firma para usuario {ActorUserId}", request.ActorUserId);
+                    throw new InvalidOperationException("Error al generar la firma digital");
+                }
+
+                pazYSalvo.SetFirmas(firmas);
+
+                // Registrar en historial
+                var historial = pazYSalvo.GetHistorial();
                 historial.Add(new HistorialData
                 {
                     ActorUserId = request.ActorUserId,
-                    Accion = "Approved",
-                    EstadoDesde = "EnFirma",
-                    EstadoHasta = "Aprobado",
-                    Nota = "Todas las firmas requeridas completadas",
+                    Accion = "Signed",
+                    EstadoDesde = "Pendiente",
+                    EstadoHasta = "Firmado",
+                    Nota = $"Firmado por {rol}",
                     FechaAccion = DateTime.Now
                 });
 
-                // Notificar aprobación
-                await NotificarAprobacionAsync(pazYSalvoId);
+                // Verificar si todas las firmas requeridas están completas
+                var firmasRequeridas = firmas.Where(f => f.Obligatorio).ToList();
+                var firmasCompletadas = firmasRequeridas.Count(f => f.Estado == "Firmado");
+                
+                // Lógica especial para RRHH: si firma RRHH, cerrar el documento
+                if (rol == "RRHH")
+                {
+                    _logger.LogInformation("RRHH firmó Paz y Salvo {PazYSalvoId} - cerrando documento", pazYSalvoId);
+                    pazYSalvo.Estado = "Cerrado";
+                    pazYSalvo.FechaCierre = DateTime.Now;
+                    pazYSalvo.FechaActualizacion = DateTime.Now;
+
+                    historial.Add(new HistorialData
+                    {
+                        ActorUserId = request.ActorUserId,
+                        Accion = "Closed",
+                        EstadoDesde = "Aprobado",
+                        EstadoHasta = "Cerrado",
+                        Nota = "Documento cerrado por RRHH - Finiquito aprobado",
+                        FechaAccion = DateTime.Now
+                    });
+
+                    // Notificar cierre
+                    try
+                    {
+                        await NotificarCierreAsync(pazYSalvoId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error al enviar notificación de cierre para Paz y Salvo {PazYSalvoId}", pazYSalvoId);
+                    }
+                }
+                else if (firmasCompletadas == firmasRequeridas.Count)
+                {
+                    _logger.LogInformation("Todas las firmas requeridas completadas para Paz y Salvo {PazYSalvoId}", pazYSalvoId);
+                    pazYSalvo.Estado = "Aprobado";
+                    pazYSalvo.FechaAprobacion = DateTime.Now;
+                    pazYSalvo.FechaActualizacion = DateTime.Now;
+
+                    // Agregar firma de RRHH ahora que está aprobado
+                    var firmaRRHH = new FirmaData 
+                    { 
+                        Rol = "RRHH", 
+                        Orden = 5, 
+                        Obligatorio = true, 
+                        Estado = "Pendiente" 
+                    };
+                    
+                    // Buscar usuario RRHH asignado
+                    var rrhhUser = await _context.PazYSalvoRoleAssignments
+                        .FirstOrDefaultAsync(ra => ra.Rol == "RRHH" && ra.IsActive);
+                    
+                    if (rrhhUser != null)
+                    {
+                        firmaRRHH.FirmanteUserId = rrhhUser.UserId;
+                        var rrhhAuthUser = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == rrhhUser.UserId);
+                        if (rrhhAuthUser != null)
+                        {
+                            firmaRRHH.FirmanteNombre = rrhhAuthUser.Username;
+                        }
+                    }
+                    
+                    firmas.Add(firmaRRHH);
+                    pazYSalvo.SetFirmas(firmas);
+
+                    historial.Add(new HistorialData
+                    {
+                        ActorUserId = request.ActorUserId,
+                        Accion = "Approved",
+                        EstadoDesde = "EnFirma",
+                        EstadoHasta = "Aprobado",
+                        Nota = "Todas las firmas requeridas completadas - RRHH puede firmar para cerrar",
+                        FechaAccion = DateTime.Now
+                    });
+
+                    // Notificar aprobación
+                    try
+                    {
+                        await NotificarAprobacionAsync(pazYSalvoId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error al enviar notificación de aprobación para Paz y Salvo {PazYSalvoId}", pazYSalvoId);
+                        // No fallar la firma por error en notificación
+                    }
+                }
+
+                pazYSalvo.SetHistorial(historial);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Firma completada exitosamente para Paz y Salvo {PazYSalvoId}, rol {Rol}", pazYSalvoId, rol);
+                return await ObtenerDetalleAsync(pazYSalvoId);
             }
-
-            pazYSalvo.SetHistorial(historial);
-            await _context.SaveChangesAsync();
-
-            return await ObtenerDetalleAsync(pazYSalvoId);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al firmar Paz y Salvo {PazYSalvoId}, rol {Rol}, usuario {ActorUserId}", 
+                    pazYSalvoId, rol, request.ActorUserId);
+                throw;
+            }
         }
 
         public async Task<PazYSalvoResponse> RechazarAsync(int pazYSalvoId, string rol, RechazarRequest request)
@@ -411,8 +659,10 @@ namespace PortalTi.Api.Services
         }
 
         // Métodos privados auxiliares
-        private List<FirmaData> CrearFirmasPorDefecto(int? jefeDirectoId = null)
+        private async Task<List<FirmaData>> CrearFirmasPorDefectoAsync(int? jefeDirectoId = null, string empresa = null)
         {
+            _logger.LogInformation("CrearFirmasPorDefectoAsync - Empresa: {Empresa}, JefeDirectoId: {JefeDirectoId}", empresa, jefeDirectoId);
+            
             var firmas = new List<FirmaData>
             {
                 new FirmaData { Rol = "JefeInmediato", Orden = 1, Obligatorio = true, FirmanteUserId = jefeDirectoId },
@@ -420,6 +670,169 @@ namespace PortalTi.Api.Services
                 new FirmaData { Rol = "Informatica", Orden = 3, Obligatorio = true },
                 new FirmaData { Rol = "GerenciaFinanzas", Orden = 4, Obligatorio = true }
             };
+
+            // Obtener nombres de los usuarios asignados a cada rol
+            foreach (var firma in firmas)
+            {
+                if (firma.FirmanteUserId.HasValue)
+                {
+                    // Verificar que el usuario no sea admin
+                    var authUser = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == firma.FirmanteUserId.Value);
+                    if (authUser != null && authUser.Role == "admin")
+                    {
+                        // Si es admin, buscar otro usuario para este rol de la misma empresa o dejar sin asignar
+                        var rolesABuscar = new List<string> { firma.Rol };
+                        if (firma.Rol == "GerenciaFinanzas")
+                        {
+                            rolesABuscar.Add("Gerencia Finanzas");
+                        }
+                        else if (firma.Rol == "Gerencia Finanzas")
+                        {
+                            rolesABuscar.Add("GerenciaFinanzas");
+                        }
+                        
+                        var otraQuery = _context.PazYSalvoRoleAssignments
+                            .Where(ra => rolesABuscar.Contains(ra.Rol) && ra.IsActive && ra.UserId != firma.FirmanteUserId.Value);
+                        
+                        if (!string.IsNullOrEmpty(empresa))
+                        {
+                            otraQuery = otraQuery.Where(ra => ra.Empresa == empresa);
+                        }
+                        
+                        var otraAsignacion = await otraQuery.FirstOrDefaultAsync();
+                        
+                        if (otraAsignacion != null)
+                        {
+                            firma.FirmanteUserId = otraAsignacion.UserId;
+                            authUser = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == otraAsignacion.UserId);
+                        }
+                        else
+                        {
+                            // No hay otro usuario para este rol, dejar sin asignar
+                            firma.FirmanteUserId = null;
+                            authUser = null;
+                        }
+                    }
+                    
+                    if (firma.FirmanteUserId.HasValue && authUser != null)
+                    {
+                        // Buscar el nombre real del usuario en la nómina
+                        var usuario = await _context.AuthUsers
+                            .Join(_context.NominaUsuarios, 
+                                  au => au.Username, 
+                                  nu => nu.Email, 
+                                  (au, nu) => new { AuthUser = au, NominaUser = nu })
+                            .FirstOrDefaultAsync(u => u.AuthUser.Id == firma.FirmanteUserId.Value);
+                        
+                        if (usuario != null)
+                        {
+                            firma.FirmanteNombre = $"{usuario.NominaUser.Nombre} {usuario.NominaUser.Apellido}".Trim();
+                        }
+                        else
+                        {
+                            // Fallback al username si no se encuentra en nómina
+                            firma.FirmanteNombre = authUser.Username;
+                        }
+                    }
+                }
+                else
+                {
+                    // Buscar usuario asignado al rol de la empresa específica
+                    // Manejar variaciones en nombres de roles (con y sin espacios)
+                    var rolesABuscar = new List<string> { firma.Rol };
+                    if (firma.Rol == "GerenciaFinanzas")
+                    {
+                        rolesABuscar.Add("Gerencia Finanzas");
+                    }
+                    else if (firma.Rol == "Gerencia Finanzas")
+                    {
+                        rolesABuscar.Add("GerenciaFinanzas");
+                    }
+                    
+                    var query = _context.PazYSalvoRoleAssignments
+                        .Where(ra => rolesABuscar.Contains(ra.Rol) && ra.IsActive);
+                    
+                    // Filtrar por empresa si se especifica
+                    if (!string.IsNullOrEmpty(empresa))
+                    {
+                        query = query.Where(ra => ra.Empresa == empresa);
+                        _logger.LogInformation("Buscando asignaciones para roles {Roles} en empresa {Empresa}", string.Join(", ", rolesABuscar), empresa);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Buscando asignaciones para roles {Roles} sin filtro de empresa", string.Join(", ", rolesABuscar));
+                    }
+                    
+                    var asignacion = await query.FirstOrDefaultAsync();
+                    _logger.LogInformation("Asignación encontrada para rol {Rol}: {Asignacion}", firma.Rol, asignacion != null ? $"UserId: {asignacion.UserId}, Empresa: {asignacion.Empresa}, Rol: {asignacion.Rol}" : "Ninguna");
+                    
+                    if (asignacion != null)
+                    {
+                        // Verificar que el usuario no sea admin
+                        var authUser = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == asignacion.UserId);
+                        if (authUser != null && authUser.Role == "admin")
+                        {
+                            // Saltar al admin, buscar otro usuario para este rol de la misma empresa
+                            var rolesAlternativos = new List<string> { firma.Rol };
+                            if (firma.Rol == "GerenciaFinanzas")
+                            {
+                                rolesAlternativos.Add("Gerencia Finanzas");
+                            }
+                            else if (firma.Rol == "Gerencia Finanzas")
+                            {
+                                rolesAlternativos.Add("GerenciaFinanzas");
+                            }
+                            
+                            var otraQuery = _context.PazYSalvoRoleAssignments
+                                .Where(ra => rolesAlternativos.Contains(ra.Rol) && ra.IsActive && ra.UserId != asignacion.UserId);
+                            
+                            if (!string.IsNullOrEmpty(empresa))
+                            {
+                                otraQuery = otraQuery.Where(ra => ra.Empresa == empresa);
+                            }
+                            
+                            var otraAsignacion = await otraQuery.FirstOrDefaultAsync();
+                            
+                            if (otraAsignacion != null)
+                            {
+                                asignacion = otraAsignacion;
+                                authUser = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == otraAsignacion.UserId);
+                            }
+                            else
+                            {
+                                // No hay otro usuario para este rol, dejar sin asignar
+                                asignacion = null;
+                            }
+                        }
+                        
+                        if (asignacion != null)
+                        {
+                            // Buscar el nombre real del usuario en la nómina
+                            var usuario = await _context.AuthUsers
+                                .Join(_context.NominaUsuarios, 
+                                      au => au.Username, 
+                                      nu => nu.Email, 
+                                      (au, nu) => new { AuthUser = au, NominaUser = nu })
+                                .FirstOrDefaultAsync(u => u.AuthUser.Id == asignacion.UserId);
+                            
+                            if (usuario != null)
+                            {
+                                firma.FirmanteUserId = usuario.AuthUser.Id;
+                                firma.FirmanteNombre = $"{usuario.NominaUser.Nombre} {usuario.NominaUser.Apellido}".Trim();
+                            }
+                            else
+                            {
+                                // Fallback al username si no se encuentra en nómina
+                                if (authUser != null)
+                                {
+                                    firma.FirmanteUserId = authUser.Id;
+                                    firma.FirmanteNombre = authUser.Username;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             return firmas;
         }
@@ -447,24 +860,7 @@ namespace PortalTi.Api.Services
             var user = await _context.AuthUsers.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return false;
 
-            // VALIDACIÓN DE SEGURIDAD: Verificar que el usuario tiene firma digital configurada
-            if (string.IsNullOrEmpty(user.SignaturePath))
-            {
-                throw new InvalidOperationException("No tienes una firma digital configurada. Contacta al administrador para configurar tu firma.");
-            }
-
-            // Verificar que el archivo de firma existe
-            var storageRoot = Path.Combine(Directory.GetCurrentDirectory(), "Storage");
-            var signatureFilePath = user.SignaturePath.StartsWith("/storage/")
-                ? Path.Combine(storageRoot, user.SignaturePath.Replace("/storage/", string.Empty))
-                : Path.Combine(storageRoot, user.SignaturePath.TrimStart('/'));
-
-            if (!File.Exists(signatureFilePath))
-            {
-                throw new InvalidOperationException("Tu archivo de firma digital no se encuentra. Contacta al administrador para reconfigurar tu firma.");
-            }
-
-            // Admin/soporte con firma válida pueden firmar cualquier cosa
+            // Admin/soporte pueden firmar cualquier cosa (sin validar firma digital)
             if (user.Role == "admin" || user.Role == "soporte") return true;
 
             // Verificar subroles de Paz y Salvo
@@ -507,7 +903,7 @@ namespace PortalTi.Api.Services
                 Rol = firma.Rol,
                 ActorUserId = actorUserId,
                 ActorUsername = user.Username,
-                SignaturePath = user.SignaturePath, // Incluir ruta de firma para mayor seguridad
+                SignaturePath = user.SignaturePath ?? "default", // Usar "default" si no hay firma configurada
                 UsuarioId = pazYSalvo.UsuarioId,
                 UsuarioRut = pazYSalvo.UsuarioRut,
                 Timestamp = DateTime.UtcNow,
@@ -623,6 +1019,31 @@ namespace PortalTi.Api.Services
 
             // Generar PDF con solo esta firma específica
             var pdfBytes = _pdfService.GenerarPazYSalvoPdfFirmadoPorRol(detalle, rol);
+            
+            return pdfBytes;
+        }
+
+        public async Task<byte[]> GenerarPdfPrevisualizacionAsync(int pazYSalvoId)
+        {
+            var pazYSalvo = await _context.PazYSalvos
+                .Include(p => p.Usuario)
+                .FirstOrDefaultAsync(p => p.Id == pazYSalvoId);
+
+            if (pazYSalvo == null)
+                throw new ArgumentException("Paz y Salvo no encontrado");
+
+            // Obtener detalle completo
+            var detalle = await ObtenerDetalleAsync(pazYSalvoId);
+            
+            // Obtener la empresa del empleado
+            string? empresaEmpleado = null;
+            if (pazYSalvo.Usuario != null)
+            {
+                empresaEmpleado = pazYSalvo.Usuario.Empresa;
+            }
+            
+            // Generar PDF sin firmas (solo el documento base)
+            var pdfBytes = _pdfService.GenerarPazYSalvoPdfPrevisualizacion(detalle, empresaEmpleado);
             
             return pdfBytes;
         }
@@ -764,6 +1185,20 @@ namespace PortalTi.Api.Services
                 Excepciones = pazYSalvo.GetExcepciones(),
                 ActivosSnapshot = pazYSalvo.GetActivosSnapshot()
             };
+        }
+
+        private byte[] GenerateSalt()
+        {
+            using var rng = RandomNumberGenerator.Create();
+            var salt = new byte[32];
+            rng.GetBytes(salt);
+            return salt;
+        }
+
+        private byte[] HashPassword(string password, byte[] salt)
+        {
+            using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
+            return pbkdf2.GetBytes(32);
         }
     }
 }
