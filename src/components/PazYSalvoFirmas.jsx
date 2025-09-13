@@ -14,12 +14,14 @@ import {
 import { pazYSalvoAPI } from '../services/api';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import PazYSalvoSignatureModal from './PazYSalvoSignatureModal';
+import PazYSalvoRRHHConfirmModal from './PazYSalvoRRHHConfirmModal';
 
 export default function PazYSalvoFirmas({ pazYSalvo, onRefresh, viewMode = 'default' }) {
     const [loading, setLoading] = useState(false);
     const [showObserveModal, setShowObserveModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
+    const [showRRHHConfirmModal, setShowRRHHConfirmModal] = useState(false);
     const [selectedFirma, setSelectedFirma] = useState(null);
     const [observeComment, setObserveComment] = useState('');
     const [rejectReason, setRejectReason] = useState('');
@@ -86,6 +88,16 @@ export default function PazYSalvoFirmas({ pazYSalvo, onRefresh, viewMode = 'defa
         setSelectedFirma(null);
         onRefresh();
     };
+
+    const handleFirmarRRHH = () => {
+        setShowRRHHConfirmModal(true);
+    };
+
+    const handleRRHHConfirmSuccess = () => {
+        setShowRRHHConfirmModal(false);
+        onRefresh();
+    };
+
 
     const handleObservar = async () => {
         if (!observeComment.trim()) {
@@ -211,6 +223,31 @@ export default function PazYSalvoFirmas({ pazYSalvo, onRefresh, viewMode = 'defa
 
     return (
         <div className="space-y-4">
+            {/* Recuadro azul de cierre cuando está aprobado */}
+            {pazYSalvo.estado === 'Aprobado' && !pazYSalvo.firmas.some(f => f.rol === 'RRHH') && (
+                <div className="mb-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <div className="text-center">
+                        <div className="flex justify-center mb-4">
+                            <Clock className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <h3 className="text-xl font-medium text-blue-900 dark:text-blue-100 mb-3">
+                            Listo para Cierre
+                        </h3>
+                        <p className="text-blue-700 dark:text-blue-300 mb-6">
+                            Todas las firmas principales han sido completadas. RRHH puede firmar para cerrar el documento.
+                        </p>
+                        <button
+                            onClick={handleFirmarRRHH}
+                            disabled={loading}
+                            className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 shadow-lg hover:shadow-xl"
+                        >
+                            <CheckCircle className="h-5 w-5" />
+                            <span>Firmar RRHH para Cerrar</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Resumen de firmas */}
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="grid grid-cols-3 gap-4 text-center">
@@ -247,6 +284,22 @@ export default function PazYSalvoFirmas({ pazYSalvo, onRefresh, viewMode = 'defa
                             <h4 className="font-medium text-sm text-gray-900 dark:text-white mb-1">
                                 {firma.rol}
                             </h4>
+                            {firma.firmanteNombre ? (
+                                <div className="mb-2">
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                        {firma.firmanteNombre}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Responsable
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="mb-2">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        Sin asignar
+                                    </p>
+                                </div>
+                            )}
                             <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getFirmaStatusColor(firma.estado)}`}>
                                 {getFirmaStatusText(firma.estado)}
                             </span>
@@ -364,6 +417,14 @@ export default function PazYSalvoFirmas({ pazYSalvo, onRefresh, viewMode = 'defa
                     </div>
                 ))}
             </div>
+
+            {/* Modal de confirmación RRHH */}
+            <PazYSalvoRRHHConfirmModal
+                pazYSalvo={pazYSalvo}
+                isOpen={showRRHHConfirmModal}
+                onClose={() => setShowRRHHConfirmModal(false)}
+                onSuccess={handleRRHHConfirmSuccess}
+            />
 
             {/* Modal de observación */}
             {showObserveModal && (
