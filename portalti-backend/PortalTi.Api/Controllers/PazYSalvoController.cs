@@ -34,7 +34,7 @@ namespace PortalTi.Api.Controllers
         /// Crear un nuevo Paz y Salvo
         /// </summary>
         [HttpPost]
-        [Authorize(Policy = "RequireRRHHOrAdmin")]
+        [Authorize(Policy = "RequireRRHHOrAdminWithSubroles")]
         public async Task<IActionResult> Crear([FromBody] CrearPazYSalvoRequest request)
         {
             try
@@ -61,10 +61,37 @@ namespace PortalTi.Api.Controllers
         }
 
         /// <summary>
+        /// Solicitar firma específica
+        /// </summary>
+        [HttpPost("{id}/solicitar-firma/{rol}")]
+        [Authorize(Policy = "RequireRRHHOrAdminWithSubroles")]
+        public async Task<IActionResult> SolicitarFirma(int id, string rol)
+        {
+            try
+            {
+                var result = await _pazYSalvoService.SolicitarFirmaAsync(id, rol);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al solicitar firma para Paz y Salvo {Id}, rol {Rol}", id, rol);
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
         /// Enviar documento a firma
         /// </summary>
         [HttpPost("{id}/send")]
-        [Authorize(Policy = "RequireRRHHOrAdmin")]
+        [Authorize(Policy = "RequireRRHHOrAdminWithSubroles")]
         public async Task<IActionResult> EnviarAFirma(int id)
         {
             try
@@ -96,6 +123,25 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
+                // Obtener el ID del usuario autenticado
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int authenticatedUserId))
+                {
+                    _logger.LogWarning("Usuario no autenticado - no se encontró claim NameIdentifier");
+                    return Unauthorized(new { message = "Usuario no autenticado" });
+                }
+
+                _logger.LogInformation("Usuario autenticado: {AuthenticatedUserId}, ActorUserId en request: {ActorUserId}", 
+                    authenticatedUserId, request.ActorUserId);
+
+                // Validar que el usuario autenticado sea el mismo que intenta firmar
+                if (request.ActorUserId != authenticatedUserId)
+                {
+                    _logger.LogWarning("Intento de firma con usuario diferente - Autenticado: {AuthenticatedUserId}, Solicitado: {ActorUserId}", 
+                        authenticatedUserId, request.ActorUserId);
+                    return Unauthorized(new { message = "No puedes firmar en nombre de otro usuario" });
+                }
+
                 var result = await _pazYSalvoService.FirmarAsync(id, rol, request);
                 return Ok(result);
             }
@@ -109,7 +155,7 @@ namespace PortalTi.Api.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return Unauthorized(new { message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -154,6 +200,19 @@ namespace PortalTi.Api.Controllers
         {
             try
             {
+                // Obtener el ID del usuario autenticado
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int authenticatedUserId))
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado" });
+                }
+
+                // Validar que el usuario autenticado sea el mismo que intenta rechazar
+                if (request.ActorUserId != authenticatedUserId)
+                {
+                    return Unauthorized(new { message = "No puedes rechazar en nombre de otro usuario" });
+                }
+
                 var result = await _pazYSalvoService.RechazarAsync(id, rol, request);
                 return Ok(result);
             }
@@ -167,7 +226,7 @@ namespace PortalTi.Api.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return Unauthorized(new { message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -274,6 +333,70 @@ namespace PortalTi.Api.Controllers
         }
 
         /// <summary>
+        /// Eliminar un Paz y Salvo
+        /// </summary>
+        [HttpDelete("{id}")]
+        [Authorize(Policy = "RequireRRHHOrAdminWithSubroles")]
+        public async Task<IActionResult> Eliminar(int id)
+        {
+            try
+            {
+                var pazYSalvo = await _context.PazYSalvos
+                    .FirstOrDefaultAsync(p => p.Id == id);
+
+                if (pazYSalvo == null)
+                {
+                    return NotFound(new { message = "Paz y Salvo no encontrado" });
+                }
+
+                // Verificar que el usuario tenga permisos para eliminar
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado" });
+                }
+
+                // Verificar permisos: admin, rrhh, o subrol RRHH
+                var user = await _context.AuthUsers
+                    .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+                if (user == null)
+                {
+                    return Unauthorized(new { message = "Usuario no encontrado" });
+                }
+
+                // Verificar rol principal
+                bool hasMainRole = user.Role == "admin" || user.Role == "rrhh";
+                
+                // Verificar subrol RRHH si no tiene rol principal
+                bool hasRRHHSubrole = false;
+                if (!hasMainRole)
+                {
+                    hasRRHHSubrole = await _context.PazYSalvoRoleAssignments
+                        .AnyAsync(p => p.UserId == currentUserId && p.Rol == "RRHH" && p.IsActive);
+                }
+
+                if (!hasMainRole && !hasRRHHSubrole)
+                {
+                    return Forbid("No tienes permisos para eliminar Paz y Salvo");
+                }
+
+                // Eliminar el Paz y Salvo
+                _context.PazYSalvos.Remove(pazYSalvo);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Paz y Salvo {Id} eliminado por usuario {UserId}", id, currentUserId);
+
+                return Ok(new { message = "Paz y Salvo eliminado exitosamente" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar Paz y Salvo {Id}", id);
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
         /// Endpoint de prueba sin autenticación para debuggear
         /// </summary>
         [HttpGet("test")]
@@ -311,7 +434,7 @@ namespace PortalTi.Api.Controllers
                 var detalle = await _pazYSalvoService.ObtenerDetalleAsync(id);
                 
                 if (string.IsNullOrEmpty(detalle.PdfFinalPath))
-                    return NotFound(new { message = "PDF no disponible" });
+                    return NotFound(new { message = "PDF no disponible. El documento debe estar cerrado para generar el PDF final." });
 
                 // Obtener ruta completa del archivo
                 var storageRoot = _configuration["Storage:Root"] ?? "Storage";
@@ -339,6 +462,56 @@ namespace PortalTi.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al descargar PDF");
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Descargar PDF firmado por rol específico
+        /// </summary>
+        [HttpGet("{id}/pdf/{rol}")]
+        [Authorize]
+        public async Task<IActionResult> DescargarPdfFirmadoPorRol(int id, string rol)
+        {
+            try
+            {
+                var pdfBytes = await _pazYSalvoService.GenerarPdfFirmadoPorRolAsync(id, rol);
+                var fileName = $"PazYSalvo_{id}_Firmado_{rol}_{DateTime.Now:yyyyMMdd}.pdf";
+
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al generar PDF firmado por rol {Rol}", rol);
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
+
+        /// <summary>
+        /// Previsualizar documento sin firmas (para todos los subroles)
+        /// </summary>
+        [HttpGet("{id}/preview")]
+        [Authorize(Policy = "RequireRRHHOrAdminWithSubroles")]
+        public async Task<IActionResult> PrevisualizarDocumento(int id)
+        {
+            try
+            {
+                var pdfBytes = await _pazYSalvoService.GenerarPdfPrevisualizacionAsync(id);
+                var fileName = $"PazYSalvo_Preview_{id}_{DateTime.Now:yyyyMMdd}.pdf";
+                
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al generar PDF de previsualización para Paz y Salvo {Id}", id);
                 return StatusCode(500, new { message = "Error interno del servidor" });
             }
         }
@@ -381,25 +554,48 @@ namespace PortalTi.Api.Controllers
             {
                 _logger.LogInformation("Buscando activos para usuario {UsuarioId}", usuarioId);
                 
-                // Obtener activos asignados al usuario
-                var asignaciones = await _context.AsignacionesActivos
+                // Verificar que el usuario existe en la nómina
+                var usuario = await _context.NominaUsuarios
+                    .FirstOrDefaultAsync(u => u.Id == usuarioId);
+
+                if (usuario == null)
+                {
+                    _logger.LogWarning("Usuario no encontrado en nómina: {UsuarioId}", usuarioId);
+                    return NotFound(new { message = "Usuario no encontrado en la nómina" });
+                }
+
+                _logger.LogInformation("Usuario encontrado: {Nombre} {Apellido}", usuario.Nombre, usuario.Apellido);
+                
+                // Obtener activos asignados al usuario usando la misma lógica que ActivosController
+                var activosAsignados = await _context.AsignacionesActivos
                     .Include(aa => aa.Activo)
                     .Where(aa => aa.UsuarioId == usuarioId && aa.Estado == "Activa")
+                    .Select(aa => new
+                    {
+                        Id = aa.ActivoId,
+                        codigo = aa.Activo.Codigo,
+                        categoria = aa.Activo.Categoria,
+                        nombreEquipo = aa.Activo.NombreEquipo,
+                        marca = aa.Activo.Marca,
+                        modelo = aa.Activo.Modelo,
+                        serie = aa.Activo.Serie,
+                        tipoEquipo = aa.Activo.TipoEquipo,
+                        procesador = aa.Activo.Procesador,
+                        sistemaOperativo = aa.Activo.SistemaOperativo,
+                        ram = aa.Activo.Ram,
+                        ubicacion = aa.Activo.Ubicacion,
+                        estado = aa.Activo.Estado,
+                        fechaAsignacion = aa.FechaAsignacion,
+                        Descripcion = $"{aa.Activo.Categoria} - {aa.Activo.Marca} {aa.Activo.Modelo}",
+                        EstadoActivo = "Pendiente",
+                        Observacion = "Pendiente de devolución",
+                        FechaCorte = DateTime.Now
+                    })
                     .ToListAsync();
 
-                _logger.LogInformation("Encontradas {Count} asignaciones para usuario {UsuarioId}", asignaciones.Count, usuarioId);
+                _logger.LogInformation("Encontrados {Count} activos para usuario {UsuarioId}", activosAsignados.Count, usuarioId);
 
-                var activos = asignaciones.Select(aa => new
-                {
-                    Id = aa.ActivoId,
-                    Descripcion = $"{aa.Activo.Categoria} - {aa.Activo.Marca} {aa.Activo.Modelo}",
-                    EstadoActivo = "Pendiente",
-                    Observacion = "Pendiente de devolución",
-                    FechaCorte = DateTime.Now
-                }).ToList();
-
-                _logger.LogInformation("Retornando {Count} activos para usuario {UsuarioId}", activos.Count, usuarioId);
-                return Ok(activos);
+                return Ok(activosAsignados);
             }
             catch (Exception ex)
             {

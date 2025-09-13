@@ -14,16 +14,19 @@ import {
     Package,
     Search,
     Filter,
-    RefreshCw
+    RefreshCw,
+    Trash2
 } from 'lucide-react';
 import { useNotificationContext } from '../contexts/NotificationContext';
 import { usePazYSalvoNotifications } from '../hooks/usePazYSalvoNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { pazYSalvoAPI, usuariosAPI } from '../services/api';
+import { API_BASE_URL } from '../config';
 import PazYSalvoCard from './PazYSalvoCard';
 import PazYSalvoDetail from './PazYSalvoDetail';
 import PazYSalvoCreate from './PazYSalvoCreate';
 import PazYSalvoFilters from './PazYSalvoFilters';
+import PazYSalvoDeleteModal from './PazYSalvoDeleteModal';
 
 export default function PazYSalvoManager() {
     const [pazYSalvoList, setPazYSalvoList] = useState([]);
@@ -32,6 +35,9 @@ export default function PazYSalvoManager() {
     const [selectedPazYSalvo, setSelectedPazYSalvo] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [pazYSalvoToDelete, setPazYSalvoToDelete] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const [filters, setFilters] = useState({
         estado: '',
         usuario: '',
@@ -49,8 +55,19 @@ export default function PazYSalvoManager() {
     const { user } = useAuth();
     usePazYSalvoNotifications(); // Suscribirse automáticamente a notificaciones
 
-    // Verificar si el usuario puede crear documentos (solo RRHH)
-    const canCreate = user?.role === 'rrhh' || user?.role === 'admin';
+    // Verificar si el usuario puede crear documentos (RRHH o Admin)
+    console.log('DEBUG PazYSalvoManager - Usuario actual:', user);
+    console.log('DEBUG PazYSalvoManager - Rol del usuario:', user?.role);
+    console.log('DEBUG PazYSalvoManager - Subroles del usuario:', user?.subroles);
+    console.log('DEBUG PazYSalvoManager - Empresa del usuario:', user?.empresa);
+    
+    // Permitir crear si es admin, rrhh, o tiene subrol RRHH
+    const hasRRHHSubrole = user?.subroles?.some(subrole => subrole.rol === 'RRHH');
+    const canCreate = user?.role === 'rrhh' || user?.role === 'admin' || hasRRHHSubrole;
+    const canDelete = user?.role === 'rrhh' || user?.role === 'admin' || hasRRHHSubrole;
+    console.log('DEBUG PazYSalvoManager - hasRRHHSubrole:', hasRRHHSubrole);
+    console.log('DEBUG PazYSalvoManager - canCreate:', canCreate);
+    console.log('DEBUG PazYSalvoManager - canDelete:', canDelete);
 
     useEffect(() => {
         loadPazYSalvoData();
@@ -84,9 +101,29 @@ export default function PazYSalvoManager() {
     const loadUsuarios = async () => {
         try {
             console.log('Cargando usuarios...');
-            const response = await usuariosAPI.getAll();
-            console.log('Usuarios cargados:', response.data);
-            setUsuarios(response.data);
+            const response = await fetch(`${API_BASE_URL}/pazysalvoroles/users`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('Usuarios cargados:', data);
+            
+            // Eliminar duplicados por ID, manteniendo el primero
+            const uniqueUsers = data?.filter((user, index, arr) => 
+                arr.findIndex(u => u.id === user.id) === index
+            ) || [];
+            
+            console.log('Usuarios únicos:', uniqueUsers.length);
+            console.log('Usuarios con AuthUser:', uniqueUsers.filter(u => u.hasAuthUser).length);
+            console.log('Usuarios sin AuthUser:', uniqueUsers.filter(u => !u.hasAuthUser).length);
+            
+            setUsuarios(uniqueUsers);
         } catch (error) {
             console.error('Error al cargar usuarios:', error);
             setUsuarios([]); // Inicializar con array vacío en caso de error
@@ -150,6 +187,34 @@ export default function PazYSalvoManager() {
 
     const handlePageChange = (newPage) => {
         setPagination(prev => ({ ...prev, page: newPage }));
+    };
+
+    const handleDeleteClick = (pazYSalvo) => {
+        setPazYSalvoToDelete(pazYSalvo);
+        setShowDeleteModal(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!pazYSalvoToDelete) return;
+
+        setDeleteLoading(true);
+        try {
+            await pazYSalvoAPI.eliminar(pazYSalvoToDelete.id);
+            alertSuccess('Paz y Salvo eliminado exitosamente');
+            setShowDeleteModal(false);
+            setPazYSalvoToDelete(null);
+            loadPazYSalvoData(); // Recargar la lista
+        } catch (error) {
+            console.error('Error al eliminar Paz y Salvo:', error);
+            alertError('Error al eliminar el Paz y Salvo');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const handleDeleteCancel = () => {
+        setShowDeleteModal(false);
+        setPazYSalvoToDelete(null);
     };
 
     const getStatusIcon = (estado) => {
@@ -280,15 +345,26 @@ export default function PazYSalvoManager() {
                     ) : (
                         <div className="space-y-4">
                             {pazYSalvoList.map((pazYSalvo) => (
-                                <PazYSalvoCard
-                                    key={pazYSalvo.id}
-                                    pazYSalvo={pazYSalvo}
-                                    onViewDetail={handleViewDetail}
-                                    onDownloadPdf={handleDownloadPdf}
-                                    getStatusIcon={getStatusIcon}
-                                    getStatusColor={getStatusColor}
-                                    getStatusText={getStatusText}
-                                />
+                                <div key={pazYSalvo.id} className="relative">
+                                    <PazYSalvoCard
+                                        pazYSalvo={pazYSalvo}
+                                        onViewDetail={handleViewDetail}
+                                        onDownloadPdf={handleDownloadPdf}
+                                        getStatusIcon={getStatusIcon}
+                                        getStatusColor={getStatusColor}
+                                        getStatusText={getStatusText}
+                                    />
+                                    {/* Botón de eliminar para RRHH y Admin */}
+                                    {canDelete && (
+                                        <button
+                                            onClick={() => handleDeleteClick(pazYSalvo)}
+                                            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-600 transition-colors bg-white dark:bg-gray-800 rounded-full shadow-md hover:shadow-lg z-10"
+                                            title="Eliminar Paz y Salvo"
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     )}
@@ -339,6 +415,15 @@ export default function PazYSalvoManager() {
                     onRefresh={loadPazYSalvoData}
                 />
             )}
+
+            {/* Modal de eliminación */}
+            <PazYSalvoDeleteModal
+                isOpen={showDeleteModal}
+                onClose={handleDeleteCancel}
+                onConfirm={handleDeleteConfirm}
+                pazYSalvo={pazYSalvoToDelete}
+                loading={deleteLoading}
+            />
         </div>
     );
 }

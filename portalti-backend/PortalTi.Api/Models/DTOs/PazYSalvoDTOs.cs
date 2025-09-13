@@ -21,6 +21,9 @@ namespace PortalTi.Api.Models.DTOs
         // Jefe directo seleccionado por RRHH
         public int? JefeDirectoId { get; set; }
         
+        // Empresa del usuario (detectada automáticamente)
+        public string? Empresa { get; set; }
+        
         // Datos opcionales de firmas
         public List<FirmaData>? Firmas { get; set; }
         public List<ActivoData>? Activos { get; set; }

@@ -74,9 +74,13 @@ export default function PazYSalvoCard({
                         </p>
                     </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pazYSalvo.estado)}`}>
-                    {getStatusText(pazYSalvo.estado)}
-                </span>
+                <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pazYSalvo.estado)}`}>
+                        {getStatusText(pazYSalvo.estado)}
+                    </span>
+                    {/* Espacio reservado para el botón de eliminar */}
+                    <div className="w-8 h-8"></div>
+                </div>
             </div>
 
             {/* Información del empleado */}

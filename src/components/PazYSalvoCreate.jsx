@@ -1,10 +1,13 @@
 // src/components/PazYSalvoCreate.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, User, Calendar, FileText, Package, AlertTriangle } from 'lucide-react';
 import { pazYSalvoAPI } from '../services/api';
+import { API_BASE_URL } from '../config';
 import UserAutoComplete from './UserAutoComplete';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PazYSalvoCreate({ usuarios, onCreate, onClose }) {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         usuarioId: '',
         fechaSalida: new Date().toISOString().split('T')[0],
@@ -152,27 +155,8 @@ export default function PazYSalvoCreate({ usuarios, onCreate, onClose }) {
         try {
             setLoading(true);
 
-            // Si hay un jefe directo seleccionado, verificar si necesita ser creado
-            if (formData.jefeDirectoId) {
-                try {
-                    const jefeResponse = await fetch('/api/pazysalvoroles/create-jefe-directo', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        },
-                        body: JSON.stringify({ UsuarioId: parseInt(formData.jefeDirectoId) })
-                    });
-
-                    if (jefeResponse.ok) {
-                        const jefeData = await jefeResponse.json();
-                        console.log('Jefe directo creado/actualizado:', jefeData);
-                    }
-                } catch (jefeError) {
-                    console.warn('Error al crear jefe directo (continuando):', jefeError);
-                    // Continuar con la creación del Paz y Salvo aunque falle la creación del jefe directo
-                }
-            }
+            // La lógica de creación automática del jefe directo ahora está integrada en el servicio principal
+            // No necesitamos hacer una llamada separada aquí
 
             // Preparar datos para enviar al backend
             const dataToSend = {
@@ -182,7 +166,8 @@ export default function PazYSalvoCreate({ usuarios, onCreate, onClose }) {
                 observaciones: formData.observaciones || null,
                 jefeDirectoId: formData.jefeDirectoId ? parseInt(formData.jefeDirectoId) : null,
                 firmas: formData.firmas || [],
-                activos: formData.activos || []
+                activos: formData.activos || [],
+                empresa: user?.empresa || 'Vicsa' // Incluir empresa del usuario actual
             };
 
             await onCreate(dataToSend);
